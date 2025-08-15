@@ -16,38 +16,51 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 - Health reporting: WAL health exposed via CLI and API
 
 ## Quick start
+
 ```bash
-# Build
-zig build -Doptimize=ReleaseSafe
+# Build, init a fresh data dir, and start the DB (copy-paste)
+zig build -Doptimize=ReleaseSafe && \
+    zig-out/bin/nendb-production init ./data && \
+    zig-out/bin/nendb-production up ./data
+```
 
-# Initialize and start
-zig-out/bin/nendb-production init ./data
-zig-out/bin/nendb-production up ./data
+Then, in another terminal:
 
-# Status (text)
+```bash
+# Check status (text)
 zig-out/bin/nendb-production status ./data
 
-# Status (JSON) and fail CI if unhealthy
+# Or JSON (good for scripts/CI)
 zig-out/bin/nendb-production status ./data --json --fail-on-unhealthy
+```
 
+Common ops (anytime):
+
+```bash
 # Snapshot and restore
 zig-out/bin/nendb-production snapshot ./data
 zig-out/bin/nendb-production restore ./data
 
-# WAL check (auto-fix trailing partials)
+# WAL check (auto-fix trailing partial bytes)
 zig-out/bin/nendb-production check ./data
 
 # Compact (snapshot + delete completed segments)
 zig-out/bin/nendb-production compact ./data
 
-# Remove stale lock (after crash)
+# Remove stale lock (only if a crash left one behind)
 zig-out/bin/nendb-production force-unlock ./data
+```
 
-# Optional TCP server (port 5454)
-zig-out/bin/nendb-production serve
+Optional server mode:
 
-# Alternative: run without building first
-zig run src/main.zig -- up ./data
+```bash
+zig-out/bin/nendb-production serve  # listens on :5454
+```
+
+No build? Try it right away:
+
+```bash
+zig run src/main.zig -- init ./data && zig run src/main.zig -- up ./data
 ```
 
 ## Configuration
