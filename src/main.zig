@@ -3,6 +3,13 @@
 
 const std = @import("std");
 const nendb = @import("lib.zig");
+const posix = std.posix;
+
+var shutdown_flag: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
+fn on_signal(sig: c_int) callconv(.C) void {
+    _ = sig;
+    shutdown_flag.store(true, .release);
+}
 
 pub fn main() !void {
     std.debug.print("NenDB Production Start (TigerBeetle-style)\n", .{});
@@ -39,6 +46,9 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "compact")) {
             command = "compact";
             if (it.next()) |path| db_path = path;
+        } else if (std.mem.eql(u8, arg, "force-unlock")) {
+            command = "force-unlock";
+            if (it.next()) |path| db_path = path;
         } else {
             // Treat first arg as a path, default command remains 'up'
             db_path = arg;
@@ -47,7 +57,8 @@ pub fn main() !void {
     if (std.mem.eql(u8, command, "status")) {
         const GraphDB = @import("graphdb.zig").GraphDB;
         var db: GraphDB = undefined;
-        try GraphDB.open_inplace(&db, db_path);
+        // Read-only open so status can run while the writer holds the lock
+        try GraphDB.open_read_only(&db, db_path);
         defer db.deinit();
         const stats = db.get_stats();
         const next = std.process.args(); // quick flag scan for --json and --fail-on-unhealthy
@@ -62,7 +73,7 @@ pub fn main() !void {
             }
         }
         if (is_json) {
-            std.debug.print("{{\n  \"path\": \"{s}\",\n  \"memory\": {{\n    \"nodes\": {{\"used\": {d}, \"free\": {d}, \"capacity\": {d}}},\n    \"edges\": {{\"used\": {d}, \"free\": {d}, \"capacity\": {d}}},\n    \"embeddings\": {{\"used\": {d}, \"free\": {d}, \"capacity\": {d}}}\n  }},\n  \"wal\": {{\n    \"entries_written\": {d},\n    \"entries_replayed\": {d},\n    \"truncations\": {d},\n    \"bytes_written\": {d}\n  }},\n  \"wal_health\": {{\n    \"healthy\": {s},\n    \"io_error_count\": {d},\n    \"last_error_present\": {s},\n    \"closed\": {s},\n    \"has_header\": {s},\n    \"end_pos\": {d},\n    \"segment_entries\": {d},\n    \"segment_index\": {d}\n  }}\n}}\n", .{
+            std.debug.print("{{\n  \"path\": \"{s}\",\n  \"memory\": {{\n    \"nodes\": {{\"used\": {d}, \"free\": {d}, \"capacity\": {d}}},\n    \"edges\": {{\"used\": {d}, \"free\": {d}, \"capacity\": {d}}},\n    \"embeddings\": {{\"used\": {d}, \"free\": {d}, \"capacity\": {d}}}\n  }},\n  \"wal\": {{\n    \"entries_written\": {d},\n    \"entries_replayed\": {d},\n    \"truncations\": {d},\n    \"bytes_written\": {d}\n  }},\n  \"wal_health\": {{\n    \"healthy\": {s},\n    \"io_error_count\": {d},\n    \"last_error_present\": {s},\n    \"closed\": {s},\n    \"read_only\": {s},\n    \"has_header\": {s},\n    \"end_pos\": {d},\n    \"segment_entries\": {d},\n    \"segment_index\": {d}\n  }}\n}}\n", .{
                 db_path,
                 stats.memory.nodes.used,
                 stats.memory.nodes.free,
@@ -81,6 +92,7 @@ pub fn main() !void {
                 stats.wal_health.io_error_count,
                 if (stats.wal_health.last_error == null) "false" else "true",
                 if (stats.wal_health.closed) "true" else "false",
+                if (stats.wal_health.read_only) "true" else "false",
                 if (stats.wal_health.has_header) "true" else "false",
                 stats.wal_health.end_pos,
                 stats.wal_health.segment_entries,
@@ -92,10 +104,11 @@ pub fn main() !void {
             std.debug.print("  Edges: used={d} free={d} capacity={d}\n", .{ stats.memory.edges.used, stats.memory.edges.free, stats.memory.edges.capacity });
             std.debug.print("  Embeddings: used={d} free={d} capacity={d}\n", .{ stats.memory.embeddings.used, stats.memory.embeddings.free, stats.memory.embeddings.capacity });
             std.debug.print("  WAL: entries_written={d} entries_replayed={d} truncations={d} bytes_written={d}\n", .{ stats.wal.entries_written, stats.wal.entries_replayed, stats.wal.truncations, stats.wal.bytes_written });
-            std.debug.print("  WAL Health: healthy={} io_errors={} closed={} has_header={} end_pos={} seg_entries={} seg_index={}\n", .{
+            std.debug.print("  WAL Health: healthy={} io_errors={} closed={} read_only={} has_header={} end_pos={} seg_entries={} seg_index={}\n", .{
                 stats.wal_health.healthy,
                 stats.wal_health.io_error_count,
                 stats.wal_health.closed,
+                stats.wal_health.read_only,
                 stats.wal_health.has_header,
                 stats.wal_health.end_pos,
                 stats.wal_health.segment_entries,
@@ -171,6 +184,21 @@ pub fn main() !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "force-unlock")) {
+        // Best-effort removal of a stale lock file. Do not use if another writer is running.
+        var wal_path_buf: [256]u8 = undefined;
+        const wal_path = try std.fmt.bufPrint(&wal_path_buf, "{s}/nendb.wal.lock", .{db_path});
+        std.fs.cwd().deleteFile(wal_path) catch |e| switch (e) {
+            error.FileNotFound => {
+                std.debug.print("No lock file present at '{s}'.\n", .{wal_path});
+                return;
+            },
+            else => return e,
+        };
+        std.debug.print("Removed stale lock file: {s}\n", .{wal_path});
+        return;
+    }
+
     // Command is 'up' (or default). Start DB at user-specified or default path
     if (std.mem.eql(u8, command, "up")) {
         const GraphDB = @import("graphdb.zig").GraphDB;
@@ -205,14 +233,17 @@ pub fn main() !void {
         std.debug.print("NenDB started at '{s}'. Press Ctrl+C to exit.\n", .{db_path});
 
         // Graceful shutdown handling: wait for SIGINT/SIGTERM, then flush and snapshot
-        const posix = std.posix;
-        var mask = posix.empty_sigset;
-        try posix.sigaddset(&mask, posix.SIG.INT);
-        try posix.sigaddset(&mask, posix.SIG.TERM);
-        // Block signals and wait synchronously
-        _ = try posix.sigprocmask(posix.SIG.BLOCK, &mask, null);
-        var info: posix.siginfo_t = undefined;
-        _ = try posix.sigtimedwait(&mask, &info, null);
+        // Portable signal handling: register handlers and idle until signal flips the flag
+        var act = posix.Sigaction{
+            .handler = .{ .handler = on_signal },
+            .mask = posix.empty_sigset,
+            .flags = 0,
+        };
+        posix.sigaction(posix.SIG.INT, &act, null);
+        posix.sigaction(posix.SIG.TERM, &act, null);
+        while (!shutdown_flag.load(.acquire)) {
+            std.time.sleep(200 * std.time.ns_per_ms);
+        }
 
         // On signal: flush WAL, take a snapshot, and exit
         std.debug.print("\nShutting down gracefully...\n", .{});

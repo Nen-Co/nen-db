@@ -21,24 +21,33 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 zig build -Doptimize=ReleaseSafe
 
 # Initialize and start
-zig-out/bin/nendb init ./data
-zig-out/bin/nendb up ./data
+zig-out/bin/nendb-production init ./data
+zig-out/bin/nendb-production up ./data
 
 # Status (text)
-zig-out/bin/nendb status ./data
+zig-out/bin/nendb-production status ./data
 
 # Status (JSON) and fail CI if unhealthy
-zig-out/bin/nendb status ./data --json --fail-on-unhealthy
+zig-out/bin/nendb-production status ./data --json --fail-on-unhealthy
 
 # Snapshot and restore
-zig-out/bin/nendb snapshot ./data
-zig-out/bin/nendb restore ./data
+zig-out/bin/nendb-production snapshot ./data
+zig-out/bin/nendb-production restore ./data
 
 # WAL check (auto-fix trailing partials)
-zig-out/bin/nendb check ./data
+zig-out/bin/nendb-production check ./data
 
 # Compact (snapshot + delete completed segments)
-zig-out/bin/nendb compact ./data
+zig-out/bin/nendb-production compact ./data
+
+# Remove stale lock (after crash)
+zig-out/bin/nendb-production force-unlock ./data
+
+# Optional TCP server (port 5454)
+zig-out/bin/nendb-production serve
+
+# Alternative: run without building first
+zig run src/main.zig -- up ./data
 ```
 
 ## Configuration
