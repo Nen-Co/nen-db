@@ -69,6 +69,27 @@ Tip: add the build output to your PATH to call `nen` directly:
 export PATH="$PWD/zig-out/bin:$PATH"  # zsh/bash
 ```
 
+## Install (optional)
+
+User install (recommended, no sudo):
+
+```bash
+zig build -Doptimize=ReleaseSafe install-user
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && exec zsh
+```
+
+System install (requires permissions):
+
+```bash
+zig build -Doptimize=ReleaseSafe install-system  # may need: sudo zig build ...
+```
+
+After install, you can run the CLI anywhere:
+
+```bash
+nen status ./data
+```
+
 ## Configuration
 - Compile-time (see `nendb/src/constants.zig`):
     - memory.node_pool_size, edge_pool_size, embedding_pool_size

@@ -75,4 +75,25 @@ pub fn build(b: *std.Build) void {
     const run_bench = b.addRunArtifact(bench_exe);
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&run_bench.step);
+
+    // Simple installers for the short-name CLI
+    // User install: copies to $HOME/.local/bin (no sudo)
+    const install_user_cmd = b.addSystemCommand(&.{
+        "sh",
+        "-c",
+        "mkdir -p \"$HOME/.local/bin\" && cp -f zig-out/bin/nen \"$HOME/.local/bin/nen\"",
+    });
+    install_user_cmd.step.dependOn(b.getInstallStep());
+    const install_user_step = b.step("install-user", "Install 'nen' to $HOME/.local/bin");
+    install_user_step.dependOn(&install_user_cmd.step);
+
+    // System install: copies to /usr/local/bin (may require sudo)
+    const install_system_cmd = b.addSystemCommand(&.{
+        "sh",
+        "-c",
+        "install -m 0755 zig-out/bin/nen /usr/local/bin/nen",
+    });
+    install_system_cmd.step.dependOn(b.getInstallStep());
+    const install_system_step = b.step("install-system", "Install 'nen' to /usr/local/bin (may require sudo)");
+    install_system_step.dependOn(&install_system_cmd.step);
 }
