@@ -5,18 +5,26 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // TigerBeetle-style NenDB CLI (Production Version - No WAL)
+    // TigerBeetle-style NenDB CLI (Production Version)
     const exe = b.addExecutable(.{
         .name = "nendb-production",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-
     b.installArtifact(exe);
 
+    // Short-name CLI for ease of use: `nen <command>`
+    const nen_cli = b.addExecutable(.{
+        .name = "nen",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    b.installArtifact(nen_cli);
+
     // Run command for the debug executable
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(nen_cli);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);

@@ -20,47 +20,53 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 ```bash
 # Build, init a fresh data dir, and start the DB (copy-paste)
 zig build -Doptimize=ReleaseSafe && \
-    zig-out/bin/nendb-production init ./data && \
-    zig-out/bin/nendb-production up ./data
+    zig-out/bin/nen init ./data && \
+    zig-out/bin/nen up ./data
 ```
 
 Then, in another terminal:
 
 ```bash
 # Check status (text)
-zig-out/bin/nendb-production status ./data
+zig-out/bin/nen status ./data
 
 # Or JSON (good for scripts/CI)
-zig-out/bin/nendb-production status ./data --json --fail-on-unhealthy
+zig-out/bin/nen status ./data --json --fail-on-unhealthy
 ```
 
 Common ops (anytime):
 
 ```bash
 # Snapshot and restore
-zig-out/bin/nendb-production snapshot ./data
-zig-out/bin/nendb-production restore ./data
+zig-out/bin/nen snapshot ./data
+zig-out/bin/nen restore ./data
 
 # WAL check (auto-fix trailing partial bytes)
-zig-out/bin/nendb-production check ./data
+zig-out/bin/nen check ./data
 
 # Compact (snapshot + delete completed segments)
-zig-out/bin/nendb-production compact ./data
+zig-out/bin/nen compact ./data
 
 # Remove stale lock (only if a crash left one behind)
-zig-out/bin/nendb-production force-unlock ./data
+zig-out/bin/nen force-unlock ./data
 ```
 
 Optional server mode:
 
 ```bash
-zig-out/bin/nendb-production serve  # listens on :5454
+zig-out/bin/nen serve  # listens on :5454
 ```
 
 No build? Try it right away:
 
 ```bash
 zig run src/main.zig -- init ./data && zig run src/main.zig -- up ./data
+```
+
+Tip: add the build output to your PATH to call `nen` directly:
+
+```bash
+export PATH="$PWD/zig-out/bin:$PATH"  # zsh/bash
 ```
 
 ## Configuration
