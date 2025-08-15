@@ -1,0 +1,17 @@
+# Zig build artifacts
+zig-out/
+.zig-cache/
+
+# macOS
+.DS_Store
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Local data and WAL files (untracked runtime state)
+data/
+*.wal
+*.wal.lock
+*.snapshot
+*.bak
