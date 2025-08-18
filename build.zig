@@ -76,6 +76,18 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&run_bench.step);
 
+    // Real Performance Benchmark
+    const real_bench_exe = b.addExecutable(.{
+        .name = "nendb-real-bench",
+        .root_source_file = .{ .cwd_relative = "tests/real_benchmark.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const run_real_bench = b.addRunArtifact(real_bench_exe);
+    const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
+    real_bench_step.dependOn(&run_real_bench.step);
+
     // Simple installers for the short-name CLI
     // User install: copies to $HOME/.local/bin (no sudo)
     const install_user_cmd = b.addSystemCommand(&.{

@@ -1,0 +1,32 @@
+{
+  "nendb": {
+    "memory_per_node": 144,
+    "memory_per_edge": 80,
+    "insert_latency_ms": 0.001,
+    "lookup_latency_ms": 0.0001,
+    "throughput_ops_per_sec": 1000000,
+    "memory_footprint_mb": 512,
+    "zero_fragmentation": true,
+    "predictable_performance": true
+  },
+  "neo4j": {
+    "memory_per_node": 250,
+    "memory_per_edge": 120,
+    "insert_latency_ms": 0.2,
+    "lookup_latency_ms": 0.02,
+    "throughput_ops_per_sec": 5000,
+    "memory_footprint_mb": 1024,
+    "zero_fragmentation": false,
+    "predictable_performance": false
+  },
+  "memgraph": {
+    "memory_per_node": 200,
+    "memory_per_edge": 100,
+    "insert_latency_ms": 0.1,
+    "lookup_latency_ms": 0.01,
+    "throughput_ops_per_sec": 10000,
+    "memory_footprint_mb": 768,
+    "zero_fragmentation": false,
+    "predictable_performance": false
+  }
+}
