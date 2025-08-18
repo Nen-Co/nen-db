@@ -58,7 +58,7 @@ pub const NodePool = struct {
     const Self = @This();
 
     // Static allocation - no dynamic memory
-    nodes: [NODE_POOL_SIZE]Node align(CACHE_LINE_SIZE) = [_]Node{std.mem.zeroes(Node)} ** NODE_POOL_SIZE,
+    nodes: [NODE_POOL_SIZE]Node = [_]Node{std.mem.zeroes(Node)} ** NODE_POOL_SIZE,
     free_list: [NODE_POOL_SIZE]?u32 = [_]?u32{null} ** NODE_POOL_SIZE,
     next_free: u32 = 0,
     used_count: u32 = 0,
@@ -188,13 +188,14 @@ pub const NodePool = struct {
 pub const EdgePool = struct {
     const Self = @This();
 
-    edges: [EDGE_POOL_SIZE]Edge align(CACHE_LINE_SIZE) = [_]Edge{std.mem.zeroes(Edge)} ** EDGE_POOL_SIZE,
+    // Static allocation - no dynamic memory
+    edges: [EDGE_POOL_SIZE]Edge = [_]Edge{std.mem.zeroes(Edge)} ** EDGE_POOL_SIZE,
     free_list: [EDGE_POOL_SIZE]?u32 = [_]?u32{null} ** EDGE_POOL_SIZE,
     next_free: u32 = 0,
     used_count: u32 = 0,
 
-    // Hash table for edge lookups (by from->to pair)
-    hash_table: [EDGE_POOL_SIZE * 2]?u32 = [_]?u32{null} ** (EDGE_POOL_SIZE * 2),
+    // Hash table for O(1) lookups by ID (from -> to mapping)
+    hash_table: [EDGE_POOL_SIZE * 2]?u32 = [_]?u32{null} ** (EDGE_POOL_SIZE * 2), // 2x size for lower collision
 
     pub fn init() Self {
         var self = Self{};
@@ -279,7 +280,7 @@ pub const EdgePool = struct {
 pub const EmbeddingPool = struct {
     const Self = @This();
 
-    embeddings: [EMBEDDING_POOL_SIZE]Embedding align(CACHE_LINE_SIZE) = [_]Embedding{std.mem.zeroes(Embedding)} ** EMBEDDING_POOL_SIZE,
+    embeddings: [EMBEDDING_POOL_SIZE]Embedding = [_]Embedding{std.mem.zeroes(Embedding)} ** EMBEDDING_POOL_SIZE,
     free_list: [EMBEDDING_POOL_SIZE]?u32 = [_]?u32{null} ** EMBEDDING_POOL_SIZE,
     next_free: u32 = 0,
     used_count: u32 = 0,

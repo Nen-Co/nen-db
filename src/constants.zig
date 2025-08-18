@@ -105,6 +105,7 @@ pub const NenDBError = error{
     IOError,
     FileNotFound,
     PermissionDenied,
+    AlreadyLocked,
     
     // Memory errors
     OutOfMemory,

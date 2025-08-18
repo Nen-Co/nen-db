@@ -944,13 +944,35 @@ fn computeLockPath(wal_path: []const u8, out: *[256]u8) !usize {
 
 fn acquireLock(self: *Wal) !void {
     const lock_path = self.lock_path_buf[0..self.lock_path_len];
-    // Try to create exclusively; if it already exists, treat as AlreadyLocked
+    
+    // Check if lock file exists
+    if (std.fs.cwd().access(lock_path, .{})) {
+        // Lock file exists, try to read it to see if it's stale
+        const lock_file = std.fs.cwd().openFile(lock_path, .{ .mode = .read_only });
+        if (lock_file) |file| {
+            // Lock file is readable - database is already in use
+            file.close();
+            return error.AlreadyLocked;
+        } else |_| {
+            // If we can't read the lock file, it might be stale - try to remove it
+            std.fs.cwd().deleteFile(lock_path) catch {
+                return error.AlreadyLocked;
+            };
+            // Successfully removed stale lock, continue
+        }
+    } else |_| {
+        // Lock file doesn't exist, we can proceed
+    }
+    
+    // Try to create the lock file exclusively
     var f = std.fs.cwd().createFile(lock_path, .{ .read = true, .exclusive = true }) catch |e| switch (e) {
-        error.PathAlreadyExists => return error.AccessDenied,
+        error.PathAlreadyExists => return error.AlreadyLocked,
+        error.AccessDenied => return error.AlreadyLocked,
         else => return e,
     };
     defer f.close();
-    // best-effort: write marker for diagnostics (no PID dependency)
+    
+    // Write marker for diagnostics
     var w = f.writer();
     _ = w.writeAll("locked\n") catch {};
     _ = f.sync() catch {};

@@ -11,8 +11,43 @@ fn on_signal(sig: c_int) callconv(.C) void {
     shutdown_flag.store(true, .release);
 }
 
+fn print_help() void {
+    std.debug.print(
+        \\NenDB - Production-focused, static-memory graph store
+        \\
+        \\Usage: nen <command> [path]
+        \\
+        \\Commands:
+        \\  help                    Show this help message
+        \\  init <path>            Initialize a new NenDB at <path>
+        \\  up <path>              Start NenDB at <path> (default: current directory)
+        \\  status <path>          Show database status (default: current directory)
+        \\  snapshot <path>        Create a snapshot of database at <path>
+        \\  restore <path>         Restore database from snapshot at <path>
+        \\  check <path>           Check WAL health at <path>
+        \\  compact <path>         Compact WAL segments at <path>
+        \\  force-unlock <path>    Remove stale lock file at <path>
+        \\  serve                  Start TCP server on port 5454
+        \\
+        \\Options:
+        \\  --json                 Output status in JSON format
+        \\  --fail-on-unhealthy   Exit with error if WAL is unhealthy
+        \\
+        \\Examples:
+        \\  nen init ./data        # Initialize database in ./data directory
+        \\  nen up ./data          # Start database in ./data directory
+        \\  nen status ./data      # Check database status
+        \\  nen status --json      # Status in JSON format
+        \\
+        \\Environment Variables:
+        \\  NENDB_SYNC_EVERY      Sync every N operations (default: 100)
+        \\  NENDB_SEGMENT_SIZE    WAL segment size in bytes (default: 1MB)
+        \\
+    , .{});
+}
+
 pub fn main() !void {
-    std.debug.print("NenDB Production Start (TigerBeetle-style)\n", .{});
+    std.debug.print("NenDB Production Start\n", .{});
     std.debug.print("Version: 1.0.0 | Zig: {s}\n", .{@import("builtin").zig_version_string});
 
     // Start TCP server if requested
@@ -21,8 +56,12 @@ pub fn main() !void {
     _ = it.next(); // skip program name
     var db_path: []const u8 = ".";
     var command: []const u8 = "up"; // default command
+    
     if (it.next()) |arg| {
-        if (std.mem.eql(u8, arg, "serve")) {
+        if (std.mem.eql(u8, arg, "help") or std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+            print_help();
+            return;
+        } else if (std.mem.eql(u8, arg, "serve")) {
             try server.start_server(5454);
             return;
         } else if (std.mem.eql(u8, arg, "up")) {
@@ -54,6 +93,13 @@ pub fn main() !void {
             db_path = arg;
         }
     }
+
+    // Handle help command without database connection
+    if (std.mem.eql(u8, command, "help")) {
+        print_help();
+        return;
+    }
+
     if (std.mem.eql(u8, command, "status")) {
         const GraphDB = @import("graphdb.zig").GraphDB;
         var db: GraphDB = undefined;
