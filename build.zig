@@ -42,6 +42,13 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Monitoring module
+    const monitoring_mod = b.addModule("monitoring", .{
+        .root_source_file = .{ .cwd_relative = "src/monitoring/resource_monitor.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
     // Tests for production version
     const lib_unit_tests = b.addTest(.{
         .root_source_file = .{ .cwd_relative = "src/lib_v2.zig" },
@@ -61,6 +68,17 @@ pub fn build(b: *std.Build) void {
     });
     const run_graphdb_tests = b.addRunArtifact(graphdb_tests);
     test_step.dependOn(&run_graphdb_tests.step);
+
+    // Resource monitoring tests
+    const monitoring_tests = b.addTest(.{
+        .root_source_file = .{ .cwd_relative = "tests/test_resource_monitor.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    monitoring_tests.root_module.addImport("monitoring", monitoring_mod);
+    
+    const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
+    test_step.dependOn(&run_monitoring_tests.step);
 
     // Benchmarks (TigerBeetle-style)
     const bench_exe = b.addExecutable(.{
@@ -87,6 +105,19 @@ pub fn build(b: *std.Build) void {
     const run_real_bench = b.addRunArtifact(real_bench_exe);
     const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
     real_bench_step.dependOn(&run_real_bench.step);
+
+    // Resource Monitor Demo
+    const monitor_demo_exe = b.addExecutable(.{
+        .name = "nendb-monitor-demo",
+        .root_source_file = .{ .cwd_relative = "src/monitoring/demo.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    monitor_demo_exe.root_module.addImport("monitoring", monitoring_mod);
+
+    const run_monitor_demo = b.addRunArtifact(monitor_demo_exe);
+    const monitor_demo_step = b.step("monitor-demo", "Run resource monitoring demo");
+    monitor_demo_step.dependOn(&run_monitor_demo.step);
 
     // Simple installers for the short-name CLI
     // User install: copies to $HOME/.local/bin (no sudo)

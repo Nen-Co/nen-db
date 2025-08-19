@@ -1,0 +1,21 @@
+{
+  "memgraph": {
+    "single_create_ms": 0.2307154139271006,
+    "batch_create_ms": 0.19978979200823233,
+    "single_create_rate": 4334.344129759666,
+    "batch_create_rate": 5005.260729030616,
+    "environment": "Docker Container",
+    "memory_per_node": 200
+  },
+  "nendb": {
+    "single_create_ms": 0.003328,
+    "batch_create_ms": 0.003328,
+    "single_create_rate": 300480.76923076925,
+    "batch_create_rate": 300480.76923076925,
+    "environment": "Native macOS",
+    "memory_per_node": 144
+  },
+  "timestamp": "2025-08-18 18:59:24",
+  "comparison_type": "Docker Memgraph vs Native NenDB",
+  "environment_note": "Different environments may affect performance comparison"
+}

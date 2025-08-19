@@ -1,0 +1,20 @@
+{
+  "docker_issue": "Zig 0.14.1 download returns 404",
+  "current_setup": "Docker Memgraph vs Native NenDB",
+  "memgraph": {
+    "single_ms": 0.21444667829200625,
+    "batch_ms": 0.1875213339808397,
+    "environment": "Docker Container",
+    "throughput_single": 4663.163859494839,
+    "throughput_batch": 5332.726569138937
+  },
+  "nendb": {
+    "single_ms": 0.003328,
+    "batch_ms": 0.003328,
+    "environment": "Native macOS",
+    "throughput_single": 300480.76923076925,
+    "throughput_batch": 300480.76923076925
+  },
+  "timestamp": "2025-08-18 19:15:21",
+  "recommendation": "Acknowledge environment differences, focus on architectural advantages"
+}
