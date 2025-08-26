@@ -2,6 +2,9 @@
 
 Production-focused, static-memory graph store with crash-safe persistence and predictable performance.
 
+[![CI](https://img.shields.io/github/actions/workflow/status/Nen-Co/nendb/ci.yml?branch=main)](../../actions)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 ## Features (production-ready)
 - WAL with header/version, CRC per entry, and segment rotation
 - Tail scan and auto-truncate of trailing/partial or corrupt bytes
@@ -14,8 +17,29 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 - CLI for init/status/snapshot/restore/check/compact
 - Health reporting: WAL health exposed via CLI and API
 
-## Quick start
+## Quick install (prebuilt)
+Prebuilt binaries are published on GitHub Releases (Linux x86_64, macOS universal, Windows x86_64).
 
+### One-line (Linux/macOS)
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nen-Co/nendb/main/scripts/install.sh | sh
+# Then:
+nen status --help
+```
+This script:
+- Detects OS/arch
+- Downloads latest release asset + SHA256SUMS
+- Verifies checksum
+- Places `nen` into `$HOME/.local/bin` (creates if missing)
+
+### Manual download
+1. Visit: https://github.com/Nen-Co/nendb/releases
+2. Download appropriate archive: `nen-linux-x86_64.tar.gz`, `nen-macos-universal.tar.gz`, or `nen-windows-x86_64.zip`
+3. Verify checksum (SHA256SUMS file) and place binary on PATH.
+
+(If the latest release isn’t tagged yet, build from source below.)
+
+## Build from source
 ```bash
 # Build, init a fresh data dir, and start the DB (copy-paste)
 zig build -Doptimize=ReleaseSafe && \
