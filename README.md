@@ -4,6 +4,26 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Nen-Co/nendb/ci.yml?branch=main)](../../actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Issues](https://img.shields.io/github/issues/Nen-Co/nendb)](../../issues)
+[![Discussions](https://img.shields.io/github/discussions/Nen-Co/nendb)](../../discussions)
+
+> Status: early pre-release. Interfaces may change; durability features are the stabilization focus for v0.1.0.
+
+## Table of Contents
+- [Features (production-ready)](#features-production-ready)
+- [Quick install (prebuilt)](#quick-install-prebuilt)
+- [Build from source](#build-from-source)
+- [Common operations](#common-ops-anytime)
+- [Configuration](#configuration)
+- [Durability details](#durability-details)
+- [Health and operations](#health-and-operations)
+- [Limitations and expectations](#limitations-and-expectations)
+- [Tests](#tests)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Benchmarks](#benchmarks)
+- [License](#license)
 
 ## Features (production-ready)
 - WAL with header/version, CRC per entry, and segment rotation
@@ -20,6 +40,8 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 ## Quick install (prebuilt)
 Prebuilt binaries are published on GitHub Releases (Linux x86_64, macOS universal, Windows x86_64).
 
+If no release has been tagged yet, skip to [Build from source](#build-from-source).
+
 ### One-line (Linux/macOS)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nen-Co/nendb/main/scripts/install.sh | sh
@@ -32,10 +54,23 @@ This script:
 - Verifies checksum
 - Places `nen` into `$HOME/.local/bin` (creates if missing)
 
+### Windows (PowerShell)
+```powershell
+# Replace VERSION after first release (placeholder using latest tag API):
+$uri = Invoke-RestMethod https://api.github.com/repos/Nen-Co/nendb/releases/latest; \
+$asset = ($uri.assets | Where-Object { $_.name -like 'nen-windows-x86_64.zip' }).browser_download_url; \
+Invoke-WebRequest $asset -OutFile nen.zip; Expand-Archive nen.zip -DestinationPath .; \
+Move-Item nen-windows-x86_64.exe nen.exe; Write-Host 'Run: ./nen status ./data'
+```
+
 ### Manual download
 1. Visit: https://github.com/Nen-Co/nendb/releases
-2. Download appropriate archive: `nen-linux-x86_64.tar.gz`, `nen-macos-universal.tar.gz`, or `nen-windows-x86_64.zip`
-3. Verify checksum (SHA256SUMS file) and place binary on PATH.
+2. Download archive: `nen-linux-x86_64.tar.gz`, `nen-macos-universal.tar.gz`, or `nen-windows-x86_64.zip`
+3. Verify checksum (compare against `SHA256SUMS`):
+   ```bash
+   sha256sum -c SHA256SUMS | grep nen-linux-x86_64
+   ```
+4. Put `nen` on your PATH.
 
 (If the latest release isn’t tagged yet, build from source below.)
 
@@ -57,105 +92,98 @@ zig-out/bin/nen status ./data
 zig-out/bin/nen status ./data --json --fail-on-unhealthy
 ```
 
-Common ops (anytime):
-
+## Common ops (anytime):
 ```bash
-# Snapshot and restore
 zig-out/bin/nen snapshot ./data
 zig-out/bin/nen restore ./data
-
-# WAL check (auto-fix trailing partial bytes)
 zig-out/bin/nen check ./data
-
-# Compact (snapshot + delete completed segments)
 zig-out/bin/nen compact ./data
-
-# Remove stale lock (only if a crash left one behind)
 zig-out/bin/nen force-unlock ./data
 ```
 
 Optional server mode:
-
 ```bash
 zig-out/bin/nen serve  # listens on :5454
 ```
 
-No build? Try it right away:
-
+Quick try without a full build:
 ```bash
 zig run src/main.zig -- init ./data && zig run src/main.zig -- up ./data
 ```
 
-Tip: add the build output to your PATH to call `nen` directly:
-
+Add build output to PATH:
 ```bash
 export PATH="$PWD/zig-out/bin:$PATH"  # zsh/bash
 ```
 
 ## Install (optional)
-
-User install (recommended, no sudo):
-
+User install (no sudo):
 ```bash
 zig build -Doptimize=ReleaseSafe install-user
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && exec zsh
 ```
-
-System install (requires permissions):
-
+System install:
 ```bash
 zig build -Doptimize=ReleaseSafe install-system  # may need: sudo zig build ...
 ```
 
-After install, you can run the CLI anywhere:
-
-```bash
-nen status ./data
-```
-
 ## Configuration
 - Compile-time (see `nendb/src/constants.zig`):
-    - memory.node_pool_size, edge_pool_size, embedding_pool_size
-    - storage.wal_segment_size, storage.snapshot_interval
+  - memory.node_pool_size, edge_pool_size, embedding_pool_size
+  - storage.wal_segment_size, storage.snapshot_interval
 - Environment overrides:
-    - NENDB_SYNC_EVERY (batch fsync interval)
-    - NENDB_SEGMENT_SIZE (bytes)
+  - NENDB_SYNC_EVERY (batch fsync interval)
+  - NENDB_SEGMENT_SIZE (bytes)
 
 ## Durability details
 - Appends are O(1) using in-memory tail; correctness from tail-scan on open/rotate
 - Rotation fsyncs file and directory before/after rename; header written and fsynced on new active WAL
 - Snapshot is atomic (temp file → fsync → rename → dir fsync); then WAL is truncated to header
-- Restore prefers `nendb.snapshot`; on CRC/length failure, falls back to `nendb.snapshot.bak`; then replays WAL after LSN
+- Restore prefers `nendb.snapshot`; on CRC/length failure, falls back to `.bak`; then replays WAL after LSN
 - On any CRC mismatch during replay (segments or active), truncates to last good boundary
 
 ## Health and operations
-- Single-writer lock: `<path>/nendb.wal.lock` ensures one writer per DB path
-- Health: `wal_health` includes healthy flag, io_error_count, last_error presence, end_pos, segment stats
-- Use `status --fail-on-unhealthy` to integrate with monitors/CI
-- Recommended: place `./data` on a local filesystem with fsync durability
+- Single-writer lock: `<path>/nendb.wal.lock`
+- `wal_health` includes healthy flag, io_error_count, last_error, end_pos, segment stats
+- Use `status --fail-on-unhealthy` for automation / monitoring hooks
 
 ## Limitations and expectations
 - Single-writer process model (readers are lock-free)
-- No replication yet; take regular snapshots and test restores
-- Concurrency: writes are mutex-serialized inside the process
+- No replication yet; rely on snapshots + external backup
+- Concurrency: writes serialized by mutex
+- Memory sizes fixed at start (static pools)
 
 ## Tests
 ```bash
-# From repository root
 zig build test
 ```
 Includes tests for WAL persistence, rotation/replay, tail truncation recovery, snapshot .bak fallback, and single-writer lock.
 
-## Production checklist
-- [x] ReleaseSafe or ReleaseFast build
-- [x] Single writer per DB path (lock file)
-- [x] Local durable filesystem (fsync honored)
-- [x] Status checks wired to monitoring (`--fail-on-unhealthy`)
-- [x] Snapshot schedule set appropriately (`storage.snapshot_interval`)
-- [x] Restore drills validated (snapshot + WAL)
+## Architecture
+High-level design, lifecycle, and recovery flow: see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Roadmap
+Short-term:
+- v0.1.0: stabilize WAL + snapshot invariants, add crash-injection tests
+- v0.2.x: metrics endpoint, improved JSON status schema versioning
+- v0.3.x: replication design (log shipping prototype), secondary index groundwork
+
+## Contributing
+1. Fork & clone
+2. `zig build test`
+3. Make changes + add tests
+4. Open PR (auto-templates included)
+
+Looking for first contributions? See issues labeled `good first issue` or propose improvements in Discussions.
 
 ## Benchmarks
-The benchmark suite and large benchmark artifacts have been temporarily removed from this repository to keep the v0 release focused and lightweight. If you need performance numbers, open an issue or check the `bench` branch.
+Benchmarks are gated behind `-Dbench`:
+```bash
+zig build -Dbench bench
+```
+(Expect synthetic placeholders; realistic suite in progress. Artifacts removed to keep repo lean.)
 
 ## License
 Apache-2.0
+
+---
+Security / Disclosure: For potential data-loss or integrity issues, please open a private security advisory instead of a public issue.
