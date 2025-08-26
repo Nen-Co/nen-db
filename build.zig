@@ -14,9 +14,9 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(exe);
 
-    // Short-name CLI for ease of use: `nen <command>`
+    // Dedicated NenDB CLI binary (renamed from generic 'nen' to avoid collision with unified multi-product CLI)
     const nen_cli = b.addExecutable(.{
-        .name = "nen",
+        .name = "nendb",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -76,7 +76,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     monitoring_tests.root_module.addImport("monitoring", monitoring_mod);
-    
+
     const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
     test_step.dependOn(&run_monitoring_tests.step);
 
@@ -139,4 +139,21 @@ pub fn build(b: *std.Build) void {
     install_system_cmd.step.dependOn(b.getInstallStep());
     const install_system_step = b.step("install-system", "Install 'nen' to /usr/local/bin (may require sudo)");
     install_system_step.dependOn(&install_system_cmd.step);
+
+    // Optional umbrella CLI (-Dumbrella)
+    const umbrella = b.option(bool, "umbrella", "Build unified 'nen' umbrella CLI") orelse false;
+    if (umbrella) {
+    const graph_mod = b.addModule("nendb_graph", .{ .root_source_file = .{ .cwd_relative = "src/graphdb.zig" }, .target = target, .optimize = optimize });
+    const nen_cli_exe = b.addExecutable(.{
+            .name = "nen",
+            .root_source_file = .{ .cwd_relative = "nen-cli/src/main.zig" },
+            .target = target,
+            .optimize = optimize,
+        });
+    nen_cli_exe.root_module.addImport("nendb_graph", graph_mod);
+        b.installArtifact(nen_cli_exe);
+        const run_umbrella = b.addRunArtifact(nen_cli_exe);
+        const umbrella_step = b.step("nen", "Run unified nen CLI");
+        umbrella_step.dependOn(&run_umbrella.step);
+    }
 }
