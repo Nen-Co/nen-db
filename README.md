@@ -131,5 +131,8 @@ Includes tests for WAL persistence, rotation/replay, tail truncation recovery, s
 - [x] Snapshot schedule set appropriately (`storage.snapshot_interval`)
 - [x] Restore drills validated (snapshot + WAL)
 
+## Benchmarks
+The benchmark suite and large benchmark artifacts have been temporarily removed from this repository to keep the v0 release focused and lightweight. If you need performance numbers, open an issue or check the `bench` branch.
+
 ## License
 Apache-2.0
