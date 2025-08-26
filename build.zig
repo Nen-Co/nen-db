@@ -80,31 +80,31 @@ pub fn build(b: *std.Build) void {
     const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
     test_step.dependOn(&run_monitoring_tests.step);
 
-    // Benchmarks (TigerBeetle-style)
-    const bench_exe = b.addExecutable(.{
-        .name = "nendb-bench",
-        .root_source_file = .{ .cwd_relative = "tests/benchmark.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
+    // Optional benchmarks (gated by -Dbench)
+    const bench_enabled = b.option(bool, "bench", "Enable building/running benchmark executables") orelse false;
+    if (bench_enabled) {
+        const bench_exe = b.addExecutable(.{
+            .name = "nendb-bench",
+            .root_source_file = .{ .cwd_relative = "tests/benchmark.zig" },
+            .target = target,
+            .optimize = optimize,
+        });
+        bench_exe.root_module.addImport("nendb", lib_mod);
+        const run_bench = b.addRunArtifact(bench_exe);
+        const bench_step = b.step("bench", "Run synthetic benchmarks");
+        bench_step.dependOn(&run_bench.step);
 
-    bench_exe.root_module.addImport("nendb", lib_mod);
-
-    const run_bench = b.addRunArtifact(bench_exe);
-    const bench_step = b.step("bench", "Run benchmarks");
-    bench_step.dependOn(&run_bench.step);
-
-    // Real Performance Benchmark
-    const real_bench_exe = b.addExecutable(.{
-        .name = "nendb-real-bench",
-        .root_source_file = .{ .cwd_relative = "tests/real_benchmark.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_real_bench = b.addRunArtifact(real_bench_exe);
-    const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
-    real_bench_step.dependOn(&run_real_bench.step);
+        // Real performance benchmark (still synthetic placeholder)
+        const real_bench_exe = b.addExecutable(.{
+            .name = "nendb-real-bench",
+            .root_source_file = .{ .cwd_relative = "tests/real_benchmark.zig" },
+            .target = target,
+            .optimize = optimize,
+        });
+        const run_real_bench = b.addRunArtifact(real_bench_exe);
+        const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
+        real_bench_step.dependOn(&run_real_bench.step);
+    }
 
     // Resource Monitor Demo
     const monitor_demo_exe = b.addExecutable(.{
