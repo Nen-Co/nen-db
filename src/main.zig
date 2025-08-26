@@ -47,8 +47,16 @@ fn print_help() void {
 }
 
 pub fn main() !void {
-    std.debug.print("NenDB Production Start\n", .{});
-    std.debug.print("Version: 0.0.1 (Beta Pre-release) | Zig: {s}\n", .{@import("builtin").zig_version_string});
+    const style = @import("cli/style.zig").Style.detect();
+    const stdout = std.io.getStdOut().writer();
+    if (style.use_color) {
+        try stdout.writeAll("\x1b[1;38;5;81m┌──────────────────────────────────────────┐\n");
+        try stdout.writeAll("│      ⚡ NenDB • Graph Engine Core ⚡      │\n");
+        try stdout.writeAll("└──────────────────────────────────────────┘\x1b[0m\n");
+    } else {
+        try stdout.writeAll("NenDB - Graph Engine Core\n");
+    }
+    try stdout.print("Version: 0.0.1 (Beta Pre-release) | Zig: {s}\n", .{@import("builtin").zig_version_string});
 
     // Start TCP server if requested
     const server = @import("api/server.zig");
@@ -63,6 +71,23 @@ pub fn main() !void {
             return;
         } else if (std.mem.eql(u8, arg, "serve")) {
             try server.start_server(5454);
+            return;
+        } else if (std.mem.eql(u8, arg, "shell")) {
+            // Simple interactive shell (placeholder). Future: multi-product unified CLI.
+            try stdout.writeAll("Entering interactive shell. Type 'exit' to quit.\n");
+            var buf: [512]u8 = undefined;
+            const stdin = std.io.getStdIn().reader();
+            while (true) {
+                try stdout.writeAll("nen> ");
+                const line = stdin.readUntilDelimiterOrEof(&buf, '\n') catch |e| switch (e) { error.StreamTooLong => { try stdout.writeAll("(line too long)\n"); continue; }, else => break };
+                if (line) |ln| {
+                    const trimmed = std.mem.trim(u8, ln, " \t\r");
+                    if (trimmed.len == 0) continue;
+                    if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) break;
+                    // For now just echo; later parse Cypher or meta-commands.
+                    try stdout.print("(echo) {s}\n", .{trimmed});
+                } else break;
+            }
             return;
         } else if (std.mem.eql(u8, arg, "up")) {
             command = "up";
