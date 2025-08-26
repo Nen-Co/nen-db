@@ -16,14 +16,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Zig
-        uses: ziglang/setup-zig@v0.2
+        uses: ziglang/setup-zig@v0.4
         with:
-          version: '0.12.0'
+          version: '0.14.1'
 
-      - name: Verify Zig
+      - name: Verify Zig + workspace
         run: |
           set -euo pipefail
+          set -x
           zig version
+          echo "-- ls repo --"
+          ls -la
+          echo "-- ls nendb src --"
+          ls -la src || true
+          echo "-- env --"
+          env | sort
 
       - name: Run Zig tests
         run: |
