@@ -9,27 +9,22 @@ on:
 jobs:
   zig-test-build:
     name: Zig test & build
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Zig 0.14.1 (manual)
-        run: |
-          set -euo pipefail
-          set -x
-          ZIG_VER=0.14.1
-          ARCH=linux-x86_64
-          TMPDIR=$(mktemp -d)
-          URL="https://ziglang.org/download/${ZIG_VER}/zig-${ARCH}-${ZIG_VER}.tar.xz"
-          echo "Downloading $URL"
-          curl -fsSL "$URL" -o "$TMPDIR/zig.tar.xz"
-          tar -xJf "$TMPDIR/zig.tar.xz" -C "$TMPDIR"
-          echo "Adding Zig to PATH via GITHUB_PATH"
-          echo "$TMPDIR/zig-${ARCH}-${ZIG_VER}" >> "$GITHUB_PATH"
-          echo "Zig install dir:"
-          ls -la "$TMPDIR/zig-${ARCH}-${ZIG_VER}"
+      - name: Setup Zig 0.14.1
+        uses: ziglang/setup-zig@v0.4
+        with:
+          version: 0.14.1
 
       - name: Verify Zig + workspace
         run: |
@@ -38,48 +33,24 @@ jobs:
           zig version
           echo "-- ls repo --"
           ls -la
-          echo "-- ls nendb src --"
+          echo "-- ls src --"
           ls -la src || true
-          echo "-- env --"
-          env | sort
 
-      - name: Run Zig tests
+      - name: Run tests (build.zig test step)
         run: |
           set -euo pipefail
-          set -x
-          echo "Running tests in tests/ if present"
-          if [ -d tests ]; then
-            for f in tests/*.zig; do
-              if [ -f "$f" ]; then
-                echo "==> zig test $f"
-                zig test "$f"
-              fi
-            done
-          fi
-
-          # Run main module-level tests explicitly (avoid running non-test modules)
-          if [ -f src/graphdb.zig ]; then
-            echo "==> zig test src/graphdb.zig"
-            zig test src/graphdb.zig
-          fi
+          zig build test -Doptimize=Debug
 
       - name: Build release binary
         run: |
           set -euo pipefail
-          # Prefer build.zig if present
-          if [ -f build.zig ]; then
-            zig build -Drelease-safe
-          else
-            # Try a simple top-level build invocation
-            zig build -Drelease-safe || true
-          fi
+          zig build -Drelease-safe
 
-      - name: Upload build artifact (if present)
-        if: always()
+      - name: Upload build artifact (Linux only)
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: nendb-build
           path: |
             zig-out/bin
             zig-out
-            /tmp
