@@ -9,10 +9,8 @@ on:
 jobs:
   zig-test-build:
     name: Zig test & build
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    # Temporarily restrict to Linux until cross-platform build issues (resource monitor, etc.) are resolved.
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -46,8 +44,7 @@ jobs:
           set -euo pipefail
           zig build -Drelease-safe
 
-      - name: Upload build artifact (Linux only)
-        if: matrix.os == 'ubuntu-latest'
+  - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: nendb-build

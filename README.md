@@ -1,4 +1,3 @@
-
 # NenDB (GraphDB)
 
 Production-focused, static-memory graph store with crash-safe persistence and predictable performance.
@@ -118,8 +117,8 @@ nen status ./data
 
 ## Tests
 ```bash
-# From repo root
-zig test nendb/src/graphdb.zig
+# From repository root
+zig build test
 ```
 Includes tests for WAL persistence, rotation/replay, tail truncation recovery, snapshot .bak fallback, and single-writer lock.
 
