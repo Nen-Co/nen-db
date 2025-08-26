@@ -48,7 +48,7 @@ fn print_help() void {
 
 pub fn main() !void {
     std.debug.print("NenDB Production Start\n", .{});
-    std.debug.print("Version: 1.0.0 | Zig: {s}\n", .{@import("builtin").zig_version_string});
+    std.debug.print("Version: 0.0.1 (Beta Pre-release) | Zig: {s}\n", .{@import("builtin").zig_version_string});
 
     // Start TCP server if requested
     const server = @import("api/server.zig");
@@ -56,7 +56,7 @@ pub fn main() !void {
     _ = it.next(); // skip program name
     var db_path: []const u8 = ".";
     var command: []const u8 = "up"; // default command
-    
+
     if (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "help") or std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
             print_help();

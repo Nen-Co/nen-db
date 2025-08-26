@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    name: Build and publish release artifacts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: ziglang/setup-zig@v0.2
+        with:
+          version: '0.12.0'
+
+      - name: Build for Linux (x86_64)
+        run: |
+          set -euo pipefail
+          zig build -Drelease-safe
+          mkdir -p release
+          if [ -f zig-out/bin/nendb ]; then
+            cp zig-out/bin/nendb release/nendb-linux-x86_64
+            tar -czf release/nendb-linux-x86_64.tar.gz -C release nendb-linux-x86_64
+          fi
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

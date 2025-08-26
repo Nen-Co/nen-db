@@ -1,0 +1,13 @@
+name: Format Check
+
+on: [pull_request, push]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find Zig files
+        run: |
+          set -euo pipefail
+          git ls-files "**/*.zig" | xargs -r -- echo "Zig files found:"

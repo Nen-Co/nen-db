@@ -132,4 +132,4 @@ Includes tests for WAL persistence, rotation/replay, tail truncation recovery, s
 - [x] Restore drills validated (snapshot + WAL)
 
 ## License
-MIT
+Apache-2.0

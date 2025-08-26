@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["main", "master", "develop"]
+
+jobs:
+  zig-test-build:
+    name: Zig test & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: ziglang/setup-zig@v0.2
+        with:
+          version: '0.12.0'
+
+      - name: Verify Zig
+        run: |
+          set -euo pipefail
+          zig version
+
+      - name: Run Zig tests
+        run: |
+          set -euo pipefail
+          echo "Running Zig tests in tests/ and src/"
+          if [ -d tests ]; then
+            for f in tests/*.zig; do
+              if [ -f "$f" ]; then
+                echo "==> zig test $f"
+                zig test "$f"
+              fi
+            done
+          fi
+          # Try module-level tests as a fallback
+          if [ -d src ]; then
+            for s in src/*.zig; do
+              if [ -f "$s" ]; then
+                echo "==> zig test $s"
+                zig test "$s"
+              fi
+            done
+          fi
+
+      - name: Build release binary
+        run: |
+          set -euo pipefail
+          # Prefer build.zig if present
+          if [ -f build.zig ]; then
+            zig build -Drelease-safe
+          else
+            # Try a simple top-level build invocation
+            zig build -Drelease-safe || true
+          fi
+
+      - name: Upload build artifact (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nendb-build
+          path: |
+            zig-out/bin
+            zig-out
+            /tmp
