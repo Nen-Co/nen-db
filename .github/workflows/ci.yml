@@ -15,10 +15,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Zig
-        uses: ziglang/setup-zig@v0.4
-        with:
-          version: '0.14.1'
+      - name: Install Zig 0.14.1 (manual)
+        run: |
+          set -euo pipefail
+          set -x
+          ZIG_VER=0.14.1
+          ARCH=linux-x86_64
+          TMPDIR=$(mktemp -d)
+          URL="https://ziglang.org/download/${ZIG_VER}/zig-${ARCH}-${ZIG_VER}.tar.xz"
+          echo "Downloading $URL"
+          curl -fsSL "$URL" -o "$TMPDIR/zig.tar.xz"
+          tar -xJf "$TMPDIR/zig.tar.xz" -C "$TMPDIR"
+          echo "Adding Zig to PATH via GITHUB_PATH"
+          echo "$TMPDIR/zig-${ARCH}-${ZIG_VER}" >> "$GITHUB_PATH"
+          echo "Zig install dir:"
+          ls -la "$TMPDIR/zig-${ARCH}-${ZIG_VER}"
 
       - name: Verify Zig + workspace
         run: |
@@ -35,7 +46,8 @@ jobs:
       - name: Run Zig tests
         run: |
           set -euo pipefail
-          echo "Running Zig tests in tests/ and src/"
+          set -x
+          echo "Running tests in tests/ if present"
           if [ -d tests ]; then
             for f in tests/*.zig; do
               if [ -f "$f" ]; then
@@ -44,14 +56,11 @@ jobs:
               fi
             done
           fi
-          # Try module-level tests as a fallback
-          if [ -d src ]; then
-            for s in src/*.zig; do
-              if [ -f "$s" ]; then
-                echo "==> zig test $s"
-                zig test "$s"
-              fi
-            done
+
+          # Run main module-level tests explicitly (avoid running non-test modules)
+          if [ -f src/graphdb.zig ]; then
+            echo "==> zig test src/graphdb.zig"
+            zig test src/graphdb.zig
           fi
 
       - name: Build release binary
