@@ -16,10 +16,9 @@ jobs:
         shell: bash
 
     steps:
-      - name: Checkout repository (with submodules)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Setup Zig 0.14.1
