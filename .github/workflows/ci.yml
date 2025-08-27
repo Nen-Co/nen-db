@@ -42,7 +42,7 @@ jobs:
       - name: Build release binary
         run: |
           set -euo pipefail
-          zig build -Drelease-safe
+          zig build --release=safe
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
