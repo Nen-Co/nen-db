@@ -11,7 +11,7 @@ jobs:
       - name: Find Zig files
         run: |
           set -euo pipefail
-          git ls-files "**/*.zig" | xargs -r -- echo "Zig files found:"
+          git ls-files "**/*.zig" | xargs -r echo "Zig files found:"
       - name: Check Zig formatting
         run: |
           set -euo pipefail

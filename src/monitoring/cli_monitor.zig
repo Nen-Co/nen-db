@@ -11,6 +11,7 @@ pub const MonitorCommand = struct {
     output_format: OutputFormat,
     refresh_interval: u32, // seconds
     max_iterations: ?u32,
+    header_printed: bool = false,
     
     pub const OutputFormat = enum {
         human,
@@ -120,10 +121,9 @@ pub const MonitorCommand = struct {
         const stdout = std.io.getStdOut().writer();
         
         // CSV header (only on first iteration)
-        static var header_printed: bool = false;
-        if (!header_printed) {
+        if (!self.header_printed) {
             try stdout.writeAll("timestamp,cpu_percent,memory_rss_mb,memory_virtual_mb,nodes,edges,ops_per_sec,latency_ms\n");
-            header_printed = true;
+            self.header_printed = true;
         }
         
         // CSV data row
