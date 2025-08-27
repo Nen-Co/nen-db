@@ -92,6 +92,16 @@ pub fn build(b: *std.Build) void {
     const run_query_tests = b.addRunArtifact(query_tests);
     test_step.dependOn(&run_query_tests.step);
 
+    // New Cypher parser tests
+    const query_tests_new = b.addTest(.{
+        .root_source_file = .{ .cwd_relative = "tests/test_cypher_parser_new.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    query_tests_new.root_module.addAnonymousImport("query", .{ .root_source_file = .{ .cwd_relative = "src/query/query.zig" } });
+    const run_query_tests_new = b.addRunArtifact(query_tests_new);
+    test_step.dependOn(&run_query_tests_new.step);
+
     // Optional benchmarks (gated by -Dbench)
     const bench_enabled = b.option(bool, "bench", "Enable building/running benchmark executables") orelse false;
     if (bench_enabled) {

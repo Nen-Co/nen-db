@@ -10,10 +10,6 @@ pub const Style = struct {
         return Style{ .use_color = is_tty };
     }
 
-    fn wrap(self: Style, code: []const u8, text: []const u8) []const u8 {
-        return if (self.use_color) text else text; // placeholder no alloc
-    }
-
     pub fn c(self: Style, code: []const u8, text: []const u8, writer: anytype) !void {
         if (self.use_color) try writer.print("\x1b[{s}m{s}\x1b[0m", .{ code, text }) else try writer.print("{s}", .{text});
     }

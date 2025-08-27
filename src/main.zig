@@ -90,8 +90,15 @@ pub fn main() !void {
                     const trimmed = std.mem.trim(u8, ln, " \t\r");
                     if (trimmed.len == 0) continue;
                     if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) break;
-                    // For now just echo; later parse Cypher or meta-commands.
-                    try stdout.print("(echo) {s}\n", .{trimmed});
+                    // Parse with new Cypher parser and echo minimal AST-success signal
+                    const q = @import("query/query.zig");
+                    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+                    defer _ = gpa.deinit();
+                    if (q.parse_cypher(trimmed, gpa.allocator())) |_| {
+                        try stdout.writeAll("(ok) parsed\n");
+                    } else |e| {
+                        try stdout.print("(parse error) {}\n", .{e});
+                    }
                 } else break;
             }
             return;
