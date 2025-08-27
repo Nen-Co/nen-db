@@ -6,13 +6,25 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (with submodules)
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Setup Zig 0.14.1
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.1
       - name: Find Zig files
         run: |
           set -euo pipefail
-          git ls-files "**/*.zig" | xargs -r echo "Zig files found:"
+          git ls-files '*.zig' | sed 's/^/ - /'
       - name: Check Zig formatting
         run: |
           set -euo pipefail
-          git ls-files "**/*.zig" | xargs -r zig fmt --check
+          files=$(git ls-files '*.zig')
+          if [ -n "$files" ]; then
+            echo "$files" | xargs -n 50 zig fmt --check
+          else
+            echo "No Zig files to check.";
+          fi
