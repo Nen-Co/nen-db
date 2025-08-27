@@ -1,0 +1,6 @@
+[submodule "nendb"]
+	path = nendb
+	url = https://github.com/ng-nen/nendb.git
+[submodule "nencache"]
+	path = nencache
+	url = https://github.com/ng-nen/nencache.git
