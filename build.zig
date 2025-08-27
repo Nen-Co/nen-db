@@ -38,21 +38,21 @@ pub fn build(b: *std.Build) void {
     // Library module for use by other projects (TigerBeetle-style)
     // Primary library module now references legacy consolidated lib.zig after cleanup
     const lib_mod = b.addModule("nendb", .{
-        .root_source_file = .{ .cwd_relative = "src/lib.zig" },
+        .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     // Monitoring module
     const monitoring_mod = b.addModule("monitoring", .{
-        .root_source_file = .{ .cwd_relative = "src/monitoring/resource_monitor.zig" },
+        .root_source_file = b.path("src/monitoring/resource_monitor.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     // Tests for production version
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = .{ .cwd_relative = "src/lib.zig" },
+        .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
 
     // Also run GraphDB tests
     const graphdb_tests = b.addTest(.{
-        .root_source_file = .{ .cwd_relative = "src/graphdb.zig" },
+        .root_source_file = b.path("src/graphdb.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -72,7 +72,7 @@ pub fn build(b: *std.Build) void {
 
     // Resource monitoring tests
     const monitoring_tests = b.addTest(.{
-        .root_source_file = .{ .cwd_relative = "tests/test_resource_monitor.zig" },
+        .root_source_file = b.path("tests/test_resource_monitor.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -83,22 +83,22 @@ pub fn build(b: *std.Build) void {
 
     // Cypher parser tests (query language subset)
     const query_tests = b.addTest(.{
-        .root_source_file = .{ .cwd_relative = "tests/test_cypher_parser.zig" },
+        .root_source_file = b.path("tests/test_cypher_parser.zig"),
         .target = target,
         .optimize = optimize,
     });
     // Expose the query module root path for direct import
-    query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = .{ .cwd_relative = "src/query/query.zig" } });
+    query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     const run_query_tests = b.addRunArtifact(query_tests);
     test_step.dependOn(&run_query_tests.step);
 
     // New Cypher parser tests
     const query_tests_new = b.addTest(.{
-        .root_source_file = .{ .cwd_relative = "tests/test_cypher_parser_new.zig" },
+        .root_source_file = b.path("tests/test_cypher_parser_new.zig"),
         .target = target,
         .optimize = optimize,
     });
-    query_tests_new.root_module.addAnonymousImport("query", .{ .root_source_file = .{ .cwd_relative = "src/query/query.zig" } });
+    query_tests_new.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     const run_query_tests_new = b.addRunArtifact(query_tests_new);
     test_step.dependOn(&run_query_tests_new.step);
 
@@ -107,7 +107,7 @@ pub fn build(b: *std.Build) void {
     if (bench_enabled) {
         const bench_exe = b.addExecutable(.{
             .name = "nendb-bench",
-            .root_source_file = .{ .cwd_relative = "tests/benchmark.zig" },
+            .root_source_file = b.path("tests/benchmark.zig"),
             .target = target,
             .optimize = optimize,
         });
@@ -119,7 +119,7 @@ pub fn build(b: *std.Build) void {
         // Real performance benchmark (still synthetic placeholder)
         const real_bench_exe = b.addExecutable(.{
             .name = "nendb-real-bench",
-            .root_source_file = .{ .cwd_relative = "tests/real_benchmark.zig" },
+            .root_source_file = b.path("tests/real_benchmark.zig"),
             .target = target,
             .optimize = optimize,
         });
@@ -131,7 +131,7 @@ pub fn build(b: *std.Build) void {
     // Resource Monitor Demo
     const monitor_demo_exe = b.addExecutable(.{
         .name = "nendb-monitor-demo",
-        .root_source_file = .{ .cwd_relative = "src/monitoring/demo.zig" },
+        .root_source_file = b.path("src/monitoring/demo.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -165,10 +165,10 @@ pub fn build(b: *std.Build) void {
     // Optional umbrella CLI (-Dumbrella)
     const umbrella = b.option(bool, "umbrella", "Build unified 'nen' umbrella CLI") orelse false;
     if (umbrella) {
-        const graph_mod = b.addModule("nendb_graph", .{ .root_source_file = .{ .cwd_relative = "src/graphdb.zig" }, .target = target, .optimize = optimize });
+        const graph_mod = b.addModule("nendb_graph", .{ .root_source_file = b.path("src/graphdb.zig"), .target = target, .optimize = optimize });
         const nen_cli_exe = b.addExecutable(.{
             .name = "nen",
-            .root_source_file = .{ .cwd_relative = "nen-cli/src/main.zig" },
+            .root_source_file = b.path("nen-cli/src/main.zig"),
             .target = target,
             .optimize = optimize,
         });
