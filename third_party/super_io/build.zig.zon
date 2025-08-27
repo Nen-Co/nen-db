@@ -7,10 +7,7 @@
 
     .fingerprint = 0x28ebbed8cb1d81e1,
 
-    .paths = .{
-        "build.zig", "build.zig.zon", "lib",
-        "LICENSE", "README.md"
-    },
+    .paths = .{ "build.zig", "build.zig.zon", "lib", "LICENSE", "README.md" },
 
     // No dependencies.
 }

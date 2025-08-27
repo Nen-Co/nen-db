@@ -6,25 +6,21 @@
 //
 // Developed with ❤️ by Maysara.
 
-
-
 // ╔══════════════════════════════════════ PACK ══════════════════════════════════════╗
 
-    /// Provides utilities for string manipulation and operations.
-    pub const string = @import("./string/string.zig");
+/// Provides utilities for string manipulation and operations.
+pub const string = @import("./string/string.zig");
 
-    /// Provides utilities for terminal input/output operations.
-    pub const terminal = @import("./terminal/terminal.zig");
+/// Provides utilities for terminal input/output operations.
+pub const terminal = @import("./terminal/terminal.zig");
 
 // ╚══════════════════════════════════════════════════════════════════════════════════╝
 
-
-
 // ╔══════════════════════════════════════ TEST ══════════════════════════════════════╗
 
-    test {
-        _ = @import("./string/string.zig");
-        _ = @import("./terminal/terminal.zig");
-    }
+test {
+    _ = @import("./string/string.zig");
+    _ = @import("./terminal/terminal.zig");
+}
 
 // ╚══════════════════════════════════════════════════════════════════════════════════╝
