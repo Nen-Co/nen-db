@@ -34,7 +34,7 @@ pub const GraphDB = struct {
     const SNAP_MAGIC: u32 = 0x4E454E53; // 'NENS'
     const SNAP_VERSION: u16 = 1;
 
-    pub fn init_inplace(self: *GraphDB) !void {
+    pub inline fn init_inplace(self: *GraphDB) !void {
         self.mutex = .{};
         self.node_pool = pool.NodePool.init();
         self.edge_pool = pool.EdgePool.init();
@@ -51,28 +51,48 @@ pub const GraphDB = struct {
         try self.wal.replay(&self.node_pool);
     }
 
-    pub fn insert_node(self: *GraphDB, node: pool.Node) !void {
+    pub inline fn insert_node(self: *GraphDB, node: pool.Node) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
         // pre-check WAL health to fail fast
         const health = self.wal.getHealth();
         if (!health.healthy) return error.IOError;
         // Begin seqlock write section (odd value = write in progress)
-        _ = self.read_seq.fetchAdd(1, .acq_rel);
+        const prev_seq_begin = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_begin;
+            }
+        }
         const idx = self.node_pool.alloc(node) catch |e| {
             // End seqlock on error
-            _ = self.read_seq.fetchAdd(1, .acq_rel);
+            const prev_seq_error = self.read_seq.fetchAdd(1, .acq_rel);
+            comptime {
+                if (std.debug.runtime_safety) {
+                    _ = prev_seq_error;
+                }
+            }
             return e;
         };
         errdefer self.node_pool.free(idx) catch {
             // ensure seqlock is balanced if we unwind before WAL append
-            _ = self.read_seq.fetchAdd(1, .acq_rel);
+            const prev_seq_errdefer = self.read_seq.fetchAdd(1, .acq_rel);
+            comptime {
+                if (std.debug.runtime_safety) {
+                    _ = prev_seq_errdefer;
+                }
+            }
         };
         try self.wal.append_insert_node(node);
         self.ops_since_snapshot += 1;
         self.inserts_total += 1;
         // End seqlock write section: readers may now observe the new node
-        _ = self.read_seq.fetchAdd(1, .acq_rel);
+        const prev_seq_end = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_end;
+            }
+        }
         // After publishing, perform potentially slow maintenance without blocking readers
         if (self.ops_since_snapshot >= @as(u64, @intCast(@import("constants.zig").storage.snapshot_interval))) {
             // take snapshot to db dir if known; for now, assume cwd
@@ -83,7 +103,8 @@ pub const GraphDB = struct {
         }
     }
 
-    pub fn lookup_node(self: *const GraphDB, id: u64) ?*const pool.Node {
+    // Hot read path: mark inline to enable better optimization across call sites.
+    pub inline fn lookup_node(self: *const GraphDB, id: u64) ?*const pool.Node {
         const mut_self: *GraphDB = @constCast(self);
         while (true) {
             const s1 = mut_self.read_seq.load(.acquire);
@@ -91,7 +112,12 @@ pub const GraphDB = struct {
             const res = self.node_pool.get_by_id(id);
             const s2 = mut_self.read_seq.load(.acquire);
             if (s1 == s2 and (s2 & 1) == 0) {
-                _ = mut_self.lookups_total.fetchAdd(1, .monotonic);
+                const prev_lookups = mut_self.lookups_total.fetchAdd(1, .monotonic);
+                comptime {
+                    if (std.debug.runtime_safety) {
+                        _ = prev_lookups;
+                    }
+                }
                 return res;
             }
             // otherwise, a write occurred; retry
@@ -99,11 +125,11 @@ pub const GraphDB = struct {
         }
     }
 
-    pub fn deinit(self: *GraphDB) void {
+    pub inline fn deinit(self: *GraphDB) void {
         self.wal.close();
     }
 
-    pub fn get_memory_stats(self: *const GraphDB) DBMemoryStats {
+    pub inline fn get_memory_stats(self: *const GraphDB) DBMemoryStats {
         return DBMemoryStats{
             .nodes = self.node_pool.get_stats(),
             .edges = self.edge_pool.get_stats(),
@@ -111,7 +137,7 @@ pub const GraphDB = struct {
         };
     }
 
-    pub fn get_stats(self: *const GraphDB) DBStats {
+    pub inline fn get_stats(self: *const GraphDB) DBStats {
         return DBStats{
             .memory = self.get_memory_stats(),
             .wal = self.wal.getStats(),
@@ -120,7 +146,7 @@ pub const GraphDB = struct {
     }
 
     // Snapshot current node pool to a snapshot file (atomic: temp + fsync + rename), then reset WAL to header
-    fn snapshot_unlocked(self: *GraphDB, dir: []const u8) !void {
+    inline fn snapshot_unlocked(self: *GraphDB, dir: []const u8) !void {
         var snap_path_buf: [256]u8 = undefined;
         const snap_path = try std.fmt.bufPrint(&snap_path_buf, "{s}/nendb.snapshot", .{dir});
         var snap_bak_path_buf: [256]u8 = undefined;
@@ -173,14 +199,14 @@ pub const GraphDB = struct {
         self.ops_since_snapshot = 0;
     }
 
-    pub fn snapshot(self: *GraphDB, dir: []const u8) !void {
+    pub inline fn snapshot(self: *GraphDB, dir: []const u8) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
         try self.snapshot_unlocked(dir);
     }
 
     // Restore snapshot into a fresh pool and then replay WAL (LSN-aware)
-    pub fn restore_from_snapshot(self: *GraphDB, dir: []const u8) !void {
+    pub inline fn restore_from_snapshot(self: *GraphDB, dir: []const u8) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
         var snap_path_buf: [256]u8 = undefined;
@@ -270,7 +296,7 @@ pub const GraphDB = struct {
     }
 
     /// Open a GraphDB at the given directory path (WAL and data files will be stored there)
-    pub fn open_inplace(self: *GraphDB, path: []const u8) !void {
+    pub inline fn open_inplace(self: *GraphDB, path: []const u8) !void {
         self.mutex = .{};
         self.node_pool = pool.NodePool.init();
         self.edge_pool = pool.EdgePool.init();
@@ -290,7 +316,7 @@ pub const GraphDB = struct {
     }
 
     /// Open GraphDB in read-only mode: no WAL lock acquired, no writes allowed.
-    pub fn open_read_only(self: *GraphDB, path: []const u8) !void {
+    pub inline fn open_read_only(self: *GraphDB, path: []const u8) !void {
         self.mutex = .{};
         self.node_pool = pool.NodePool.init();
         self.edge_pool = pool.EdgePool.init();
@@ -308,7 +334,7 @@ pub const GraphDB = struct {
     }
 
     /// Export all nodes to a CSV file: columns id,kind,props_hex
-    pub fn export_nodes_csv(self: *const GraphDB, file_path: []const u8) !void {
+    pub inline fn export_nodes_csv(self: *const GraphDB, file_path: []const u8) !void {
         var f = try std.fs.cwd().createFile(file_path, .{});
         defer f.close();
         var w = f.writer();
@@ -330,7 +356,7 @@ pub const GraphDB = struct {
     }
 
     /// Import nodes from a CSV file written by export_nodes_csv
-    pub fn import_nodes_csv(self: *GraphDB, file_path: []const u8) !void {
+    pub inline fn import_nodes_csv(self: *GraphDB, file_path: []const u8) !void {
         var f = try std.fs.cwd().openFile(file_path, .{ .mode = .read_only });
         defer f.close();
         var br = std.io.bufferedReader(f.reader());
@@ -363,7 +389,7 @@ pub const GraphDB = struct {
 };
 
 // --- helpers ---
-fn encode_hex(out_buf: []u8, bytes: []const u8) ![]const u8 {
+inline fn encode_hex(out_buf: []u8, bytes: []const u8) ![]const u8 {
     const hex = "0123456789abcdef";
     if (out_buf.len < bytes.len * 2) return error.OutOfMemory;
     var i: usize = 0;
@@ -375,7 +401,7 @@ fn encode_hex(out_buf: []u8, bytes: []const u8) ![]const u8 {
     return out_buf[0 .. bytes.len * 2];
 }
 
-fn from_hex_digit(c: u8) ?u8 {
+inline fn from_hex_digit(c: u8) ?u8 {
     return switch (c) {
         '0'...'9' => c - '0',
         'a'...'f' => 10 + (c - 'a'),
@@ -384,7 +410,7 @@ fn from_hex_digit(c: u8) ?u8 {
     };
 }
 
-fn decode_hex(out: []u8, hexstr: []const u8) !usize {
+inline fn decode_hex(out: []u8, hexstr: []const u8) !usize {
     const n = @min(out.len * 2, hexstr.len);
     var i: usize = 0;
     var o: usize = 0;

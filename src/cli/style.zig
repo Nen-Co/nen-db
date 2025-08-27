@@ -18,9 +18,19 @@ pub const Style = struct {
         if (self.use_color) try writer.print("\x1b[{s}m{s}\x1b[0m", .{ code, text }) else try writer.print("{s}", .{text});
     }
 
-    pub fn heading(self: Style, text: []const u8, writer: anytype) !void { try self.c("1;38;5;81", text, writer); }
-    pub fn accent(self: Style, text: []const u8, writer: anytype) !void { try self.c("38;5;209", text, writer); }
-    pub fn ok(self: Style, text: []const u8, writer: anytype) !void { try self.c("38;5;82", text, writer); }
-    pub fn warn(self: Style, text: []const u8, writer: anytype) !void { try self.c("38;5;214", text, writer); }
-    pub fn err(self: Style, text: []const u8, writer: anytype) !void { try self.c("38;5;196", text, writer); }
+    pub fn heading(self: Style, text: []const u8, writer: anytype) !void {
+        try self.c("1;38;5;81", text, writer);
+    }
+    pub fn accent(self: Style, text: []const u8, writer: anytype) !void {
+        try self.c("38;5;209", text, writer);
+    }
+    pub fn ok(self: Style, text: []const u8, writer: anytype) !void {
+        try self.c("38;5;82", text, writer);
+    }
+    pub fn warn(self: Style, text: []const u8, writer: anytype) !void {
+        try self.c("38;5;214", text, writer);
+    }
+    pub fn err(self: Style, text: []const u8, writer: anytype) !void {
+        try self.c("38;5;196", text, writer);
+    }
 };

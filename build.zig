@@ -36,8 +36,9 @@ pub fn build(b: *std.Build) void {
     // Removed test executables for missing files: minimal_test.zig, ultra_minimal_test.zig, no_wal_test.zig
 
     // Library module for use by other projects (TigerBeetle-style)
+    // Primary library module now references legacy consolidated lib.zig after cleanup
     const lib_mod = b.addModule("nendb", .{
-        .root_source_file = .{ .cwd_relative = "src/lib_v2.zig" },
+        .root_source_file = .{ .cwd_relative = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -51,7 +52,7 @@ pub fn build(b: *std.Build) void {
 
     // Tests for production version
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = .{ .cwd_relative = "src/lib_v2.zig" },
+        .root_source_file = .{ .cwd_relative = "src/lib.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -79,6 +80,17 @@ pub fn build(b: *std.Build) void {
 
     const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
     test_step.dependOn(&run_monitoring_tests.step);
+
+    // Cypher parser tests (query language subset)
+    const query_tests = b.addTest(.{
+        .root_source_file = .{ .cwd_relative = "tests/test_cypher_parser.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    // Expose the query module root path for direct import
+    query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = .{ .cwd_relative = "src/query/query.zig" } });
+    const run_query_tests = b.addRunArtifact(query_tests);
+    test_step.dependOn(&run_query_tests.step);
 
     // Optional benchmarks (gated by -Dbench)
     const bench_enabled = b.option(bool, "bench", "Enable building/running benchmark executables") orelse false;
@@ -143,17 +155,28 @@ pub fn build(b: *std.Build) void {
     // Optional umbrella CLI (-Dumbrella)
     const umbrella = b.option(bool, "umbrella", "Build unified 'nen' umbrella CLI") orelse false;
     if (umbrella) {
-    const graph_mod = b.addModule("nendb_graph", .{ .root_source_file = .{ .cwd_relative = "src/graphdb.zig" }, .target = target, .optimize = optimize });
-    const nen_cli_exe = b.addExecutable(.{
+        const graph_mod = b.addModule("nendb_graph", .{ .root_source_file = .{ .cwd_relative = "src/graphdb.zig" }, .target = target, .optimize = optimize });
+        const nen_cli_exe = b.addExecutable(.{
             .name = "nen",
             .root_source_file = .{ .cwd_relative = "nen-cli/src/main.zig" },
             .target = target,
             .optimize = optimize,
         });
-    nen_cli_exe.root_module.addImport("nendb_graph", graph_mod);
+        nen_cli_exe.root_module.addImport("nendb_graph", graph_mod);
         b.installArtifact(nen_cli_exe);
         const run_umbrella = b.addRunArtifact(nen_cli_exe);
         const umbrella_step = b.step("nen", "Run unified nen CLI");
         umbrella_step.dependOn(&run_umbrella.step);
+    }
+
+    // Integrate Super-ZIG/io (third_party/super_io) with feature flag -Dsuper_io
+    const use_super_io = b.option(bool, "super_io", "Enable Super-ZIG/io high-performance IO layer") orelse false;
+    if (use_super_io) {
+        const super_io_mod = b.createModule(.{ .root_source_file = b.path("third_party/super_io/lib/io.zig"), .target = target, .optimize = optimize });
+        // Expose to library and executables
+        lib_mod.addImport("super_io", super_io_mod);
+        monitoring_mod.addImport("super_io", super_io_mod);
+        exe.root_module.addImport("super_io", super_io_mod);
+        nen_cli.root_module.addImport("super_io", super_io_mod);
     }
 }

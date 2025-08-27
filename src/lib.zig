@@ -4,18 +4,14 @@
 const std = @import("std");
 
 // Core modules
-pub const memory = @import("memory/pool.zig");
+pub const memory = @import("memory/pool_v2.zig");
 pub const query = @import("query/query.zig");
-pub const nendb = @import("nendb.zig");
+// Legacy nendb.zig removed; GraphDB is primary engine now (graphdb.zig)
+pub const graphdb = @import("graphdb.zig");
 
 // Re-export main types for convenience
-pub const NenDB = nendb.NenDB;
-pub const NodeDef = nendb.NodeDef;
-pub const EdgeDef = nendb.EdgeDef;
-pub const BatchNodeInsert = nendb.BatchNodeInsert;
-pub const BatchEdgeInsert = nendb.BatchEdgeInsert;
-pub const BatchEmbeddingInsert = nendb.BatchEmbeddingInsert;
-pub const MemoryStats = nendb.MemoryStats;
+pub const GraphDB = graphdb.GraphDB;
+pub const MemoryStats = memory.MemoryStats; // per-pool stats, GraphDB aggregates separately
 
 // Memory pool types
 pub const NodePool = memory.NodePool;
@@ -35,13 +31,12 @@ pub const Config = struct {
 };
 
 // Convenience function to create a NenDB instance
-pub fn create(allocator: std.mem.Allocator, config: Config) !NenDB {
-    _ = config; // Future configuration options
-    var node_pool = memory.NodePool{};
-    var edge_pool = memory.EdgePool{};
-    var embedding_pool = memory.EmbeddingPool{};
-    
-    return NenDB.init(allocator, &node_pool, &edge_pool, &embedding_pool);
+pub fn create_graph(allocator: std.mem.Allocator, config: Config) !GraphDB {
+    _ = allocator; // GraphDB uses static pools internally
+    // Use provided data_dir; ensure isolated path so multiple tests don't contend on WAL lock
+    var db: GraphDB = undefined;
+    try GraphDB.open_inplace(&db, config.data_dir);
+    return db; // return by value (copy); caller should deinit()
 }
 
 // Version information
@@ -63,13 +58,18 @@ test "nendb basic functionality" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
-    var db = try create(allocator, Config{});
-    defer db.deinit();
-    
-    // Test basic operations work
+    const tmp_dir = "./.nendb_lib_basic";
+    _ = std.fs.cwd().deleteTree(tmp_dir) catch {};
+    try std.fs.cwd().makePath(tmp_dir);
+    var db = try create_graph(allocator, Config{ .data_dir = tmp_dir });
+    defer {
+        db.deinit();
+        _ = std.fs.cwd().deleteTree(tmp_dir) catch {};
+    }
+
+    // Test basic operations work in fresh directory
     const stats = db.get_memory_stats();
-    try std.testing.expect(stats.nodes_used == 0);
-    try std.testing.expect(stats.edges_used == 0);
-    try std.testing.expect(stats.embeddings_used == 0);
+    try std.testing.expectEqual(@as(u32, 0), stats.nodes.used);
+    try std.testing.expectEqual(@as(u32, 0), stats.edges.used);
+    try std.testing.expectEqual(@as(u32, 0), stats.embeddings.used);
 }

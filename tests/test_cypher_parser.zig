@@ -1,5 +1,5 @@
 const std = @import("std");
-const query = @import("../src/query/query.zig");
+const query = @import("query");
 
 // Basic smoke tests ensuring our minimal Cypher-like parser accepts a subset of openCypher-like forms.
 // This is NOT full openCypher compliance; it guards existing behavior while we expand.
@@ -12,16 +12,42 @@ fn expectParse(q: []const u8) !void {
     _ = try query.parse_query(q, alloc);
 }
 
-test "cypher subset: MATCH node RETURN" { try expectParse("MATCH (n) RETURN n"); }
+test "cypher subset: MATCH node RETURN" {
+    try expectParse("MATCH (n) RETURN n");
+}
 
-test "cypher subset: MATCH node WHERE equality RETURN" { try expectParse("MATCH (n) WHERE n.kind = 1 RETURN n"); }
+test "cypher subset: MATCH node WHERE equality RETURN" {
+    try expectParse("MATCH (n) WHERE n.kind = 1 RETURN n");
+}
 
-test "cypher subset: MATCH edge RETURN" { try expectParse("MATCH (a)-[e]->(b) RETURN a,b"); }
+test "cypher subset: MATCH node with label RETURN" {
+    try expectParse("MATCH (n:User) RETURN n");
+}
 
-test "cypher subset: MATCH edge USING BFS RETURN" { try expectParse("MATCH (a)-[e]->(b) USING BFS RETURN a"); }
+test "cypher subset: MATCH edge RETURN" {
+    try expectParse("MATCH (a)-[e]->(b) RETURN a,b");
+}
 
-test "cypher subset: CREATE node with props" { try expectParse("CREATE (u {id: \"alice\", kind: 0})"); }
+test "cypher subset: MATCH edge with rel type RETURN" {
+    try expectParse("MATCH (a:User)-[r:FRIEND]->(b:User) RETURN a,b");
+}
 
-test "cypher subset: SET property" { try expectParse("SET n.kind = 2"); }
+test "cypher subset: MATCH edge USING BFS RETURN" {
+    try expectParse("MATCH (a)-[e]->(b) USING BFS RETURN a");
+}
 
-test "cypher subset: DELETE node" { try expectParse("DELETE (n)"); }
+test "cypher subset: CREATE node with props" {
+    try expectParse("CREATE (u {id: \"alice\", kind: 0})");
+}
+
+test "cypher subset: CREATE node with label and props" {
+    try expectParse("CREATE (u:User {id: \"alice\", kind: 0})");
+}
+
+test "cypher subset: SET property" {
+    try expectParse("SET n.kind = 2");
+}
+
+test "cypher subset: DELETE node" {
+    try expectParse("DELETE (n)");
+}

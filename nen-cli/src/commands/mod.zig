@@ -83,11 +83,11 @@ pub fn dispatch(args: [][]const u8) !void {
         if (rest.len == 0 or std.mem.eql(u8, rest[0], "help")) return db_status(sty, &.{});
         const sub = rest[0];
         const sub_args = rest[1..];
-    if (std.mem.eql(u8, sub, "status")) return db_status(sty, sub_args);
-    if (std.mem.eql(u8, sub, "init")) return db_init(sty, sub_args);
-    if (std.mem.eql(u8, sub, "up")) return db_up(sty, sub_args);
-    if (std.mem.eql(u8, sub, "snapshot")) return db_snapshot(sty, sub_args);
-    if (std.mem.eql(u8, sub, "restore")) return db_restore(sty, sub_args);
+        if (std.mem.eql(u8, sub, "status")) return db_status(sty, sub_args);
+        if (std.mem.eql(u8, sub, "init")) return db_init(sty, sub_args);
+        if (std.mem.eql(u8, sub, "up")) return db_up(sty, sub_args);
+        if (std.mem.eql(u8, sub, "snapshot")) return db_snapshot(sty, sub_args);
+        if (std.mem.eql(u8, sub, "restore")) return db_restore(sty, sub_args);
         return error.UnknownDbCommand;
     }
     return error.UnknownGroup;

@@ -19,7 +19,8 @@ pub fn print_table(commands: []const Command, sty: style_mod.Style, writer: anyt
     for (commands) |c| {
         try sty.accent(c.name, writer);
         if (c.name.len < max) {
-            var i: usize = 0; while (i < (max - c.name.len + 2)) : (i += 1) try writer.writeByte(' ');
+            var i: usize = 0;
+            while (i < (max - c.name.len + 2)) : (i += 1) try writer.writeByte(' ');
         } else try writer.writeAll("  ");
         try writer.print("{s}\n", .{c.summary});
     }

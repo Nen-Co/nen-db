@@ -5,11 +5,11 @@ const std = @import("std");
 pub const constants = @import("../constants.zig");
 
 // Import configuration from constants
-const NODE_POOL_SIZE = constants.memory.node_pool_size;
-const EDGE_POOL_SIZE = constants.memory.edge_pool_size;
-const EMBEDDING_POOL_SIZE = constants.memory.embedding_pool_size;
-const EMBEDDING_DIM = constants.data.embedding_dimensions;
-const CACHE_LINE_SIZE = constants.memory.cache_line_size;
+pub const NODE_POOL_SIZE = constants.memory.node_pool_size;
+pub const EDGE_POOL_SIZE = constants.memory.edge_pool_size;
+pub const EMBEDDING_POOL_SIZE = constants.memory.embedding_pool_size;
+pub const EMBEDDING_DIM = constants.data.embedding_dimensions;
+pub const CACHE_LINE_SIZE = constants.memory.cache_line_size;
 
 // Core data structures (aligned for performance)
 pub const Node = extern struct {
@@ -66,7 +66,7 @@ pub const NodePool = struct {
     // Hash table for O(1) lookups by ID
     hash_table: [NODE_POOL_SIZE * 2]?u32 = [_]?u32{null} ** (NODE_POOL_SIZE * 2), // 2x size for lower collision
 
-    pub fn init() Self {
+    pub inline fn init() Self {
         var self = Self{};
 
         // Initialize free list
@@ -77,7 +77,7 @@ pub const NodePool = struct {
         return self;
     }
 
-    pub fn alloc(self: *Self, node: Node) !u32 {
+    pub inline fn alloc(self: *Self, node: Node) !u32 {
         if (self.used_count >= NODE_POOL_SIZE) {
             return constants.NenDBError.PoolExhausted;
         }
@@ -109,19 +109,19 @@ pub const NodePool = struct {
         return node_idx;
     }
 
-    pub fn get(self: *const Self, idx: u32) ?*const Node {
+    pub inline fn get(self: *const Self, idx: u32) ?*const Node {
         if (idx >= NODE_POOL_SIZE) return null;
         if (self.free_list[idx] != null) return null; // Slot is free
         return &self.nodes[idx];
     }
 
-    pub fn get_mut(self: *Self, idx: u32) ?*Node {
+    pub inline fn get_mut(self: *Self, idx: u32) ?*Node {
         if (idx >= NODE_POOL_SIZE) return null;
         if (self.free_list[idx] != null) return null; // Slot is free
         return &self.nodes[idx];
     }
 
-    pub fn get_by_id(self: *const Self, node_id: u64) ?*const Node {
+    pub inline fn get_by_id(self: *const Self, node_id: u64) ?*const Node {
         const hash = self.hash_node_id(node_id);
         var probe = hash;
 
@@ -135,7 +135,7 @@ pub const NodePool = struct {
         return null;
     }
 
-    pub fn free(self: *Self, idx: u32) !void {
+    pub inline fn free(self: *Self, idx: u32) !void {
         if (idx >= NODE_POOL_SIZE) return constants.NenDBError.InvalidNodeID;
         if (self.free_list[idx] != null) return; // Already free
 
@@ -163,7 +163,7 @@ pub const NodePool = struct {
         node.* = std.mem.zeroes(Node);
     }
 
-    fn hash_node_id(self: *const Self, node_id: u64) usize {
+    inline fn hash_node_id(self: *const Self, node_id: u64) usize {
         // Simple but effective hash function
         var hash = node_id;
         hash ^= hash >> 33;
@@ -174,7 +174,7 @@ pub const NodePool = struct {
         return @intCast(hash % @as(u64, @intCast(self.hash_table.len)));
     }
 
-    pub fn get_stats(self: *const Self) MemoryStats {
+    pub inline fn get_stats(self: *const Self) MemoryStats {
         return MemoryStats{
             .capacity = NODE_POOL_SIZE,
             .used = self.used_count,
@@ -197,7 +197,7 @@ pub const EdgePool = struct {
     // Hash table for O(1) lookups by ID (from -> to mapping)
     hash_table: [EDGE_POOL_SIZE * 2]?u32 = [_]?u32{null} ** (EDGE_POOL_SIZE * 2), // 2x size for lower collision
 
-    pub fn init() Self {
+    pub inline fn init() Self {
         var self = Self{};
 
         // Initialize free list
@@ -208,7 +208,7 @@ pub const EdgePool = struct {
         return self;
     }
 
-    pub fn alloc(self: *Self, edge: Edge) !u32 {
+    pub inline fn alloc(self: *Self, edge: Edge) !u32 {
         if (self.used_count >= EDGE_POOL_SIZE) {
             return constants.NenDBError.PoolExhausted;
         }
@@ -236,13 +236,13 @@ pub const EdgePool = struct {
         return edge_idx;
     }
 
-    pub fn get(self: *const Self, idx: u32) ?*const Edge {
+    pub inline fn get(self: *const Self, idx: u32) ?*const Edge {
         if (idx >= EDGE_POOL_SIZE) return null;
         if (self.free_list[idx] != null) return null;
         return &self.edges[idx];
     }
 
-    pub fn get_by_nodes(self: *const Self, from: u64, to: u64) ?*const Edge {
+    pub inline fn get_by_nodes(self: *const Self, from: u64, to: u64) ?*const Edge {
         const hash = self.hash_edge(from, to);
         var probe = hash;
 
@@ -257,7 +257,7 @@ pub const EdgePool = struct {
         return null;
     }
 
-    fn hash_edge(self: *const Self, from: u64, to: u64) usize {
+    inline fn hash_edge(self: *const Self, from: u64, to: u64) usize {
         // Combine the two node IDs for edge hash
         var hash = from ^ (to << 1);
         hash ^= hash >> 33;
@@ -266,7 +266,7 @@ pub const EdgePool = struct {
         return @intCast(hash % @as(u64, @intCast(self.hash_table.len)));
     }
 
-    pub fn get_stats(self: *const Self) MemoryStats {
+    pub inline fn get_stats(self: *const Self) MemoryStats {
         return MemoryStats{
             .capacity = EDGE_POOL_SIZE,
             .used = self.used_count,
@@ -285,7 +285,7 @@ pub const EmbeddingPool = struct {
     next_free: u32 = 0,
     used_count: u32 = 0,
 
-    pub fn init() Self {
+    pub inline fn init() Self {
         var self = Self{};
 
         // Initialize free list
@@ -296,7 +296,7 @@ pub const EmbeddingPool = struct {
         return self;
     }
 
-    pub fn alloc(self: *Self, embedding: Embedding) !u32 {
+    pub inline fn alloc(self: *Self, embedding: Embedding) !u32 {
         if (self.used_count >= EMBEDDING_POOL_SIZE) {
             return constants.NenDBError.PoolExhausted;
         }
@@ -316,13 +316,13 @@ pub const EmbeddingPool = struct {
         return embedding_idx;
     }
 
-    pub fn get(self: *const Self, idx: u32) ?*const Embedding {
+    pub inline fn get(self: *const Self, idx: u32) ?*const Embedding {
         if (idx >= EMBEDDING_POOL_SIZE) return null;
         if (self.free_list[idx] != null) return null;
         return &self.embeddings[idx];
     }
 
-    pub fn get_stats(self: *const Self) MemoryStats {
+    pub inline fn get_stats(self: *const Self) MemoryStats {
         return MemoryStats{
             .capacity = EMBEDDING_POOL_SIZE,
             .used = self.used_count,

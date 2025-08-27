@@ -36,7 +36,7 @@ pub const Wal = struct {
     lock_path_len: usize = 0,
     has_lock: bool = false,
 
-    pub fn open(path: []const u8) !Wal {
+    pub inline fn open(path: []const u8) !Wal {
         var file: std.fs.File = undefined;
         const cwd = std.fs.cwd();
         file = cwd.openFile(path, .{ .mode = .read_write }) catch |err| switch (err) {
@@ -75,7 +75,7 @@ pub const Wal = struct {
         return wal;
     }
 
-    pub fn openReadOnly(path: []const u8) !Wal {
+    pub inline fn openReadOnly(path: []const u8) !Wal {
         // Open WAL without acquiring a lock and without any mutations.
         const cwd = std.fs.cwd();
         var file = cwd.openFile(path, .{ .mode = .read_only }) catch |e| switch (e) {
@@ -108,7 +108,7 @@ pub const Wal = struct {
         return wal;
     }
 
-    pub fn append_insert_node(self: *Wal, node: pool.Node) !void {
+    pub inline fn append_insert_node(self: *Wal, node: pool.Node) !void {
         if (self.read_only) return error.AccessDenied;
         if (DEBUG_WAL) std.debug.print("append: start end_pos={} entries_written={} ops\n", .{ self.end_pos, self.entries_written });
         // Build entry buffer: [id(8) | kind(1) | props(N) | crc32(4)]
@@ -246,7 +246,7 @@ pub const Wal = struct {
         if (DEBUG_WAL) std.debug.print("WAL replay: total entries loaded: {}\n", .{entry_count});
     }
 
-    pub fn close(self: *Wal) void {
+    pub inline fn close(self: *Wal) void {
         if (self.closed) return;
         // Close file; OS will flush as needed. Avoid fsync() here to prevent platform-specific EBADF/INVAL panics.
         self.file.close();
@@ -259,7 +259,7 @@ pub const Wal = struct {
         self.closed = true;
     }
 
-    fn writeHeader(self: *Wal) !void {
+    inline fn writeHeader(self: *Wal) !void {
         if (self.read_only) return error.AccessDenied;
         var buf: [HEADER_SIZE]u8 = undefined;
         var fbs = std.io.fixedBufferStream(&buf);
@@ -278,7 +278,7 @@ pub const Wal = struct {
         self.end_pos = HEADER_SIZE;
     }
 
-    fn checkHeader(self: *Wal) !bool {
+    inline fn checkHeader(self: *Wal) !bool {
         try self.file.seekTo(0);
         var hdr: [HEADER_SIZE]u8 = undefined;
         const n = try self.file.read(&hdr);
@@ -291,7 +291,7 @@ pub const Wal = struct {
         return false;
     }
 
-    pub fn truncate_to_header(self: *Wal) !void {
+    pub inline fn truncate_to_header(self: *Wal) !void {
         if (self.read_only) return error.AccessDenied;
         if (DEBUG_WAL) std.debug.print("WAL: truncate_to_header has_header={} before_end={} before_seg_entries={}\n", .{ self.has_header, self.end_pos, self.segment_entries });
         if (self.has_header) {
@@ -316,7 +316,7 @@ pub const Wal = struct {
         if (DEBUG_WAL) std.debug.print("WAL: truncate_to_header done end={} seg_entries={}\n", .{ self.end_pos, self.segment_entries });
     }
 
-    pub fn flush(self: *Wal) !void {
+    pub inline fn flush(self: *Wal) !void {
         if (self.read_only) return error.AccessDenied;
         self.file.sync() catch |e| {
             self.recordIoError(e);
@@ -332,7 +332,7 @@ pub const Wal = struct {
         bytes_written: u64,
     };
 
-    pub fn getStats(self: *const Wal) WalStats {
+    pub inline fn getStats(self: *const Wal) WalStats {
         return WalStats{
             .entries_written = self.entries_written,
             .entries_replayed = self.entries_replayed,
@@ -341,12 +341,12 @@ pub const Wal = struct {
         };
     }
 
-    pub fn setSyncEvery(self: *Wal, n: u32) void {
+    pub inline fn setSyncEvery(self: *Wal, n: u32) void {
         if (n == 0) return; // ignore invalid
         self.sync_every = n;
     }
 
-    pub fn setSegmentSizeLimit(self: *Wal, n: u64) void {
+    pub inline fn setSegmentSizeLimit(self: *Wal, n: u64) void {
         if (n >= 256) self.segment_size_limit = n;
     }
 
@@ -359,7 +359,7 @@ pub const Wal = struct {
 
     /// Validate WAL header and each entry's CRC without loading into memory pools.
     /// If fix is true, truncates trailing partial/corrupt bytes to last good boundary.
-    pub fn check(self: *Wal, fix: bool) !CheckResult {
+    pub inline fn check(self: *Wal, fix: bool) !CheckResult {
         const entry_size: usize = 8 + 1 + pool.constants.data.node_props_size + 4;
         var buffer: [8 + 1 + pool.constants.data.node_props_size + 4]u8 = undefined;
         var entries: u64 = 0;
@@ -420,7 +420,7 @@ pub const Wal = struct {
     }
 
     // --- internal helpers for rotation/segments ---
-    fn splitDirAndBase(self: *const Wal) struct { dir: []const u8, base: []const u8 } {
+    inline fn splitDirAndBase(self: *const Wal) struct { dir: []const u8, base: []const u8 } {
         const path = self.wal_path_buf[0..self.wal_path_len];
         const idx_opt = std.mem.lastIndexOfScalar(u8, path, '/');
         if (idx_opt) |idx| {
@@ -430,7 +430,7 @@ pub const Wal = struct {
         }
     }
 
-    fn segmentPath(self: *const Wal, index: u32, out_buf: *[256]u8) ![]const u8 {
+    inline fn segmentPath(self: *const Wal, index: u32, out_buf: *[256]u8) ![]const u8 {
         const parts = self.splitDirAndBase();
         // zero-pad index to 6 digits for lexicographic order
         var idx_buf: [6]u8 = undefined;
@@ -438,7 +438,7 @@ pub const Wal = struct {
         return try std.fmt.bufPrint(out_buf, "{s}/{s}.{s}", .{ parts.dir, parts.base, idx_str });
     }
 
-    fn fmtIndex(index: u32, buf: *[6]u8) []const u8 {
+    inline fn fmtIndex(index: u32, buf: *[6]u8) []const u8 {
         // convert to decimal with zero pad width 6
         buf.* = [_]u8{'0'} ** 6;
         var tmp: u32 = index;
@@ -452,7 +452,7 @@ pub const Wal = struct {
         return buf.*[0..];
     }
 
-    fn scanSegments(self: *Wal) !u32 {
+    inline fn scanSegments(self: *Wal) !u32 {
         const parts = self.splitDirAndBase();
         var dir = try std.fs.cwd().openDir(parts.dir, .{ .iterate = true });
         defer dir.close();
@@ -481,7 +481,7 @@ pub const Wal = struct {
         return max_idx;
     }
 
-    fn rotate(self: *Wal) !void {
+    inline fn rotate(self: *Wal) !void {
         if (self.read_only) return error.AccessDenied;
         // Close current file, rename to .NNNNNN, fsync directory, create a fresh WAL with header
         const next_idx = self.segment_index + 1;
@@ -529,7 +529,7 @@ pub const Wal = struct {
         self.segment_entries = 0;
     }
 
-    fn replay_from_file(self: *Wal, file: *std.fs.File, db: *pool.NodePool) !void {
+    inline fn replay_from_file(self: *Wal, file: *std.fs.File, db: *pool.NodePool) !void {
         const entry_size: usize = 8 + 1 + pool.constants.data.node_props_size + 4;
         // reuse self.entry_buf as buffer
         var entry_count: usize = 0;
@@ -603,7 +603,7 @@ pub const Wal = struct {
         if (DEBUG_WAL) std.debug.print("WAL replay (segment): total entries loaded: {}\n", .{entry_count});
     }
 
-    pub fn delete_segments(self: *Wal) !u32 {
+    pub inline fn delete_segments(self: *Wal) !u32 {
         if (self.read_only) return error.AccessDenied;
         // Delete all completed segments; return count removed
         const parts = self.splitDirAndBase();
@@ -634,7 +634,7 @@ pub const Wal = struct {
 
     /// Delete completed segments but keep the most recent `keep_last` segments.
     /// Returns the number of segments removed. If keep_last == 0, behaves like delete_segments().
-    pub fn delete_segments_keep_last(self: *Wal, keep_last: u32) !u32 {
+    pub inline fn delete_segments_keep_last(self: *Wal, keep_last: u32) !u32 {
         if (self.read_only) return error.AccessDenied;
         if (keep_last == 0) return self.delete_segments();
         const parts = self.splitDirAndBase();
@@ -701,7 +701,7 @@ pub const Wal = struct {
     }
 
     // Sum the total number of complete entries across all segments and the active WAL.
-    pub fn total_entries(self: *Wal) !u64 {
+    pub inline fn total_entries(self: *Wal) !u64 {
         const entry_size: u64 = 8 + 1 + pool.constants.data.node_props_size + 4;
         var total: u64 = 0;
         // segments
@@ -824,12 +824,12 @@ pub const Wal = struct {
         segment_index: u32,
     };
 
-    fn recordIoError(self: *Wal, e: anyerror) void {
+    inline fn recordIoError(self: *Wal, e: anyerror) void {
         self.last_error = e;
         self.io_error_count +%= 1;
     }
 
-    pub fn getHealth(self: *const Wal) WalHealth {
+    pub inline fn getHealth(self: *const Wal) WalHealth {
         const unhealthy = self.closed or (self.io_error_count != 0) or (self.last_error != null);
         return WalHealth{
             .healthy = !unhealthy,
@@ -847,7 +847,7 @@ pub const Wal = struct {
 
 // Read exactly buf.len bytes from file starting at absolute offset.
 // Returns true if full buffer was read, false if EOF encountered before full read.
-fn readExactAt(file: *std.fs.File, off: u64, buf: []u8) !bool {
+inline fn readExactAt(file: *std.fs.File, off: u64, buf: []u8) !bool {
     try file.seekTo(off);
     var total: usize = 0;
     while (total < buf.len) {
@@ -907,7 +907,7 @@ fn computeTail(self: *Wal) !u64 {
 }
 
 // Fsync the directory containing the WAL path
-fn fsyncDir(path: []const u8) !void {
+inline fn fsyncDir(path: []const u8) !void {
     var dir = try std.fs.cwd().openDir(path, .{});
     defer dir.close();
     if (builtin.os.tag == .macos) {
@@ -919,7 +919,7 @@ fn fsyncDir(path: []const u8) !void {
 }
 
 // Strong fsync for files: F_FULLFSYNC on macOS, fallback to fsync elsewhere
-fn fsyncFileStrict(f: *std.fs.File) !void {
+inline fn fsyncFileStrict(f: *std.fs.File) !void {
     if (builtin.os.tag == .macos) {
         _ = std.posix.fcntl(f.handle, std.posix.F.FULLFSYNC, 1) catch try f.sync();
     } else {
@@ -928,7 +928,7 @@ fn fsyncFileStrict(f: *std.fs.File) !void {
 }
 
 // --- lock file helpers ---
-fn computeLockPath(wal_path: []const u8, out: *[256]u8) !usize {
+inline fn computeLockPath(wal_path: []const u8, out: *[256]u8) !usize {
     // Derive lock file as <dir>/<base>.lock
     const idx_opt = std.mem.lastIndexOfScalar(u8, wal_path, '/');
     if (idx_opt) |idx| {
@@ -942,9 +942,9 @@ fn computeLockPath(wal_path: []const u8, out: *[256]u8) !usize {
     }
 }
 
-fn acquireLock(self: *Wal) !void {
+inline fn acquireLock(self: *Wal) !void {
     const lock_path = self.lock_path_buf[0..self.lock_path_len];
-    
+
     // Check if lock file exists
     if (std.fs.cwd().access(lock_path, .{})) {
         // Lock file exists, try to read it to see if it's stale
@@ -963,7 +963,7 @@ fn acquireLock(self: *Wal) !void {
     } else |_| {
         // Lock file doesn't exist, we can proceed
     }
-    
+
     // Try to create the lock file exclusively
     var f = std.fs.cwd().createFile(lock_path, .{ .read = true, .exclusive = true }) catch |e| switch (e) {
         error.PathAlreadyExists => return error.AlreadyLocked,
@@ -971,7 +971,7 @@ fn acquireLock(self: *Wal) !void {
         else => return e,
     };
     defer f.close();
-    
+
     // Write marker for diagnostics
     var w = f.writer();
     _ = w.writeAll("locked\n") catch {};

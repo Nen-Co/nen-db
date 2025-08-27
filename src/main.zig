@@ -79,7 +79,13 @@ pub fn main() !void {
             const stdin = std.io.getStdIn().reader();
             while (true) {
                 try stdout.writeAll("nen> ");
-                const line = stdin.readUntilDelimiterOrEof(&buf, '\n') catch |e| switch (e) { error.StreamTooLong => { try stdout.writeAll("(line too long)\n"); continue; }, else => break };
+                const line = stdin.readUntilDelimiterOrEof(&buf, '\n') catch |e| switch (e) {
+                    error.StreamTooLong => {
+                        try stdout.writeAll("(line too long)\n");
+                        continue;
+                    },
+                    else => break,
+                };
                 if (line) |ln| {
                     const trimmed = std.mem.trim(u8, ln, " \t\r");
                     if (trimmed.len == 0) continue;
