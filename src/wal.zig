@@ -217,7 +217,7 @@ pub const Wal = struct {
 
     pub inline fn append_delete_edge(self: *Wal, from: u64, to: u64) !void {
         if (self.read_only) return error.AccessDenied;
-        if (DEBUG_WAL) std.debug.print("append_delete_edge: from={} to={}\n", .{from, to});
+        if (DEBUG_WAL) std.debug.print("append_delete_edge: from={} to={}\n", .{ from, to });
         // Build entry buffer: [op_type(1) | from(8) | to(8) | crc32(4)]
         var fbs = std.io.fixedBufferStream(&self.entry_buf);
         const w = fbs.writer();
@@ -660,7 +660,7 @@ pub const Wal = struct {
         // Don't close here - just invalidate the handle to prevent double-close issues
         std.posix.close(self.file.handle);
         self.file.handle = -1;
-        
+
         // Check if the source file exists before attempting rename
         var rename_successful = false;
         if (std.fs.cwd().access(wal_path, .{})) {

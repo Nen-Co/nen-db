@@ -34,18 +34,18 @@ fn handle_client(connfd: std.posix.fd_t, allocator: std.mem.Allocator) !void {
     // Convert file descriptor to a stream
     const stream = std.fs.File{ .handle = connfd };
     defer stream.close();
-    
+
     var buf: [256]u8 = undefined;
-    
+
     // Send welcome message
     _ = try stream.write("NenDB Server Ready\n");
-    
+
     while (true) {
         const n = try stream.read(&buf);
         if (n == 0) break;
         const line = std.mem.trim(u8, buf[0..n], " \r\n");
         if (line.len == 0) continue; // Ignore empty lines
-        
+
         if (std.mem.eql(u8, line, "PING")) {
             _ = try stream.write("PONG\n");
         } else if (std.mem.eql(u8, line, "QUIT")) {

@@ -245,7 +245,7 @@ pub const EdgePool = struct {
     pub inline fn free(self: *Self, idx: u32) !void {
         if (idx >= EDGE_POOL_SIZE) return error.InvalidIndex;
         if (self.free_list[idx] != null) return error.AlreadyFreed;
-        
+
         // Remove from hash table
         const edge = &self.edges[idx];
         const hash = self.hash_edge(edge.from, edge.to);
@@ -257,14 +257,14 @@ pub const EdgePool = struct {
             }
             probe = (probe + 1) % self.hash_table.len;
         }
-        
+
         // Add to free list
         if (self.next_free > 0) {
             self.free_list[self.next_free - 1] = idx;
             self.next_free -= 1;
         }
         self.used_count -= 1;
-        
+
         // Clear the edge data
         self.edges[idx] = std.mem.zeroes(Edge);
     }

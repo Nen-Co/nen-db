@@ -2,14 +2,33 @@ const std = @import("std");
 
 pub const TokenKind = enum {
     // punctuation
-    l_paren, r_paren, l_brack, r_brack, l_brace, r_brace,
-    colon, comma, dot, minus, gt, lt, eq, star, plus, slash, pipe,
+    l_paren,
+    r_paren,
+    l_brack,
+    r_brack,
+    l_brace,
+    r_brace,
+    colon,
+    comma,
+    dot,
+    minus,
+    gt,
+    lt,
+    eq,
+    star,
+    plus,
+    slash,
+    pipe,
     // literals
-    integer, float, string, identifier,
+    integer,
+    float,
+    string,
+    identifier,
     // keywords (uppercased during lexing for comparison)
     keyword,
     // end of input / invalid
-    eof, invalid,
+    eof,
+    invalid,
 };
 
 pub const Token = struct {
@@ -142,25 +161,7 @@ fn toUpperTemp(slice: []const u8) []const u8 {
 
 fn isKeyword(s: []const u8) bool {
     // Case-insensitive checks during parse; here treat any of these as keyword when matched ignoring case
-    return std.ascii.eqlIgnoreCase(s, "MATCH")
-        or std.ascii.eqlIgnoreCase(s, "RETURN")
-        or std.ascii.eqlIgnoreCase(s, "WITH")
-        or std.ascii.eqlIgnoreCase(s, "WHERE")
-        or std.ascii.eqlIgnoreCase(s, "CREATE")
-        or std.ascii.eqlIgnoreCase(s, "MERGE")
-        or std.ascii.eqlIgnoreCase(s, "SET")
-        or std.ascii.eqlIgnoreCase(s, "DELETE")
-        or std.ascii.eqlIgnoreCase(s, "DETACH")
-        or std.ascii.eqlIgnoreCase(s, "AS")
-        or std.ascii.eqlIgnoreCase(s, "ASC")
-        or std.ascii.eqlIgnoreCase(s, "DESC")
-        or std.ascii.eqlIgnoreCase(s, "REMOVE")
-        or std.ascii.eqlIgnoreCase(s, "UNWIND")
-        or std.ascii.eqlIgnoreCase(s, "ORDER")
-        or std.ascii.eqlIgnoreCase(s, "BY")
-        or std.ascii.eqlIgnoreCase(s, "SKIP")
-        or std.ascii.eqlIgnoreCase(s, "LIMIT")
-        or std.ascii.eqlIgnoreCase(s, "USING");
+    return std.ascii.eqlIgnoreCase(s, "MATCH") or std.ascii.eqlIgnoreCase(s, "RETURN") or std.ascii.eqlIgnoreCase(s, "WITH") or std.ascii.eqlIgnoreCase(s, "WHERE") or std.ascii.eqlIgnoreCase(s, "CREATE") or std.ascii.eqlIgnoreCase(s, "MERGE") or std.ascii.eqlIgnoreCase(s, "SET") or std.ascii.eqlIgnoreCase(s, "DELETE") or std.ascii.eqlIgnoreCase(s, "DETACH") or std.ascii.eqlIgnoreCase(s, "AS") or std.ascii.eqlIgnoreCase(s, "ASC") or std.ascii.eqlIgnoreCase(s, "DESC") or std.ascii.eqlIgnoreCase(s, "REMOVE") or std.ascii.eqlIgnoreCase(s, "UNWIND") or std.ascii.eqlIgnoreCase(s, "ORDER") or std.ascii.eqlIgnoreCase(s, "BY") or std.ascii.eqlIgnoreCase(s, "SKIP") or std.ascii.eqlIgnoreCase(s, "LIMIT") or std.ascii.eqlIgnoreCase(s, "USING");
 }
 
 test "lexer basic punctuation" {
@@ -171,5 +172,3 @@ test "lexer basic punctuation" {
     _ = lx.next(); // -
     _ = lx.next(); // [
 }
-
-

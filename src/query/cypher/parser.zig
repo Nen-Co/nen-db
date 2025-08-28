@@ -153,7 +153,10 @@ pub const Parser = struct {
         // For skeleton: accept items but do not retain allocations
         if (self.current.kind != .eof and self.current.kind != .keyword) {
             _ = try self.parsePrimaryExpr();
-            while (self.current.kind == .comma) { self.advance(); _ = try self.parsePrimaryExpr(); }
+            while (self.current.kind == .comma) {
+                self.advance();
+                _ = try self.parsePrimaryExpr();
+            }
         }
         var order_by: ?ast.OrderBy = null;
         if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "ORDER")) {
@@ -187,7 +190,11 @@ pub const Parser = struct {
         if (self.current.kind != .eof) {
             _ = try self.parsePrimaryExpr();
             if (self.current.kind == .keyword and (std.ascii.eqlIgnoreCase(self.current.lexeme, "DESC") or std.ascii.eqlIgnoreCase(self.current.lexeme, "ASC"))) self.advance();
-            while (self.current.kind == .comma) { self.advance(); _ = try self.parsePrimaryExpr(); if (self.current.kind == .keyword and (std.ascii.eqlIgnoreCase(self.current.lexeme, "DESC") or std.ascii.eqlIgnoreCase(self.current.lexeme, "ASC"))) self.advance(); }
+            while (self.current.kind == .comma) {
+                self.advance();
+                _ = try self.parsePrimaryExpr();
+                if (self.current.kind == .keyword and (std.ascii.eqlIgnoreCase(self.current.lexeme, "DESC") or std.ascii.eqlIgnoreCase(self.current.lexeme, "ASC"))) self.advance();
+            }
         }
         return .{ .items = &[_]ast.SortItem{} };
     }
@@ -460,5 +467,3 @@ fn parseListLiteral(self: *Parser) !ast.ListLiteral {
     self.advance(); // r_brack
     return .{ .items = &[_]ast.Expression{} };
 }
-
-

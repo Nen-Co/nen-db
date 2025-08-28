@@ -96,7 +96,7 @@ pub const QueryExecutor = struct {
 
     fn execute_match(self: *QueryExecutor, match_clause: cypher.Match, result: *QueryResult) !void {
         std.debug.print("Executing MATCH clause\n", .{});
-        
+
         var row = QueryRow.init(self.allocator);
         defer row.deinit();
 
@@ -121,7 +121,7 @@ pub const QueryExecutor = struct {
 
     fn execute_create(self: *QueryExecutor, create_clause: cypher.Create, result: *QueryResult) !void {
         std.debug.print("Executing CREATE clause\n", .{});
-        
+
         for (create_clause.pattern.paths) |path| {
             for (path.elements) |element| {
                 switch (element) {
@@ -135,7 +135,7 @@ pub const QueryExecutor = struct {
     fn execute_return(self: *QueryExecutor, return_clause: cypher.Return, result: *QueryResult) !void {
         _ = return_clause;
         std.debug.print("Executing RETURN clause\n", .{});
-        
+
         // For now, just return the current result
         // In a full implementation, this would format the output according to the return items
         _ = self;
@@ -146,16 +146,16 @@ pub const QueryExecutor = struct {
         _ = self;
         // Simple node matching - look for nodes with matching properties
         // This is a simplified implementation
-        std.debug.print("Matching node pattern: var={?s}, labels={any}\n", .{
-            node_pattern.variable, node_pattern.labels
-        });
+        std.debug.print("Matching node pattern: var={?s}, labels={any}\n", .{ node_pattern.variable, node_pattern.labels });
 
         // For now, just create a placeholder node value
-        const node_value = QueryValue{ .node = .{
-            .id = 1, // Placeholder
-            .kind = 0,
-            .props = [_]u8{0} ** 128,
-        }};
+        const node_value = QueryValue{
+            .node = .{
+                .id = 1, // Placeholder
+                .kind = 0,
+                .props = [_]u8{0} ** 128,
+            },
+        };
         if (node_pattern.variable) |var_name| {
             try row.set_variable(var_name, node_value);
         }
@@ -163,32 +163,30 @@ pub const QueryExecutor = struct {
 
     fn match_relationship_pattern(self: *QueryExecutor, rel_pattern: cypher.RelationshipPattern, row: *QueryRow) !void {
         _ = self;
-        std.debug.print("Matching relationship pattern: var={?s}, types={any}\n", .{
-            rel_pattern.variable, rel_pattern.types
-        });
+        std.debug.print("Matching relationship pattern: var={?s}, types={any}\n", .{ rel_pattern.variable, rel_pattern.types });
 
         // For now, just create a placeholder edge value
-        const edge_value = QueryValue{ .edge = .{
-            .from = 1, // Placeholder
-            .to = 2,   // Placeholder
-            .label = 1,
-            .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
-        }};
+        const edge_value = QueryValue{
+            .edge = .{
+                .from = 1, // Placeholder
+                .to = 2, // Placeholder
+                .label = 1,
+                .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
+            },
+        };
         if (rel_pattern.variable) |var_name| {
             try row.set_variable(var_name, edge_value);
         }
     }
 
     fn create_node_pattern(self: *QueryExecutor, node_pattern: cypher.NodePattern, result: *QueryResult) !void {
-        std.debug.print("Creating node: var={?s}, labels={any}\n", .{
-            node_pattern.variable, node_pattern.labels
-        });
+        std.debug.print("Creating node: var={?s}, labels={any}\n", .{ node_pattern.variable, node_pattern.labels });
 
         const var_name = node_pattern.variable orelse "node";
-        
+
         // Generate a new node ID
         const node_id = std.hash.Wyhash.hash(0, var_name);
-        
+
         const node = nendb.Node{
             .id = node_id,
             .kind = if (node_pattern.labels.len > 0) 1 else 0,
@@ -196,7 +194,7 @@ pub const QueryExecutor = struct {
         };
 
         try self.db.insert_node(node);
-        
+
         const node_value = QueryValue{ .node = node };
         var row = QueryRow.init(self.allocator);
         defer row.deinit();
@@ -206,14 +204,12 @@ pub const QueryExecutor = struct {
 
     fn create_relationship_pattern(self: *QueryExecutor, rel_pattern: cypher.RelationshipPattern, result: *QueryResult) !void {
         _ = result;
-        std.debug.print("Creating relationship: var={?s}, types={any}\n", .{
-            rel_pattern.variable, rel_pattern.types
-        });
+        std.debug.print("Creating relationship: var={?s}, types={any}\n", .{ rel_pattern.variable, rel_pattern.types });
 
         // For now, create a simple edge
         const edge = nendb.Edge{
             .from = 1, // Would get from context
-            .to = 2,   // Would get from context
+            .to = 2, // Would get from context
             .label = 1,
             .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
         };
@@ -261,7 +257,7 @@ pub const QueryResult = struct {
     pub fn format(self: *const QueryResult, writer: anytype) !void {
         try writer.writeAll("Query Result:\n");
         try writer.print("Total rows: {}\n", .{self.count()});
-        
+
         for (self.rows.items, 0..) |row, i| {
             try writer.print("Row {}:\n", .{i});
             try row.format(writer);

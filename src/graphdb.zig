@@ -254,21 +254,21 @@ pub const GraphDB = struct {
     inline fn delete_edges_for_node(self: *GraphDB, node_id: u64) !void {
         // Collect edges to delete first, then delete them
         var edges_to_delete: std.BoundedArray(u32, 4096) = .{};
-        
+
         // Find outgoing edges
         var iter = self.get_edges_from(node_id);
         while (iter.next()) |edge| {
             const idx = @as(u32, @intCast(@intFromPtr(edge) - @intFromPtr(&self.edge_pool.edges[0])));
             edges_to_delete.append(idx) catch break;
         }
-        
+
         // Find incoming edges
         for (self.edge_pool.edges, 0..) |edge, i| {
             if (edge.to == node_id and edge.from != 0) { // Check if edge is actually used
                 edges_to_delete.append(@intCast(i)) catch break;
             }
         }
-        
+
         // Delete all collected edges
         for (edges_to_delete.slice()) |idx| {
             self.edge_pool.free(idx) catch {}; // Ignore errors for already freed edges
@@ -819,13 +819,13 @@ test "WAL segment rotation and replay" {
     const tmp_dir_name = "./.nendb_test_rotation";
     _ = std.fs.cwd().deleteTree(tmp_dir_name) catch {};
     try std.fs.cwd().makePath(tmp_dir_name);
-    
+
     // First phase: insert nodes
     {
         var db: GraphDB = undefined;
         try GraphDB.open_inplace(&db, tmp_dir_name);
         defer db.deinit();
-        
+
         // Insert a few test nodes
         const n1 = pool.Node{ .id = 1000, .kind = 0, .reserved = [_]u8{0} ** 7, .props = [_]u8{0} ** constants.data.node_props_size };
         const n2 = pool.Node{ .id = 1001, .kind = 1, .reserved = [_]u8{0} ** 7, .props = [_]u8{0} ** constants.data.node_props_size };
@@ -833,7 +833,7 @@ test "WAL segment rotation and replay" {
         try db.insert_node(n2);
         // db.deinit() called automatically by defer
     }
-    
+
     // Second phase: reopen and verify data integrity
     {
         var db: GraphDB = undefined;
@@ -845,7 +845,7 @@ test "WAL segment rotation and replay" {
         try std.testing.expectEqual(@as(u8, 1), f2.kind);
         // db.deinit() called automatically by defer
     }
-    
+
     _ = std.fs.cwd().deleteTree(tmp_dir_name) catch {};
 }
 
