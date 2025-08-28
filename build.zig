@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = .ReleaseSafe; // Always build in safe mode for production reliability
 
-    // TigerBeetle-style NenDB CLI (Production Version)
+    //NenDB CLI (Production Version)
     const exe = b.addExecutable(.{
         .name = "nendb-production",
         .root_source_file = b.path("src/main.zig"),
@@ -50,6 +50,59 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // ===== NEW TDD WORKFLOW: CATEGORIZED TEST SUITES =====
+
+    // 1. UNIT TESTS (Fast, isolated, no external dependencies)
+    const unit_tests = b.addTest(.{
+        .root_source_file = b.path("tests/unit/unit_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    unit_tests.root_module.addImport("nendb", lib_mod);
+    
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+    const unit_test_step = b.step("test-unit", "Run unit tests (fast, isolated)");
+    unit_test_step.dependOn(&run_unit_tests.step);
+
+    // 2. INTEGRATION TESTS (Slower, real data, external dependencies)
+    const integration_tests = b.addTest(.{
+        .root_source_file = b.path("tests/integration/integration_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    integration_tests.root_module.addImport("nendb", lib_mod);
+    integration_tests.root_module.addImport("monitoring", monitoring_mod);
+    
+    const run_integration_tests = b.addRunArtifact(integration_tests);
+    const integration_test_step = b.step("test-integration", "Run integration tests (real data)");
+    integration_test_step.dependOn(&run_integration_tests.step);
+
+    // 3. PERFORMANCE TESTS (Benchmarking, performance assertions)
+    const performance_tests = b.addTest(.{
+        .root_source_file = b.path("tests/performance/performance_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    performance_tests.root_module.addImport("nendb", lib_mod);
+    
+    const run_performance_tests = b.addRunArtifact(performance_tests);
+    const performance_test_step = b.step("test-performance", "Run performance tests (benchmarking)");
+    performance_test_step.dependOn(&run_performance_tests.step);
+
+    // 4. STRESS TESTS (Long running, edge cases, memory pressure)
+    const stress_tests = b.addTest(.{
+        .root_source_file = b.path("tests/stress/stress_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    stress_tests.root_module.addImport("nendb", lib_mod);
+    
+    const run_stress_tests = b.addRunArtifact(stress_tests);
+    const stress_test_step = b.step("test-stress", "Run stress tests (long running)");
+    stress_test_step.dependOn(&run_stress_tests.step);
+
+    // ===== LEGACY TEST SUPPORT (Maintained for compatibility) =====
+
     // Tests for production version
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/lib.zig"),
@@ -58,7 +111,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-    const test_step = b.step("test", "Run unit tests");
+    const test_step = b.step("test", "Run all tests (legacy compatibility)");
     test_step.dependOn(&run_lib_unit_tests.step);
 
     // Also run GraphDB tests
@@ -70,9 +123,9 @@ pub fn build(b: *std.Build) void {
     const run_graphdb_tests = b.addRunArtifact(graphdb_tests);
     test_step.dependOn(&run_graphdb_tests.step);
 
-    // Resource monitoring tests
+    // Resource monitoring tests (legacy - moved to tests/legacy/)
     const monitoring_tests = b.addTest(.{
-        .root_source_file = b.path("tests/test_resource_monitor.zig"),
+        .root_source_file = b.path("tests/legacy/test_resource_monitor.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -102,6 +155,8 @@ pub fn build(b: *std.Build) void {
     const run_query_tests_new = b.addRunArtifact(query_tests_new);
     test_step.dependOn(&run_query_tests_new.step);
 
+    // ===== ENHANCED BENCHMARKING SUPPORT =====
+
     // Optional benchmarks (gated by -Dbench)
     const bench_enabled = b.option(bool, "bench", "Enable building/running benchmark executables") orelse false;
     if (bench_enabled) {
@@ -127,6 +182,47 @@ pub fn build(b: *std.Build) void {
         const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
         real_bench_step.dependOn(&run_real_bench.step);
     }
+
+    // ===== PERFORMANCE PROFILING SUPPORT =====
+
+    // Performance profiling executable
+    const profile_exe = b.addExecutable(.{
+        .name = "nendb-profile",
+        .root_source_file = b.path("tests/profile/performance_profile.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    profile_exe.root_module.addImport("nendb", lib_mod);
+    
+    const run_profile = b.addRunArtifact(profile_exe);
+    const profile_step = b.step("profile", "Run performance profiling");
+    profile_step.dependOn(&run_profile.step);
+
+    // ===== MEMORY ANALYSIS SUPPORT =====
+
+    // Memory usage analysis
+    const memory_analysis_exe = b.addExecutable(.{
+        .name = "nendb-memory",
+        .root_source_file = b.path("tests/memory/memory_analysis.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    memory_analysis_exe.root_module.addImport("nendb", lib_mod);
+    
+    const run_memory_analysis = b.addRunArtifact(memory_analysis_exe);
+    const memory_analysis_step = b.step("memory", "Run memory usage analysis");
+    memory_analysis_step.dependOn(&run_memory_analysis.step);
+
+    // ===== COMPREHENSIVE TEST RUNNER =====
+
+    // Master test step that runs all test categories
+    const all_tests_step = b.step("test-all", "Run all test categories");
+    all_tests_step.dependOn(&run_unit_tests.step);
+    all_tests_step.dependOn(&run_integration_tests.step);
+    all_tests_step.dependOn(&run_performance_tests.step);
+    all_tests_step.dependOn(&run_stress_tests.step);
+
+    // ===== LEGACY COMPATIBILITY =====
 
     // Resource Monitor Demo
     const monitor_demo_exe = b.addExecutable(.{
