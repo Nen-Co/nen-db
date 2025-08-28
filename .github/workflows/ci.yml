@@ -39,7 +39,7 @@ jobs:
       - name: Run tests (build.zig test step)
         run: |
           set -euo pipefail
-          zig build test -Doptimize=Debug
+          zig build test
 
       - name: Build release binary
         run: |
