@@ -179,14 +179,14 @@ pub fn build(b: *std.Build) void {
         umbrella_step.dependOn(&run_umbrella.step);
     }
 
-    // Integrate Super-ZIG/io (third_party/super_io) with feature flag -Dsuper_io
-    const use_super_io = b.option(bool, "super_io", "Enable Super-ZIG/io high-performance IO layer") orelse false;
+    // Lightweight internal super_io shim (replaces full upstream) behind -Dsuper_io
+    const use_super_io = b.option(bool, "super_io", "Enable lightweight super_io helpers") orelse false;
     if (use_super_io) {
-        const super_io_mod = b.createModule(.{ .root_source_file = b.path("third_party/super_io/lib/io.zig"), .target = target, .optimize = optimize });
-        // Expose to library and executables
+        const super_io_mod = b.createModule(.{ .root_source_file = b.path("third_party/super_io/io.zig"), .target = target, .optimize = optimize });
         lib_mod.addImport("super_io", super_io_mod);
         monitoring_mod.addImport("super_io", super_io_mod);
         exe.root_module.addImport("super_io", super_io_mod);
         nen_cli.root_module.addImport("super_io", super_io_mod);
     }
+
 }

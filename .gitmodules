@@ -1,6 +1,1 @@
-[submodule "nendb"]
-	path = nendb
-	url = https://github.com/ng-nen/nendb.git
-[submodule "nencache"]
-	path = nencache
-	url = https://github.com/ng-nen/nencache.git
+## Removed submodules nendb and nencache (directories deleted per user request)
