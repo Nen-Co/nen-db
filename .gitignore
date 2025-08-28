@@ -15,3 +15,20 @@ data/
 *.wal.lock
 *.snapshot
 *.bak
+
+# Test files and temporary files
+test_*.zig
+*_test.zig
+*.tmp
+
+# Build artifacts
+dist/
+*.tar.gz
+*.zip
+
+# Log files
+*.log
+
+# Environment files
+.env
+.env.local

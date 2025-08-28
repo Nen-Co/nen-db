@@ -179,15 +179,10 @@ pub fn build(b: *std.Build) void {
         umbrella_step.dependOn(&run_umbrella.step);
     }
 
-    // Lightweight internal super_io shim (replaces full upstream) behind -Dsuper_io
-    const use_super_io = b.option(bool, "super_io", "Enable lightweight super_io helpers") orelse false;
-    if (use_super_io) {
-        const super_io_mod = b.createModule(.{ .root_source_file = b.path("third_party/super_io/io.zig"), .target = target, .optimize = optimize });
-        lib_mod.addImport("super_io", super_io_mod);
-        monitoring_mod.addImport("super_io", super_io_mod);
-        exe.root_module.addImport("super_io", super_io_mod);
-        nen_cli.root_module.addImport("super_io", super_io_mod);
-    }
-
-}
+    // Custom I/O module (our own implementation, no external dependencies)
+    const custom_io_mod = b.createModule(.{ .root_source_file = b.path("src/io/io.zig"), .target = target, .optimize = optimize });
+    lib_mod.addImport("io", custom_io_mod);
+    monitoring_mod.addImport("io", custom_io_mod);
+    exe.root_module.addImport("io", custom_io_mod);
+    nen_cli.root_module.addImport("io", custom_io_mod);
 }

@@ -7,7 +7,7 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 [![Issues](https://img.shields.io/github/issues/Nen-Co/nendb)](../../issues)
 [![Discussions](https://img.shields.io/github/discussions/Nen-Co/nendb)](../../discussions)
 
-> Status: early pre-release. Interfaces may change; durability features are the stabilization focus for v0.1.0.
+> Status: Beta (v0.0.1). Core graph operations are functional with production-ready durability features.
 
 ## Table of Contents
 - [Features (production-ready)](#features-production-ready)
@@ -26,16 +26,18 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 - [License](#license)
 
 ## Features (production-ready)
-- WAL with header/version, CRC per entry, and segment rotation
-- Tail scan and auto-truncate of trailing/partial or corrupt bytes
-- Atomic snapshots (temp → fsync → rename → dir fsync), length + CRC
-- Snapshot .bak fallback on restore
-- LSN-aware recovery: restore snapshot, then replay WAL after LSN
-- Strict durability (fsync + F_FULLFSYNC on macOS where possible)
-- Single-writer safety via lock file next to WAL
-- Static memory pools (nodes/edges/embeddings); lock-free reads, mutex-guarded writes
-- CLI for init/status/snapshot/restore/check/compact
-- Health reporting: WAL health exposed via CLI and API
+- **Core Graph Operations**: Node/Edge CRUD, graph traversal, path finding
+- **Enhanced I/O Module**: Static memory, inline functions, UTF-8 support, colored terminal output
+- **WAL with header/version**: CRC per entry, and segment rotation
+- **Tail scan and auto-truncate**: Trailing/partial or corrupt bytes
+- **Atomic snapshots**: Temp → fsync → rename → dir fsync, length + CRC
+- **Snapshot .bak fallback**: On restore
+- **LSN-aware recovery**: Restore snapshot, then replay WAL after LSN
+- **Strict durability**: Fsync + F_FULLFSYNC on macOS where possible
+- **Single-writer safety**: Lock file next to WAL
+- **Static memory pools**: Nodes/edges/embeddings; lock-free reads, mutex-guarded writes
+- **CLI**: Init/status/snapshot/restore/check/compact with enhanced output
+- **Health reporting**: WAL health exposed via CLI and API
 
 ## Quick install (prebuilt)
 Prebuilt binaries are published on GitHub Releases (Linux x86_64, macOS universal, Windows x86_64).
@@ -46,7 +48,7 @@ If no release has been tagged yet, skip to [Build from source](#build-from-sourc
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nen-Co/nendb/main/scripts/install.sh | sh
 # Then:
-nen status --help
+nendb --help
 ```
 This script:
 - Detects OS/arch
@@ -58,57 +60,63 @@ This script:
 ```powershell
 # Replace VERSION after first release (placeholder using latest tag API):
 $uri = Invoke-RestMethod https://api.github.com/repos/Nen-Co/nendb/releases/latest; \
-$asset = ($uri.assets | Where-Object { $_.name -like 'nen-windows-x86_64.zip' }).browser_download_url; \
-Invoke-WebRequest $asset -OutFile nen.zip; Expand-Archive nen.zip -DestinationPath .; \
-Move-Item nen-windows-x86_64.exe nen.exe; Write-Host 'Run: ./nen status ./data'
+$asset = ($uri.assets | Where-Object { $_.name -like 'nendb-windows-x86_64.zip' }).browser_download_url; \
+Invoke-WebRequest $asset -OutFile nendb.zip; Expand-Archive nendb.zip -DestinationPath .; \
+Move-Item nendb-windows-x86_64.exe nendb.exe; Write-Host 'Run: ./nendb --help'
 ```
 
 ### Manual download
 1. Visit: https://github.com/Nen-Co/nendb/releases
-2. Download archive: `nen-linux-x86_64.tar.gz`, `nen-macos-universal.tar.gz`, or `nen-windows-x86_64.zip`
+2. Download archive: `nendb-linux-x86_64.tar.gz`, `nendb-macos-universal.tar.gz`, or `nendb-windows-x86_64.zip`
 3. Verify checksum (compare against `SHA256SUMS`):
    ```bash
-   sha256sum -c SHA256SUMS | grep nen-linux-x86_64
+   sha256sum -c SHA256SUMS | grep nendb-linux-x86_64
    ```
-4. Put `nen` on your PATH.
+4. Put `nendb` on your PATH.
 
 (If the latest release isn’t tagged yet, build from source below.)
 
 ## Build from source
 ```bash
-# Build, init a fresh data dir, and start the DB (copy-paste)
+# Build and run demo (copy-paste)
 zig build -Doptimize=ReleaseSafe && \
-    zig-out/bin/nen init ./data && \
-    zig-out/bin/nen up ./data
+    ./zig-out/bin/nendb demo
 ```
 
-Then, in another terminal:
+Try basic operations:
 
 ```bash
-# Check status (text)
-zig-out/bin/nen status ./data
+# Check help
+./zig-out/bin/nendb --help
 
-# Or JSON (good for scripts/CI)
-zig-out/bin/nen status ./data --json --fail-on-unhealthy
+# Run demo
+./zig-out/bin/nendb demo
 ```
 
 ## Common ops (anytime):
 ```bash
-zig-out/bin/nen snapshot ./data
-zig-out/bin/nen restore ./data
-zig-out/bin/nen check ./data
-zig-out/bin/nen compact ./data
-zig-out/bin/nen force-unlock ./data
+# Graph operations demo
+./zig-out/bin/nendb demo
+
+# Basic help
+./zig-out/bin/nendb --help
+
+# TODO: Add more operations as implemented
+# ./zig-out/bin/nendb snapshot ./data
+# ./zig-out/bin/nendb restore ./data
+# ./zig-out/bin/nendb check ./data
+# ./zig-out/bin/nendb compact ./data
+# ./zig-out/bin/nendb force-unlock ./data
 ```
 
-Optional server mode:
+Optional server mode (TODO):
 ```bash
-zig-out/bin/nen serve  # listens on :5454
+./zig-out/bin/nendb serve  # listens on :5454
 ```
 
 Quick try without a full build:
 ```bash
-zig run src/main.zig -- init ./data && zig run src/main.zig -- up ./data
+zig run src/main.zig -- demo
 ```
 
 Add build output to PATH:

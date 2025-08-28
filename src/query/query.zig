@@ -10,6 +10,9 @@ const cypher = struct {
 // Re-export AST module for external consumers (e.g., tests) to access utilities like deinit
 pub const cypher_ast = cypher.ast;
 
+// Export the query executor
+pub const executor = @import("executor.zig");
+
 pub const QueryResult = struct {
     rows: []const u8,
     count: usize,

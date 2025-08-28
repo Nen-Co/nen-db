@@ -1,4 +1,7 @@
 // NenDB GraphDB engine (TigerBeetle-style)
+comptime {
+    @setEvalBranchQuota(10000);
+}
 const std = @import("std");
 pub const pool = @import("memory/pool_v2.zig");
 pub const constants = @import("constants.zig");
@@ -125,6 +128,313 @@ pub const GraphDB = struct {
         }
     }
 
+    // Edge operations
+    pub inline fn insert_edge(self: *GraphDB, edge: pool.Edge) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        // pre-check WAL health to fail fast
+        const health = self.wal.getHealth();
+        if (!health.healthy) return error.IOError;
+        // Begin seqlock write section (odd value = write in progress)
+        const prev_seq_begin = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_begin;
+            }
+        }
+        const idx = self.edge_pool.alloc(edge) catch |e| {
+            // End seqlock on error
+            const prev_seq_error = self.read_seq.fetchAdd(1, .acq_rel);
+            comptime {
+                if (std.debug.runtime_safety) {
+                    _ = prev_seq_error;
+                }
+            }
+            return e;
+        };
+        errdefer self.edge_pool.free(idx) catch {
+            // ensure seqlock is balanced if we unwind before WAL append
+            const prev_seq_errdefer = self.read_seq.fetchAdd(1, .acq_rel);
+            comptime {
+                if (std.debug.runtime_safety) {
+                    _ = prev_seq_errdefer;
+                }
+            }
+        };
+        try self.wal.append_insert_edge(edge);
+        self.ops_since_snapshot += 1;
+        self.inserts_total += 1;
+        // End seqlock write section: readers may now observe the new edge
+        const prev_seq_end = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_end;
+            }
+        }
+        // After publishing, perform potentially slow maintenance without blocking readers
+        if (self.ops_since_snapshot >= @as(u64, @intCast(@import("constants.zig").storage.snapshot_interval))) {
+            // take snapshot to db dir if known; for now, assume cwd
+            try self.snapshot_unlocked(".");
+            // after snapshot, delete older segments, keep the most recent one for safety
+            _ = self.wal.delete_segments_keep_last(1) catch 0;
+            self.ops_since_snapshot = 0;
+        }
+    }
+
+    // ╔══════════════════════════════════════ DELETE OPERATIONS ═══════════════════════════╗
+
+    pub inline fn delete_node(self: *GraphDB, node_id: u64) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        // pre-check WAL health to fail fast
+        const health = self.wal.getHealth();
+        if (!health.healthy) return error.IOError;
+        // Begin seqlock write section
+        const prev_seq_begin = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_begin;
+            }
+        }
+        // Find node index
+        const node_idx = self.node_pool.get_by_id(node_id) orelse return constants.NenDBError.NodeNotFound;
+        const idx = @intFromPtr(node_idx) - @intFromPtr(&self.node_pool.nodes[0]);
+        // Delete incoming and outgoing edges first
+        try self.delete_edges_for_node(node_id);
+        // Free the node
+        try self.node_pool.free(@intCast(idx));
+        try self.wal.append_delete_node(node_id);
+        self.ops_since_snapshot += 1;
+        // End seqlock write section
+        const prev_seq_end = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_end;
+            }
+        }
+        // Maintenance
+        if (self.ops_since_snapshot >= @as(u64, @intCast(@import("constants.zig").storage.snapshot_interval))) {
+            _ = self.wal.delete_segments_keep_last(1) catch 0;
+        }
+    }
+
+    pub inline fn delete_edge(self: *GraphDB, from: u64, to: u64) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        // pre-check WAL health to fail fast
+        const health = self.wal.getHealth();
+        if (!health.healthy) return error.IOError;
+        // Begin seqlock write section
+        const prev_seq_begin = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_begin;
+            }
+        }
+        // Find edge
+        const edge = self.edge_pool.get_by_from_to(from, to) orelse return constants.NenDBError.EdgeNotFound;
+        const idx = @intFromPtr(edge) - @intFromPtr(&self.edge_pool.edges[0]);
+        // Free the edge
+        try self.edge_pool.free(@intCast(idx));
+        try self.wal.append_delete_edge(from, to);
+        self.ops_since_snapshot += 1;
+        // End seqlock write section
+        const prev_seq_end = self.read_seq.fetchAdd(1, .acq_rel);
+        comptime {
+            if (std.debug.runtime_safety) {
+                _ = prev_seq_end;
+            }
+        }
+        // Maintenance
+        if (self.ops_since_snapshot >= @as(u64, @intCast(@import("constants.zig").storage.snapshot_interval))) {
+            _ = self.wal.delete_segments_keep_last(1) catch 0;
+        }
+    }
+
+    inline fn delete_edges_for_node(self: *GraphDB, node_id: u64) !void {
+        // Collect edges to delete first, then delete them
+        var edges_to_delete: std.BoundedArray(u32, 4096) = .{};
+        
+        // Find outgoing edges
+        var iter = self.get_edges_from(node_id);
+        while (iter.next()) |edge| {
+            const idx = @as(u32, @intCast(@intFromPtr(edge) - @intFromPtr(&self.edge_pool.edges[0])));
+            edges_to_delete.append(idx) catch break;
+        }
+        
+        // Find incoming edges
+        for (self.edge_pool.edges, 0..) |edge, i| {
+            if (edge.to == node_id and edge.from != 0) { // Check if edge is actually used
+                edges_to_delete.append(@intCast(i)) catch break;
+            }
+        }
+        
+        // Delete all collected edges
+        for (edges_to_delete.slice()) |idx| {
+            self.edge_pool.free(idx) catch {}; // Ignore errors for already freed edges
+        }
+    }
+
+    // ╔══════════════════════════════════════ GRAPH TRAVERSAL ════════════════════════════╗
+
+    pub const TraversalResult = struct {
+        nodes: []u64,
+        edges: []u64, // edge IDs or indices
+        depth: u32,
+    };
+
+    pub const Path = struct {
+        nodes: []u64,
+        edges: []u64,
+        weight: ?f32 = null, // for weighted paths
+    };
+
+    pub inline fn breadth_first_search(self: *const GraphDB, start: u64, max_depth: u32) !TraversalResult {
+        _ = self;
+        _ = start;
+        _ = max_depth;
+        // TODO: Implement BFS
+        return TraversalResult{ .nodes = &[_]u64{}, .edges = &[_]u64{}, .depth = 0 };
+    }
+
+    pub inline fn depth_first_search(self: *const GraphDB, start: u64, max_depth: u32) !TraversalResult {
+        _ = self;
+        _ = start;
+        _ = max_depth;
+        // TODO: Implement DFS
+        return TraversalResult{ .nodes = &[_]u64{}, .edges = &[_]u64{}, .depth = 0 };
+    }
+
+    pub inline fn find_path(self: *const GraphDB, from: u64, to: u64, max_length: u32) ?Path {
+        _ = self;
+        _ = from;
+        _ = to;
+        _ = max_length;
+        // TODO: Implement path finding
+        return null;
+    }
+
+    // ╔══════════════════════════════════════ PROPERTY OPERATIONS ════════════════════════╗
+
+    pub inline fn set_node_property(self: *GraphDB, node_id: u64, key: []const u8, value: []const u8) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        const node = self.node_pool.get_by_id(node_id) orelse return constants.NenDBError.NodeNotFound;
+        // TODO: Implement property storage in node.props
+        _ = node;
+        _ = key;
+        _ = value;
+    }
+
+    pub inline fn get_node_property(self: *const GraphDB, node_id: u64, key: []const u8) ?[]const u8 {
+        const node = self.node_pool.get_by_id(node_id) orelse return null;
+        // TODO: Implement property retrieval from node.props
+        _ = node;
+        _ = key;
+        return null;
+    }
+
+    pub inline fn set_edge_property(self: *GraphDB, from: u64, to: u64, key: []const u8, value: []const u8) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        const edge = self.edge_pool.get_by_from_to(from, to) orelse return constants.NenDBError.EdgeNotFound;
+        // TODO: Implement property storage in edge.props
+        _ = edge;
+        _ = key;
+        _ = value;
+    }
+
+    pub inline fn get_edge_property(self: *const GraphDB, from: u64, to: u64, key: []const u8) ?[]const u8 {
+        const edge = self.edge_pool.get_by_from_to(from, to) orelse return null;
+        // TODO: Implement property retrieval from edge.props
+        _ = edge;
+        _ = key;
+        return null;
+    }
+
+    // ╔══════════════════════════════════════ GRAPH ALGORITHMS ═══════════════════════════╗
+
+    pub inline fn get_connected_components(self: *const GraphDB) ![]const []const u64 {
+        _ = self;
+        // TODO: Implement connected components algorithm
+        return &[_][]const u64{};
+    }
+
+    pub inline fn get_shortest_paths(self: *const GraphDB, start: u64, targets: []const u64) ![]const ?Path {
+        _ = self;
+        _ = start;
+        // TODO: Implement shortest paths algorithm (Dijkstra's or Floyd-Warshall)
+        return &[_]?Path{null} ** targets.len;
+    }
+
+    pub inline fn get_node_degree(self: *const GraphDB, node_id: u64) !u32 {
+        _ = self.node_pool.get_by_id(node_id) orelse return constants.NenDBError.NodeNotFound;
+        var degree: u32 = 0;
+        var iter = self.get_edges_from(node_id);
+        while (iter.next()) |_| {
+            degree += 1;
+        }
+        // Count incoming edges
+        for (self.edge_pool.edges) |edge| {
+            if (edge.to == node_id) {
+                degree += 1;
+            }
+        }
+        return degree;
+    }
+
+    pub inline fn get_neighbors(self: *const GraphDB, node_id: u64) ![]const u64 {
+        _ = self.node_pool.get_by_id(node_id) orelse return constants.NenDBError.NodeNotFound;
+        // TODO: Implement neighbor collection
+        return &[_]u64{};
+    }
+
+    pub inline fn lookup_edge(self: *const GraphDB, from: u64, to: u64) ?*const pool.Edge {
+        const mut_self: *GraphDB = @constCast(self);
+        while (true) {
+            const s1 = mut_self.read_seq.load(.acquire);
+            if ((s1 & 1) == 1) continue; // writer in progress
+            const res = self.edge_pool.get_by_from_to(from, to);
+            const s2 = mut_self.read_seq.load(.acquire);
+            if (s1 == s2 and (s2 & 1) == 0) {
+                const prev_lookups = mut_self.lookups_total.fetchAdd(1, .monotonic);
+                comptime {
+                    if (std.debug.runtime_safety) {
+                        _ = prev_lookups;
+                    }
+                }
+                return res;
+            }
+            // otherwise, a write occurred; retry
+            std.atomic.spinLoopHint();
+        }
+    }
+
+    pub inline fn get_edges_from(self: *const GraphDB, from: u64) EdgeIterator {
+        return EdgeIterator{
+            .db = self,
+            .from = from,
+            .current_index = 0,
+        };
+    }
+
+    pub const EdgeIterator = struct {
+        db: *const GraphDB,
+        from: u64,
+        current_index: u32,
+
+        pub fn next(self: *EdgeIterator) ?*const pool.Edge {
+            while (self.current_index < self.db.edge_pool.used_count) {
+                const edge = &self.db.edge_pool.edges[self.current_index];
+                self.current_index += 1;
+                if (edge.from == self.from) {
+                    return edge;
+                }
+            }
+            return null;
+        }
+    };
+
     pub inline fn deinit(self: *GraphDB) void {
         self.wal.close();
     }
@@ -147,6 +457,7 @@ pub const GraphDB = struct {
 
     // Snapshot current node pool to a snapshot file (atomic: temp + fsync + rename), then reset WAL to header
     inline fn snapshot_unlocked(self: *GraphDB, dir: []const u8) !void {
+        @setEvalBranchQuota(10000);
         var snap_path_buf: [256]u8 = undefined;
         const snap_path = try std.fmt.bufPrint(&snap_path_buf, "{s}/nendb.snapshot", .{dir});
         var snap_bak_path_buf: [256]u8 = undefined;

@@ -5,7 +5,9 @@ const std = @import("std");
 
 // Core modules
 pub const memory = @import("memory/pool_v2.zig");
-pub const query = @import("query/query.zig");
+// pub const query = @import("query/query.zig");
+pub const constants = @import("constants.zig");
+pub const io = @import("io/io.zig");
 // Legacy nendb.zig removed; GraphDB is primary engine now (graphdb.zig)
 pub const graphdb = @import("graphdb.zig");
 
@@ -40,8 +42,8 @@ pub fn create_graph(allocator: std.mem.Allocator, config: Config) !GraphDB {
 }
 
 // Version information
-pub const VERSION = "0.1.0";
-pub const VERSION_STRING = "NenDB v" ++ VERSION;
+pub const VERSION = "0.0.1";
+pub const VERSION_STRING = "NenDB v" ++ VERSION ++ " (Beta)";
 
 // Feature flags
 pub const FEATURES = struct {
