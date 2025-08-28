@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     // Standard target and optimization options
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = .ReleaseSafe; // Always build in safe mode for production reliability
 
     // TigerBeetle-style NenDB CLI (Production Version)
     const exe = b.addExecutable(.{
