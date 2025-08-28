@@ -232,7 +232,7 @@ pub const Terminal = struct {
             self.current = @min(progress, self.total);
             const percentage = @as(f32, @floatFromInt(self.current)) / @as(f32, @floatFromInt(self.total));
             const filled = @as(u32, @intFromFloat(percentage * @as(f32, @floatFromInt(self.width))));
-            
+
             const stderr = std.io.getStdErr().writer();
             try stderr.print("\r[", .{});
             var i: u32 = 0;
@@ -305,7 +305,7 @@ pub const Time = struct {
         const hours = @divFloor(seconds_since_midnight.getTotalSeconds(), 3600);
         const minutes = @divFloor(@mod(seconds_since_midnight.getTotalSeconds(), 3600), 60);
         const seconds = @mod(seconds_since_midnight.getTotalSeconds(), 60);
-        
+
         _ = fmt; // TODO: Implement format parsing
         try buf.append("2024-01-01 "); // Simplified for now
         if (hours < 10) try buf.append("0");
@@ -316,7 +316,7 @@ pub const Time = struct {
         try buf.append(":");
         if (seconds < 10) try buf.append("0");
         try buf.append(try std.fmt.bufPrint(&buf.data[buf.len..][0..10], "{d}", .{seconds}));
-        
+
         return buf;
     }
 
@@ -336,7 +336,7 @@ pub const CLI = struct {
         const stdin = std.io.getStdIn().reader();
         const stderr = std.io.getStdErr().writer();
         try stderr.print("{s}: ", .{message});
-        
+
         var buf = String.StaticBuffer.init();
         var byte: [1]u8 = undefined;
         while (stdin.read(&byte)) {
@@ -346,18 +346,18 @@ pub const CLI = struct {
             error.EndOfStream => {},
             else => return err,
         }
-        
+
         return buf;
     }
 
     pub inline fn confirm(comptime message: []const u8) !bool {
         const stderr = std.io.getStdErr().writer();
         try stderr.print("{s} (y/N): ", .{message});
-        
+
         const stdin = std.io.getStdIn().reader();
         var byte: [1]u8 = undefined;
         _ = stdin.read(&byte) catch return false;
-        
+
         return byte[0] == 'y' or byte[0] == 'Y';
     }
 
@@ -365,7 +365,7 @@ pub const CLI = struct {
         const stdin = std.io.getStdIn().reader();
         var buf = String.StaticBuffer.init();
         var byte: [1]u8 = undefined;
-        
+
         while (stdin.read(&byte)) {
             if (byte[0] == '\n') break;
             try buf.append(&byte);
@@ -373,7 +373,7 @@ pub const CLI = struct {
             error.EndOfStream => {},
             else => return err,
         }
-        
+
         return buf;
     }
 
@@ -453,14 +453,14 @@ pub const Log = struct {
     pub inline fn log(level: Level, comptime fmt: []const u8, args: anytype) !void {
         const stderr = std.io.getStdErr().writer();
         const timestamp = try Time.formatStatic(Time.now(), "YYYY-MM-DD HH:mm:ss");
-        
+
         switch (level) {
             .debug => try Terminal.printBlue("[DEBUG] ", .{}),
             .info => try Terminal.printGreen("[INFO] ", .{}),
             .warn => try Terminal.printYellow("[WARN] ", .{}),
             .err => try Terminal.printRed("[ERROR] ", .{}),
         }
-        
+
         try stderr.print("{s} ", .{timestamp.slice()});
         try stderr.print(fmt ++ "\n", args);
     }
