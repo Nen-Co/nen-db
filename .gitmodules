@@ -1,1 +1,4 @@
 ## Removed submodules nendb and nencache (directories deleted per user request)
+[submodule "nen-net"]
+	path = nen-net
+	url = https://github.com/Nen-Co/nen-net.git

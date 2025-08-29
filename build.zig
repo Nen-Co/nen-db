@@ -279,15 +279,15 @@ pub fn build(b: *std.Build) void {
     const custom_io_mod = b.createModule(.{ .root_source_file = b.path("src/io/io.zig"), .target = target, .optimize = optimize });
 
     // Nen-Net module for high-performance networking APIs
-    const nen_net_mod = b.createModule(.{ .root_source_file = b.path("../nen-net/src/lib.zig"), .target = target, .optimize = optimize });
+    const nen_net_mod = b.createModule(.{ .root_source_file = b.path("nen-net/src/lib.zig"), .target = target, .optimize = optimize });
 
     lib_mod.addImport("io", custom_io_mod);
     // Note: nen-net is only imported by executables that need networking, not by the core library
     monitoring_mod.addImport("io", custom_io_mod);
     exe.root_module.addImport("io", custom_io_mod);
-    // Main executables don't need networking - only the networking demo does
+    exe.root_module.addImport("nen-net", nen_net_mod);
     nen_cli.root_module.addImport("io", custom_io_mod);
-    // Main CLI doesn't need networking either
+    nen_cli.root_module.addImport("nen-net", nen_net_mod);
 
     // Networking Demo
     const networking_demo = b.addExecutable(.{
