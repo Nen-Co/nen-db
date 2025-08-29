@@ -19,7 +19,12 @@ pub fn main() !void {
     try io.Terminal.println("Version: 0.0.1 (Beta) | Zig: {s}", .{@import("builtin").zig_version_string});
 
     // Simple argument parsing
-    var it = std.process.args();
+    var it = std.process.argsWithAllocator(std.heap.page_allocator) catch |err| {
+        try io.Terminal.errorln("Failed to get command line arguments: {}", .{err});
+        try print_help();
+        return;
+    };
+    defer it.deinit();
     _ = it.next(); // skip program name
 
     const arg = it.next() orelse {
