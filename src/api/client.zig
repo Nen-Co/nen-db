@@ -36,7 +36,7 @@ pub const Client = struct {
     pub fn connect(self: *Client) !void {
         if (self.is_connected) return;
 
-        std.debug.print("🔌 Connecting to NenDB server at {}:{d}...\n", .{ self.config.host, self.config.port });
+        std.debug.print("🔌 Connecting to NenDB server at {s}:{d}...\n", .{ self.config.host, self.config.port });
 
         // Initialize connection pool
         for (0..self.config.connection_pool_size) |_| {

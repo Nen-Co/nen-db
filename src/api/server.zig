@@ -99,11 +99,15 @@ pub const Response = struct {
         }
 
         if (self.data) |data| {
-            writer.print(",\"data\":\"{s}\"", .{data}) catch return "{}";
+            writer.writeAll(",\"data\":\"") catch return "{}";
+            writer.writeAll(data) catch return "{}";
+            writer.writeAll("\"") catch return "{}";
         }
 
         if (self.error_message) |error_msg| {
-            writer.print(",\"error\":\"{s}\"", .{error_msg}) catch return "{}";
+            writer.writeAll(",\"error\":\"") catch return "{}";
+            writer.writeAll(error_msg) catch return "{}";
+            writer.writeAll("\"") catch return "{}";
         }
 
         writer.writeAll("}") catch return "{}";
@@ -142,7 +146,7 @@ pub const EnhancedServer = struct {
     pub fn start(self: *EnhancedServer) !void {
         if (self.is_running) return error.ServerAlreadyRunning;
 
-        std.debug.print("🚀 Starting NenDB Enhanced Server on {}:{d}\n", .{ self.config.host, self.config.port });
+        std.debug.print("🚀 Starting NenDB Enhanced Server on {s}:{d}\n", .{ self.config.host, self.config.port });
         std.debug.print("📊 Max connections: {d}\n", .{self.config.max_connections});
         std.debug.print("💾 Buffer size: {d} bytes\n", .{self.config.buffer_size});
         std.debug.print("🔒 TLS enabled: {}\n", .{self.config.enable_tls});
@@ -176,16 +180,16 @@ pub const EnhancedServer = struct {
         try std.posix.setsockopt(sockfd, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, &std.mem.toBytes(@as(c_int, 1)));
         
         try std.posix.bind(sockfd, &address.any, address.getOsSockLen());
-        try std.posix.listen(sockfd, @as(c_int, @intCast(self.config.max_connections)));
+        try std.posix.listen(sockfd, @intCast(self.config.max_connections));
 
-        std.debug.print("✅ Server listening on {}:{d}\n", .{ address, self.config.port });
+        std.debug.print("✅ Server listening on {any}:{d}\n", .{ address, self.config.port });
 
         while (self.is_running) {
             var client_addr: std.net.Address = undefined;
             var client_addr_len: std.posix.socklen_t = @sizeOf(std.net.Address);
             
             const connfd = std.posix.accept(sockfd, &client_addr.any, &client_addr_len, 0) catch |err| {
-                std.debug.print("⚠️  Accept error: {}\n", .{err});
+                std.debug.print("⚠️  Accept error: {any}\n", .{err});
                 continue;
             };
 
@@ -206,6 +210,7 @@ pub const Connection = struct {
     fd: std.posix.fd_t,
     address: std.net.Address,
     buffer: []u8,
+    allocator: std.mem.Allocator,
     is_active: bool = true,
     created_at: i64,
     last_activity: i64,
@@ -218,6 +223,7 @@ pub const Connection = struct {
             .fd = fd,
             .address = address,
             .buffer = buffer,
+            .allocator = allocator,
             .created_at = now,
             .last_activity = now,
         };
@@ -250,18 +256,18 @@ pub const Connection = struct {
 fn handleConnection(server: *EnhancedServer, connection: *Connection) void {
     defer connection.close();
 
-    std.debug.print("🔌 New connection from {}\n", .{connection.address});
+            std.debug.print("🔌 New connection from {any}\n", .{connection.address});
 
     // Send welcome message
     const welcome = "NenDB Enhanced Server Ready\n";
     connection.write(welcome) catch |err| {
-        std.debug.print("⚠️  Failed to send welcome: {}\n", .{err});
+        std.debug.print("⚠️  Failed to send welcome: {any}\n", .{err});
         return;
     };
 
     while (connection.is_active and server.is_running) {
         const data = connection.read() catch |err| {
-            std.debug.print("⚠️  Read error: {}\n", .{err});
+            std.debug.print("⚠️  Read error: {any}\n", .{err});
             break;
         };
 
@@ -272,12 +278,12 @@ fn handleConnection(server: *EnhancedServer, connection: *Connection) void {
         
         // Send response
         connection.write(response.json()) catch |err| {
-            std.debug.print("⚠️  Failed to send response: {}\n", .{err});
+            std.debug.print("⚠️  Failed to send response: {any}\n", .{err});
             break;
         };
     }
 
-    std.debug.print("🔌 Connection closed from {}\n", .{connection.address});
+            std.debug.print("🔌 Connection closed from {any}\n", .{connection.address});
 }
 
 fn processRequest(data: []const u8) Response {

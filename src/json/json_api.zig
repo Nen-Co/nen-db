@@ -214,7 +214,7 @@ pub const JsonArray = struct {
     }
     
     pub inline fn set(self: *Self, index: u16, value: JsonValue) !void {
-        if (index >= json_config.max_array_elements) {
+        if (index >= static_json.json_config.max_array_elements) {
             return error.IndexOutOfBounds;
         }
         
@@ -432,13 +432,13 @@ pub const JsonBuilder = struct {
         return JsonValue{ .boolean = value };
     }
     
-    pub inline fn null() JsonValue {
+    pub inline fn @"null"() JsonValue {
         return JsonValue{ .null = {} };
     }
     
     // Helper for building objects
     pub inline fn buildObject(comptime fields: anytype) JsonObject {
-        var object = JsonObject.init();
+        var obj = JsonObject.init();
         
         inline for (fields) |field| {
             const value = switch (@TypeOf(field.value)) {
@@ -450,15 +450,15 @@ pub const JsonBuilder = struct {
                 else => JsonValue{ .null = {} },
             };
             
-            object.set(field.name, value) catch {};
+            obj.set(field.name, value) catch {};
         }
         
-        return object;
+        return obj;
     }
     
     // Helper for building arrays
     pub inline fn buildArray(comptime elements: anytype) JsonArray {
-        var array = JsonArray.init();
+        var arr = JsonArray.init();
         
         inline for (elements) |element| {
             const value = switch (@TypeOf(element)) {
@@ -470,10 +470,10 @@ pub const JsonBuilder = struct {
                 else => JsonValue{ .null = {} },
             };
             
-            array.append(value) catch {};
+            arr.append(value) catch {};
         }
         
-        return array;
+        return arr;
     }
 };
 

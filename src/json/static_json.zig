@@ -43,7 +43,7 @@ pub const JsonTokenType = enum(u8) {
     // Special tokens
     whitespace,        // spaces, tabs, newlines
     comment,           // // or /* */
-    error,             // parsing error
+    parse_error,       // parsing error
 };
 
 // JSON token with static memory
@@ -618,5 +618,4 @@ pub const JsonError = error{
     ExpectedFalse,
     ExpectedNull,
     InvalidEscapeSequence,
-    TokenPoolExhausted,
 };

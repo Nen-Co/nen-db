@@ -27,7 +27,7 @@ pub fn main() !void {
 fn runServer() void {
     // Start the server on port 8081
     api.server.startDefaultServer(8081) catch |err| {
-        std.debug.print("⚠️  Server error: {}\n", .{err});
+        std.debug.print("⚠️  Server error: {any}\n", .{err});
     };
 }
 
@@ -75,11 +75,11 @@ fn testBasicOperations(client: *api.client.Client) !void {
 
     // Test ping
     const ping_response = try client.ping();
-    std.debug.print("PING: {}\n", .{ping_response.data});
+            std.debug.print("PING: {any}\n", .{ping_response.data});
 
     // Test status
     const status_response = try client.status();
-    std.debug.print("STATUS: {}\n", .{status_response.data});
+            std.debug.print("STATUS: {any}\n", .{status_response.data});
 }
 
 fn testGraphOperations(client: *api.client.Client) !void {
@@ -94,7 +94,7 @@ fn testGraphOperations(client: *api.client.Client) !void {
     // Test node insertion
     const labels = [_][]const u8{ "Person", "User" };
     const node_response = try client.insertNode("alice_001", &labels, properties);
-    std.debug.print("Insert Node: {}\n", .{node_response.data});
+            std.debug.print("Insert Node: {any}\n", .{node_response.data});
 
     // Test edge insertion
     var edge_properties = std.StringHashMap([]const u8).init(std.heap.page_allocator);
@@ -102,7 +102,7 @@ fn testGraphOperations(client: *api.client.Client) !void {
     try edge_properties.put("since", "2024");
     
     const edge_response = try client.insertEdge("alice_001", "bob_001", "KNOWS", edge_properties);
-    std.debug.print("Insert Edge: {}\n", .{edge_response.data});
+            std.debug.print("Insert Edge: {any}\n", .{edge_response.data});
 
     // Test query
     var query_params = std.StringHashMap([]const u8).init(std.heap.page_allocator);
@@ -110,7 +110,7 @@ fn testGraphOperations(client: *api.client.Client) !void {
     try query_params.put("name", "Alice");
     
     const query_response = try client.query("MATCH (n:Person {name: $name}) RETURN n", query_params);
-    std.debug.print("Query: {}\n", .{query_response.data});
+            std.debug.print("Query: {any}\n", .{query_response.data});
 }
 
 fn testDocumentOperations(client: *api.client.Client) !void {
@@ -119,21 +119,21 @@ fn testDocumentOperations(client: *api.client.Client) !void {
     // Test document insertion
     const document = "{\"name\":\"John Doe\",\"email\":\"john@example.com\",\"age\":25}";
     const insert_response = try client.insertDocument("users", document);
-    std.debug.print("Insert Document: {}\n", .{insert_response.data});
+            std.debug.print("Insert Document: {any}\n", .{insert_response.data});
 
     // Test document find
     const query = "{\"name\":\"John Doe\"}";
     const find_response = try client.findDocument("users", query);
-    std.debug.print("Find Document: {}\n", .{find_response.data});
+            std.debug.print("Find Document: {any}\n", .{find_response.data});
 
     // Test document update
     const updates = "{\"age\":26,\"last_updated\":\"2024-01-01\"}";
     const update_response = try client.updateDocument("users", "john_001", updates);
-    std.debug.print("Update Document: {}\n", .{update_response.data});
+            std.debug.print("Update Document: {any}\n", .{update_response.data});
 
     // Test document deletion
     const delete_response = try client.deleteDocument("users", "john_001");
-    std.debug.print("Delete Document: {}\n", .{delete_response.data});
+            std.debug.print("Delete Document: {any}\n", .{delete_response.data});
 }
 
 fn testKeyValueOperations(client: *api.client.Client) !void {
@@ -141,19 +141,19 @@ fn testKeyValueOperations(client: *api.client.Client) !void {
 
     // Test set operation
     const set_response = try client.set("user:alice", "{\"name\":\"Alice\",\"active\":true}", 3600);
-    std.debug.print("SET: {}\n", .{set_response.data});
+            std.debug.print("SET: {any}\n", .{set_response.data});
 
     // Test get operation
     const get_response = try client.get("user:alice");
-    std.debug.print("GET: {}\n", .{get_response.data});
+            std.debug.print("GET: {any}\n", .{get_response.data});
 
     // Test set with TTL
     const set_ttl_response = try client.set("temp:session", "session_data", 60);
-    std.debug.print("SET with TTL: {}\n", .{set_ttl_response.data});
+            std.debug.print("SET with TTL: {any}\n", .{set_ttl_response.data});
 
     // Test delete operation
     const delete_response = try client.delete("user:alice");
-    std.debug.print("DELETE: {}\n", .{delete_response.data});
+            std.debug.print("DELETE: {any}\n", .{delete_response.data});
 }
 
 // Test the enhanced server directly
