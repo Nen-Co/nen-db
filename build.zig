@@ -136,7 +136,7 @@ pub fn build(b: *std.Build) void {
 
     // Cypher parser tests (query language subset)
     const query_tests = b.addTest(.{
-        .root_source_file = b.path("tests/test_cypher_parser.zig"),
+        .root_source_file = b.path("tests/legacy/test_cypher_parser.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -147,7 +147,7 @@ pub fn build(b: *std.Build) void {
 
     // New Cypher parser tests
     const query_tests_new = b.addTest(.{
-        .root_source_file = b.path("tests/test_cypher_parser_new.zig"),
+        .root_source_file = b.path("tests/legacy/test_cypher_parser_new.zig"),
         .target = target,
         .optimize = optimize,
     });
