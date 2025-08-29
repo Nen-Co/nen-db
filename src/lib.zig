@@ -19,7 +19,6 @@ pub const api = struct {
     pub const server = @import("api/server.zig");
     pub const client = @import("api/client.zig");
 };
-
 // Re-export main types for convenience
 pub const GraphDB = graphdb.GraphDB;
 pub const MemoryStats = memory.MemoryStats; // per-pool stats, GraphDB aggregates separately

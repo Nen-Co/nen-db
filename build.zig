@@ -237,8 +237,6 @@ pub fn build(b: *std.Build) void {
     const monitor_demo_step = b.step("monitor-demo", "Run resource monitoring demo");
     monitor_demo_step.dependOn(&run_monitor_demo.step);
 
-
-
     // Simple installers for the short-name CLI
     // User install: copies to $HOME/.local/bin (no sudo)
     const install_user_cmd = b.addSystemCommand(&.{
