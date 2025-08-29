@@ -45,7 +45,7 @@ jobs:
       - name: Build networking demo
         run: |
           set -euo pipefail
-          zig build --no-exec networking-demo
+          zig build build-networking-demo
           echo "✅ Networking demo builds successfully"
           echo "Note: Runtime errors (memory leaks, IP format) are expected in CI environment"
 
@@ -100,7 +100,7 @@ jobs:
       - name: Build networking demo
         run: |
           set -euo pipefail
-          zig build --no-exec networking-demo
+          zig build build-networking-demo
           echo "✅ Networking demo builds successfully"
           echo "Note: Runtime errors (memory leaks, IP format) are expected in CI environment"
 
@@ -150,7 +150,7 @@ jobs:
       
       - name: Build networking demo
         run: |
-          zig build --no-exec networking-demo
+          zig build build-networking-demo
           echo "✅ Networking demo builds successfully"
           echo "Note: Runtime errors (memory leaks, IP format) are expected in CI environment"
 

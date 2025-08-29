@@ -302,4 +302,8 @@ pub fn build(b: *std.Build) void {
     const run_networking_demo = b.addRunArtifact(networking_demo);
     const networking_demo_step = b.step("networking-demo", "Run networking demo");
     networking_demo_step.dependOn(&run_networking_demo.step);
+
+    // Build-only step for CI (doesn't run the demo)
+    const build_networking_demo_step = b.step("build-networking-demo", "Build networking demo executable");
+    build_networking_demo_step.dependOn(&networking_demo.step);
 }
