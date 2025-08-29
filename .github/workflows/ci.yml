@@ -36,10 +36,20 @@ jobs:
           echo "-- ls src --"
           ls -la src || true
 
-      - name: Run tests (build.zig test step)
+      - name: Run unit tests
         run: |
           set -euo pipefail
-          zig build test
+          zig build test-unit
+      
+      - name: Run performance tests
+        run: |
+          set -euo pipefail
+          zig build test-performance
+      
+      - name: Build networking demo
+        run: |
+          set -euo pipefail
+          zig build networking-demo
 
       - name: Build release binary
         run: |

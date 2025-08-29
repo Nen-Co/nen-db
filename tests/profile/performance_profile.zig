@@ -63,7 +63,7 @@ const ProfileData = struct {
         self.cpu_usage = cpu;
         self.io_operations = io;
         self.cache_hits = hits;
-        self.cache_misses = hits + misses > 0 ? hits : 0;
+        self.cache_misses = if (hits + misses > 0) hits else 0;
     }
 };
 
