@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["main", "master", "develop"]
+
+jobs:
+  zig-test-build:
+    name: Zig test & build
+    # Temporarily restrict to Linux until cross-platform build issues (resource monitor, etc.) are resolved.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig 0.14.1
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - name: Verify Zig + workspace
+        run: |
+          set -euo pipefail
+          set -x
+          zig version
+          echo "-- ls repo --"
+          ls -la
+          echo "-- ls src --"
+          ls -la src || true
+
+      - name: Run tests (build.zig test step)
+        run: |
+          set -euo pipefail
+          zig build test
+
+      - name: Build release binary
+        run: |
+          set -euo pipefail
+          zig build --release=safe
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nendb-build
+          path: |
+            zig-out/bin
+            zig-out
