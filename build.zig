@@ -59,7 +59,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     unit_tests.root_module.addImport("nendb", lib_mod);
-    
+
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const unit_test_step = b.step("test-unit", "Run unit tests (fast, isolated)");
     unit_test_step.dependOn(&run_unit_tests.step);
@@ -72,7 +72,7 @@ pub fn build(b: *std.Build) void {
     });
     integration_tests.root_module.addImport("nendb", lib_mod);
     integration_tests.root_module.addImport("monitoring", monitoring_mod);
-    
+
     const run_integration_tests = b.addRunArtifact(integration_tests);
     const integration_test_step = b.step("test-integration", "Run integration tests (real data)");
     integration_test_step.dependOn(&run_integration_tests.step);
@@ -84,7 +84,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     performance_tests.root_module.addImport("nendb", lib_mod);
-    
+
     const run_performance_tests = b.addRunArtifact(performance_tests);
     const performance_test_step = b.step("test-performance", "Run performance tests (benchmarking)");
     performance_test_step.dependOn(&run_performance_tests.step);
@@ -96,7 +96,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     stress_tests.root_module.addImport("nendb", lib_mod);
-    
+
     const run_stress_tests = b.addRunArtifact(stress_tests);
     const stress_test_step = b.step("test-stress", "Run stress tests (long running)");
     stress_test_step.dependOn(&run_stress_tests.step);
@@ -193,7 +193,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     profile_exe.root_module.addImport("nendb", lib_mod);
-    
+
     const run_profile = b.addRunArtifact(profile_exe);
     const profile_step = b.step("profile", "Run performance profiling");
     profile_step.dependOn(&run_profile.step);
@@ -208,7 +208,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     memory_analysis_exe.root_module.addImport("nendb", lib_mod);
-    
+
     const run_memory_analysis = b.addRunArtifact(memory_analysis_exe);
     const memory_analysis_step = b.step("memory", "Run memory usage analysis");
     memory_analysis_step.dependOn(&run_memory_analysis.step);
@@ -277,14 +277,13 @@ pub fn build(b: *std.Build) void {
 
     // Custom I/O module (our own implementation, no external dependencies)
     const custom_io_mod = b.createModule(.{ .root_source_file = b.path("src/io/io.zig"), .target = target, .optimize = optimize });
-    
+
     // Nen-Net module for high-performance networking APIs
     const nen_net_mod = b.createModule(.{ .root_source_file = b.path("../nen-net/src/lib.zig"), .target = target, .optimize = optimize });
-    
+
     lib_mod.addImport("io", custom_io_mod);
-    lib_mod.addImport("nen-net", nen_net_mod);
+    // Note: nen-net is only imported by executables that need networking, not by the core library
     monitoring_mod.addImport("io", custom_io_mod);
-    monitoring_mod.addImport("nen-net", nen_net_mod);
     exe.root_module.addImport("io", custom_io_mod);
     exe.root_module.addImport("nen-net", nen_net_mod);
     nen_cli.root_module.addImport("io", custom_io_mod);

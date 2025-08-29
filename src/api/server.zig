@@ -1,4 +1,3 @@
-
 // NenDB Enhanced Server using Nen-Net
 // Provides high-performance, statically allocated networking APIs for database operations
 
@@ -119,12 +118,12 @@ pub const EnhancedServer = struct {
     config: ServerConfig,
     allocator: std.mem.Allocator,
     is_running: bool = false,
-    
+
     // Connection pool using nen-net's static allocation
     connections: std.ArrayList(Connection),
-    
+
     // Database operations handler
-    db_handler: ?*const fn([]const u8, []const u8) Response = null,
+    db_handler: ?*const fn ([]const u8, []const u8) Response = null,
 
     pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !EnhancedServer {
         return EnhancedServer{
@@ -139,7 +138,7 @@ pub const EnhancedServer = struct {
         self.connections.deinit();
     }
 
-    pub fn setDatabaseHandler(self: *EnhancedServer, handler: *const fn([]const u8, []const u8) Response) void {
+    pub fn setDatabaseHandler(self: *EnhancedServer, handler: *const fn ([]const u8, []const u8) Response) void {
         self.db_handler = handler;
     }
 
@@ -158,10 +157,10 @@ pub const EnhancedServer = struct {
 
     pub fn stop(self: *EnhancedServer) void {
         if (!self.is_running) return;
-        
+
         std.debug.print("🛑 Stopping NenDB Enhanced Server...\n", .{});
         self.is_running = false;
-        
+
         // Close all active connections
         for (self.connections.items) |*conn| {
             conn.close();
@@ -178,7 +177,7 @@ pub const EnhancedServer = struct {
         // Set socket options for high performance
         try std.posix.setsockopt(sockfd, std.posix.SOL.SOCKET, std.posix.SO.REUSEADDR, &std.mem.toBytes(@as(c_int, 1)));
         try std.posix.setsockopt(sockfd, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, &std.mem.toBytes(@as(c_int, 1)));
-        
+
         try std.posix.bind(sockfd, &address.any, address.getOsSockLen());
         try std.posix.listen(sockfd, @intCast(self.config.max_connections));
 
@@ -187,7 +186,7 @@ pub const EnhancedServer = struct {
         while (self.is_running) {
             var client_addr: std.net.Address = undefined;
             var client_addr_len: std.posix.socklen_t = @sizeOf(std.net.Address);
-            
+
             const connfd = std.posix.accept(sockfd, &client_addr.any, &client_addr_len, 0) catch |err| {
                 std.debug.print("⚠️  Accept error: {any}\n", .{err});
                 continue;
@@ -195,7 +194,7 @@ pub const EnhancedServer = struct {
 
             // Create connection using nen-net's optimized connection handling
             const connection = try Connection.init(self.allocator, connfd, client_addr, self.config.buffer_size);
-            
+
             // Add to connection pool
             try self.connections.append(connection);
 
@@ -218,7 +217,7 @@ pub const Connection = struct {
     pub fn init(allocator: std.mem.Allocator, fd: std.posix.fd_t, address: std.net.Address, buffer_size: usize) !Connection {
         const buffer = try allocator.alloc(u8, buffer_size);
         const now = std.time.milliTimestamp();
-        
+
         return Connection{
             .fd = fd,
             .address = address,
@@ -256,7 +255,7 @@ pub const Connection = struct {
 fn handleConnection(server: *EnhancedServer, connection: *Connection) void {
     defer connection.close();
 
-            std.debug.print("🔌 New connection from {any}\n", .{connection.address});
+    std.debug.print("🔌 New connection from {any}\n", .{connection.address});
 
     // Send welcome message
     const welcome = "NenDB Enhanced Server Ready\n";
@@ -275,7 +274,7 @@ fn handleConnection(server: *EnhancedServer, connection: *Connection) void {
 
         // Process the request
         const response = processRequest(data);
-        
+
         // Send response
         connection.write(response.json()) catch |err| {
             std.debug.print("⚠️  Failed to send response: {any}\n", .{err});
@@ -283,13 +282,13 @@ fn handleConnection(server: *EnhancedServer, connection: *Connection) void {
         };
     }
 
-            std.debug.print("🔌 Connection closed from {any}\n", .{connection.address});
+    std.debug.print("🔌 Connection closed from {any}\n", .{connection.address});
 }
 
 fn processRequest(data: []const u8) Response {
     // Simple request parsing - in production, use proper protocol parsing
     const request = std.mem.trim(u8, data, " \r\n");
-    
+
     if (std.mem.eql(u8, request, "PING")) {
         return Response{ .success = true, .data = "PONG" };
     } else if (std.mem.eql(u8, request, "STATUS")) {
@@ -319,4 +318,3 @@ pub fn startDefaultServer(port: u16) !void {
 
     try server.start();
 }
-
