@@ -285,9 +285,9 @@ pub fn build(b: *std.Build) void {
     // Note: nen-net is only imported by executables that need networking, not by the core library
     monitoring_mod.addImport("io", custom_io_mod);
     exe.root_module.addImport("io", custom_io_mod);
-    exe.root_module.addImport("nen-net", nen_net_mod);
+    // Main executables don't need networking - only the networking demo does
     nen_cli.root_module.addImport("io", custom_io_mod);
-    nen_cli.root_module.addImport("nen-net", nen_net_mod);
+    // Main CLI doesn't need networking either
 
     // Networking Demo
     const networking_demo = b.addExecutable(.{
