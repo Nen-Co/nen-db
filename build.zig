@@ -43,6 +43,27 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Algorithms demo executable
+    const algorithms_demo = b.addExecutable(.{
+        .name = "algorithms-demo",
+        .root_source_file = b.path("examples/algorithms_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const algorithms_mod = b.addModule("algorithms", .{
+        .root_source_file = b.path("src/algorithms/algorithms.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    algorithms_mod.addImport("nendb", lib_mod);
+    
+    algorithms_demo.root_module.addImport("nendb", lib_mod);
+    algorithms_demo.root_module.addImport("algorithms", algorithms_mod);
+
+    const run_algorithms_demo = b.addRunArtifact(algorithms_demo);
+    const algorithms_demo_step = b.step("demo", "Run algorithms demo");
+    algorithms_demo_step.dependOn(&run_algorithms_demo.step);
+
     // Monitoring module
     const monitoring_mod = b.addModule("monitoring", .{
         .root_source_file = b.path("src/monitoring/resource_monitor.zig"),

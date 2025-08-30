@@ -51,6 +51,7 @@ pub const MemoryStats = struct {
     used: u32,
     free: u32,
     utilization: f32,
+    total_allocated: u32, // Total nodes/edges allocated (same as used for now)
 };
 
 // Production Static Memory Pools (TigerBeetle-inspired)
@@ -133,6 +134,16 @@ pub const NodePool = struct {
         }
 
         return null;
+    }
+
+    pub inline fn getStats(self: *const Self) MemoryStats {
+        return MemoryStats{
+            .capacity = NODE_POOL_SIZE,
+            .used = self.used_count,
+            .free = NODE_POOL_SIZE - self.used_count,
+            .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(NODE_POOL_SIZE)),
+            .total_allocated = self.used_count,
+        };
     }
 
     pub inline fn free(self: *Self, idx: u32) !void {
@@ -303,7 +314,86 @@ pub const EdgePool = struct {
             .used = self.used_count,
             .free = EDGE_POOL_SIZE - self.used_count,
             .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(EDGE_POOL_SIZE)),
+            .total_allocated = self.used_count,
         };
+    }
+
+    pub inline fn getStats(self: *const Self) MemoryStats {
+        return self.get_stats();
+    }
+
+    pub inline fn iterFromNode(self: *const Self, from_node: u64) EdgeIterator {
+        return EdgeIterator.init(self, from_node);
+    }
+
+    pub inline fn iterToNode(self: *const Self, to_node: u64) EdgeIterator {
+        return EdgeIterator.initToNode(self, to_node);
+    }
+
+    pub inline fn iterator(self: *const Self) EdgeIterator {
+        return EdgeIterator.initAll(self);
+    }
+};
+
+// Edge iterator for traversing edges from or to a specific node
+pub const EdgeIterator = struct {
+    pool: *const EdgePool,
+    from_node: u64,
+    to_node: u64,
+    current_index: u32 = 0,
+    iterate_to: bool = false, // false = iterate from, true = iterate to
+
+    pub fn init(pool: *const EdgePool, from_node: u64) EdgeIterator {
+        return EdgeIterator{
+            .pool = pool,
+            .from_node = from_node,
+            .to_node = 0,
+            .current_index = 0,
+        };
+    }
+
+    pub fn initToNode(pool: *const EdgePool, to_node: u64) EdgeIterator {
+        return EdgeIterator{
+            .pool = pool,
+            .from_node = 0,
+            .to_node = to_node,
+            .current_index = 0,
+            .iterate_to = true,
+        };
+    }
+
+    pub fn initAll(pool: *const EdgePool) EdgeIterator {
+        return EdgeIterator{
+            .pool = pool,
+            .from_node = 0,
+            .to_node = 0,
+            .current_index = 0,
+            .iterate_to = false,
+        };
+    }
+
+    pub fn next(self: *EdgeIterator) ?Edge {
+        while (self.current_index < EDGE_POOL_SIZE) {
+            const edge_idx = self.current_index;
+            self.current_index += 1;
+
+            if (self.pool.free_list[edge_idx] == null) {
+                const edge = &self.pool.edges[edge_idx];
+                if (self.iterate_to) {
+                    if (edge.to == self.to_node) {
+                        return edge.*;
+                    }
+                } else if (self.from_node > 0) {
+                    if (edge.from == self.from_node) {
+                        return edge.*;
+                    }
+                } else {
+                    // initAll case - return all edges
+                    return edge.*;
+                }
+            }
+        }
+        return null;
     }
 };
 
@@ -359,6 +449,7 @@ pub const EmbeddingPool = struct {
             .used = self.used_count,
             .free = EMBEDDING_POOL_SIZE - self.used_count,
             .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(EMBEDDING_POOL_SIZE)),
+            .total_allocated = self.used_count,
         };
     }
 };

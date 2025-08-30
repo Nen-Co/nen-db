@@ -4,6 +4,7 @@
 const std = @import("std");
 const cypher = @import("cypher/ast.zig");
 const nendb = @import("../lib.zig");
+const algorithms = @import("../algorithms/algorithms.zig");
 
 pub const QueryExecutor = struct {
     db: *nendb.GraphDB,
@@ -86,10 +87,7 @@ pub const QueryExecutor = struct {
                 _ = limit_clause;
                 std.debug.print("LIMIT clause not yet implemented\n", .{});
             },
-            .Using => |using_clause| {
-                _ = using_clause;
-                std.debug.print("USING clause not yet implemented\n", .{});
-            },
+            .Using => |using_clause| try self.execute_using(using_clause, result),
             .Return => |return_clause| try self.execute_return(return_clause, result),
         }
     }
@@ -140,6 +138,80 @@ pub const QueryExecutor = struct {
         // In a full implementation, this would format the output according to the return items
         _ = self;
         _ = result;
+    }
+
+    fn execute_using(self: *QueryExecutor, using_clause: cypher.Using, result: *QueryResult) !void {
+        std.debug.print("Executing USING clause with algorithm: {s}\n", .{using_clause.algorithm});
+
+        // Parse algorithm type from string
+        const algorithm_type = parseAlgorithmType(using_clause.algorithm) orelse {
+            std.debug.print("Unknown algorithm: {s}\n", .{using_clause.algorithm});
+            return;
+        };
+
+        // Execute the algorithm based on type
+        const algorithm_result = try algorithms.AlgorithmExecutor.executeDefault(
+            algorithm_type,
+            &self.db.node_pool,
+            &self.db.edge_pool,
+            null, // source_node_id - could be extracted from MATCH clause
+            self.allocator,
+        );
+        defer algorithms.AlgorithmExecutor.deinitResult(algorithm_result);
+
+        // Store algorithm result in variables for RETURN clause
+        try self.store_algorithm_result(algorithm_result, result);
+    }
+
+    fn parseAlgorithmType(algorithm_name: []const u8) ?algorithms.AlgorithmType {
+        if (std.mem.eql(u8, algorithm_name, "BFS")) {
+            return .bfs;
+        } else if (std.mem.eql(u8, algorithm_name, "DIJKSTRA")) {
+            return .dijkstra;
+        } else if (std.mem.eql(u8, algorithm_name, "PAGERANK")) {
+            return .pagerank;
+        }
+        return null;
+    }
+
+    fn store_algorithm_result(self: *QueryExecutor, algorithm_result: algorithms.AlgorithmResult, result: *QueryResult) !void {
+        switch (algorithm_result) {
+            .bfs => |bfs_result| {
+                // Store BFS results in variables
+                const visited_var = QueryValue{ .list = bfs_result.visited_nodes };
+                const distances_var = QueryValue{ .list = bfs_result.distances };
+                
+                var row = QueryRow.init(self.allocator);
+                defer row.deinit();
+                try row.set_variable("visited_nodes", visited_var);
+                try row.set_variable("distances", distances_var);
+                try result.add_row(row);
+            },
+            .dijkstra => |dijkstra_result| {
+                // Store Dijkstra results in variables
+                const distances_var = QueryValue{ .list = dijkstra_result.distances };
+                const predecessors_var = QueryValue{ .list = dijkstra_result.predecessors };
+                
+                var row = QueryRow.init(self.allocator);
+                defer row.deinit();
+                try row.set_variable("distances", distances_var);
+                try row.set_variable("predecessors", predecessors_var);
+                try result.add_row(row);
+            },
+            .pagerank => |pagerank_result| {
+                // Store PageRank results in variables
+                const scores_var = QueryValue{ .list = pagerank_result.scores };
+                const iterations_var = QueryValue{ .integer = pagerank_result.iterations };
+                const converged_var = QueryValue{ .boolean = pagerank_result.converged };
+                
+                var row = QueryRow.init(self.allocator);
+                defer row.deinit();
+                try row.set_variable("scores", scores_var);
+                try row.set_variable("iterations", iterations_var);
+                try row.set_variable("converged", converged_var);
+                try result.add_row(row);
+            },
+        }
     }
 
     fn match_node_pattern(self: *QueryExecutor, node_pattern: cypher.NodePattern, row: *QueryRow) !void {
