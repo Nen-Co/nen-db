@@ -342,4 +342,16 @@ pub fn build(b: *std.Build) void {
     const run_server = b.addRunArtifact(server_exe);
     const server_step = b.step("run-server", "Run NenDB HTTP Server");
     server_step.dependOn(&run_server.step);
+
+    // HTTP API tests using nen-net
+    const http_tests = b.addTest(.{
+        .root_source_file = b.path("src/api/http_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    http_tests.root_module.addImport("nen-net", nen_net_mod);
+
+    const run_http_tests = b.addRunArtifact(http_tests);
+    const http_test_step = b.step("test-http", "Run HTTP API tests");
+    http_test_step.dependOn(&run_http_tests.step);
 }
