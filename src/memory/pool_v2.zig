@@ -191,6 +191,7 @@ pub const NodePool = struct {
             .used = self.used_count,
             .free = NODE_POOL_SIZE - self.used_count,
             .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(NODE_POOL_SIZE)),
+            .total_allocated = self.used_count,
         };
     }
 };

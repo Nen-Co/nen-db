@@ -182,6 +182,7 @@ pub const NodePool = struct {
             .used = self.used_count,
             .free = NODE_POOL_SIZE - self.used_count,
             .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(NODE_POOL_SIZE)),
+            .total_allocated = self.used_count,
         };
     }
 };
@@ -238,6 +239,7 @@ pub const EmbeddingPool = struct {
             .used = self.used_count,
             .free = EMBEDDING_POOL_SIZE - self.used_count,
             .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(EMBEDDING_POOL_SIZE)),
+            .total_allocated = self.used_count,
         };
     }
 };
@@ -373,6 +375,7 @@ pub const EdgePool = struct {
             .used = self.used_count,
             .free = EDGE_POOL_SIZE - self.used_count,
             .utilization = @as(f32, @floatFromInt(self.used_count)) / @as(f32, @floatFromInt(EDGE_POOL_SIZE)),
+            .total_allocated = self.used_count,
         };
     }
 
