@@ -1,13 +1,13 @@
 # NenDB (GraphDB)
 
-Production-focused, static-memory graph store with crash-safe persistence and predictable performance.
+Production-focused, static-memory graph store with crash-safe persistence, predictable performance, and advanced graph algorithms.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Nen-Co/nendb/ci.yml?branch=main)](../../actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Issues](https://img.shields.io/github/issues/Nen-Co/nendb)](../../issues)
 [![Discussions](https://img.shields.io/github/discussions/Nen-Co/nendb)](../../discussions)
 
-> Status: Beta (v0.0.1). Core graph operations are functional with production-ready durability features.
+> Status: Beta (v0.0.1). Core graph operations and algorithms are functional with production-ready durability features.
 
 ## Table of Contents
 - [Features (production-ready)](#features-production-ready)
@@ -27,6 +27,8 @@ Production-focused, static-memory graph store with crash-safe persistence and pr
 
 ## Features (production-ready)
 - **Core Graph Operations**: Node/Edge CRUD, graph traversal, path finding
+- **Advanced Graph Algorithms**: BFS, Dijkstra's shortest path, PageRank centrality
+- **Graph Analysis Tools**: Connectivity analysis, diameter calculation, path finding, density metrics
 - **Enhanced I/O Module**: Static memory, inline functions, UTF-8 support, colored terminal output
 - **WAL with header/version**: CRC per entry, and segment rotation
 - **Tail scan and auto-truncate**: Trailing/partial or corrupt bytes
@@ -97,6 +99,9 @@ Try basic operations:
 ```bash
 # Graph operations demo
 ./zig-out/bin/nendb demo
+
+# Run algorithms demo
+zig build demo
 
 # Basic help
 ./zig-out/bin/nendb --help
@@ -170,10 +175,49 @@ Includes tests for WAL persistence, rotation/replay, tail truncation recovery, s
 High-level design, lifecycle, and recovery flow: see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Roadmap
-Short-term:
-- v0.1.0: stabilize WAL + snapshot invariants, add crash-injection tests
-- v0.2.x: metrics endpoint, improved JSON status schema versioning
-- v0.3.x: replication design (log shipping prototype), secondary index groundwork
+
+### Phase 1: Core Graph Engine (✅ Complete)
+- ✅ Static memory pools for nodes, edges, and embeddings
+- ✅ WAL persistence with crash-safe recovery
+- ✅ Basic graph CRUD operations
+- ✅ Core graph algorithms (BFS, Dijkstra, PageRank)
+- ✅ Graph analysis utilities (connectivity, diameter, density)
+- ✅ Algorithm integration with query executor
+
+### Phase 2: Query Language & Optimization (In Progress)
+- 🔄 Cypher-like query language implementation
+- 🔄 Query optimization and execution planning
+- 🔄 Index structures for performance
+- 🔄 Advanced graph traversal patterns
+- 🔄 Subgraph operations and filtering
+
+### Phase 3: Advanced Algorithms & Analytics
+- 📋 Community detection algorithms
+- 📋 Graph clustering and partitioning
+- 📋 Centrality measures (betweenness, closeness)
+- 📋 Graph embeddings and similarity
+- 📋 Machine learning integration
+
+### Phase 4: Production Features
+- 📋 Horizontal scaling and sharding
+- 📋 Multi-tenant support
+- 📋 Advanced monitoring and metrics
+- 📋 Backup and disaster recovery
+- 📋 Performance benchmarking suite
+
+### Phase 5: AI-Native Features
+- 📋 Natural language query interface
+- 📋 Automated query optimization
+- 📋 Intelligent indexing recommendations
+- 📋 Graph pattern learning
+- 📋 Predictive analytics
+
+### Long-term Vision
+- 📋 Distributed graph processing
+- 📋 Real-time streaming graph updates
+- 📋 Advanced visualization tools
+- 📋 Enterprise security features
+- 📋 Cloud-native deployment
 
 ## Contributing
 1. Fork & clone
