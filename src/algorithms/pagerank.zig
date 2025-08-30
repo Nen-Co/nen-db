@@ -18,12 +18,12 @@ pub const PageRankResult = struct {
 };
 
 pub const PageRankOptions = struct {
-    damping_factor: f64 = 0.85,        // Standard PageRank damping factor
-    max_iterations: u32 = 100,          // Maximum iterations before giving up
-    convergence_threshold: f64 = 1e-6,  // Convergence threshold
-    initial_score: f64 = 1.0,           // Initial PageRank score for all nodes
-    personalization: ?[]f64 = null,     // Personalization vector (teleportation)
-    teleport_nodes: ?[]u32 = null,      // Specific nodes to teleport to
+    damping_factor: f64 = 0.85, // Standard PageRank damping factor
+    max_iterations: u32 = 100, // Maximum iterations before giving up
+    convergence_threshold: f64 = 1e-6, // Convergence threshold
+    initial_score: f64 = 1.0, // Initial PageRank score for all nodes
+    personalization: ?[]f64 = null, // Personalization vector (teleportation)
+    teleport_nodes: ?[]u32 = null, // Specific nodes to teleport to
 };
 
 /// PageRank algorithm for graph centrality analysis
@@ -100,7 +100,7 @@ pub const PageRank = struct {
 
                 // Apply PageRank formula: PR(v) = (1-d)/N + d * sum(PR(u)/out_degree(u))
                 new_scores[node_id] = (1.0 - options.damping_factor) / @as(f64, @floatFromInt(total_nodes)) +
-                                     options.damping_factor * score_contribution;
+                    options.damping_factor * score_contribution;
             }
 
             // Apply teleportation to specific nodes if provided
@@ -280,7 +280,7 @@ pub const PageRank = struct {
         const sorted_scores = std.mem.dupe(std.testing.allocator, f64, result.scores) catch unreachable;
         defer std.testing.allocator.free(sorted_scores);
         std.mem.sort(f64, sorted_scores, {}, std.math.order);
-        
+
         const median_score = if (sorted_scores.len % 2 == 0)
             (sorted_scores[sorted_scores.len / 2 - 1] + sorted_scores[sorted_scores.len / 2]) / 2.0
         else
@@ -298,30 +298,30 @@ pub const PageRank = struct {
 
 test "PageRank algorithm basic functionality" {
     const allocator = std.testing.allocator;
-    
+
     // Create a simple graph: A -> B -> C -> A (cycle)
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Add nodes
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     // Add edges forming a cycle
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 2, .to = 0, .type = 0, .properties = &[_]u8{} });
-    
+
     // Test PageRank
     const result = try PageRank.execute(&node_pool, &edge_pool, .{}, allocator);
     defer result.deinit();
-    
+
     // Should converge in reasonable number of iterations
     try std.testing.expect(result.converged);
     try std.testing.expect(result.iterations > 0);
     try std.testing.expect(result.iterations <= 100);
-    
+
     // All nodes should have similar scores in a cycle
     try std.testing.expect(result.scores.len == 3);
     try std.testing.expect(@abs(result.scores[0] - result.scores[1]) < 0.1);
@@ -330,27 +330,27 @@ test "PageRank algorithm basic functionality" {
 
 test "PageRank personalized execution" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a star graph: A -> B, A -> C, A -> D
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 2, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 3, .type = 0, .properties = &[_]u8{} });
-    
+
     // Test personalized PageRank from node A
     const result = try PageRank.executePersonalized(&node_pool, &edge_pool, 0, .{}, allocator);
     defer result.deinit();
-    
+
     try std.testing.expect(result.converged);
     try std.testing.expect(result.scores.len == 4);
-    
+
     // Node A should have higher score due to personalization
     try std.testing.expect(result.scores[0] > result.scores[1]);
     try std.testing.expect(result.scores[0] > result.scores[2]);
@@ -359,27 +359,27 @@ test "PageRank personalized execution" {
 
 test "PageRank top nodes and statistics" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a simple graph
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{} });
-    
+
     const result = try PageRank.execute(&node_pool, &edge_pool, .{}, allocator);
     defer result.deinit();
-    
+
     // Get top 2 nodes
     const top_nodes = try PageRank.getTopNodes(&result, 2, allocator);
     defer allocator.free(top_nodes);
-    
+
     try std.testing.expectEqual(@as(usize, 2), top_nodes.len);
-    
+
     // Get statistics
     const stats = PageRank.getStatistics(&result);
     try std.testing.expect(stats.min_score >= 0.0);

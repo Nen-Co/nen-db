@@ -42,7 +42,7 @@ pub fn main() !void {
     // Demo 1: BFS Traversal
     try stdout.print("🔍 Demo 1: BFS Traversal from Alice\n", .{});
     try stdout.print("----------------------------------------\n", .{});
-    
+
     const bfs_result = try algorithms.AlgorithmExecutor.executeDefault(
         .bfs,
         &db.node_pool,
@@ -61,7 +61,7 @@ pub fn main() !void {
     // Demo 2: Dijkstra's Shortest Path
     try stdout.print("🛤️  Demo 2: Dijkstra's Shortest Path\n", .{});
     try stdout.print("----------------------------------------\n", .{});
-    
+
     // Custom weight function based on edge properties
     const weight_fn = struct {
         fn getWeight(edge: nendb.Edge) u32 {
@@ -97,7 +97,7 @@ pub fn main() !void {
     // Demo 3: PageRank Centrality
     try stdout.print("📈 Demo 3: PageRank Centrality Analysis\n", .{});
     try stdout.print("----------------------------------------\n", .{});
-    
+
     const pagerank_result = try algorithms.AlgorithmExecutor.executeDefault(
         .pagerank,
         &db.node_pool,
@@ -108,7 +108,7 @@ pub fn main() !void {
     defer algorithms.AlgorithmExecutor.deinitResult(pagerank_result);
 
     try stdout.print("PageRank scores (converged in {d} iterations):\n", .{pagerank_result.pagerank.iterations});
-    
+
     // Get top nodes by PageRank
     const top_nodes = try algorithms.AlgorithmExecutor.getTopPageRankNodes(&pagerank_result.pagerank, 6, std.heap.page_allocator);
     defer std.heap.page_allocator.free(top_nodes);
@@ -122,7 +122,7 @@ pub fn main() !void {
     // Demo 4: Graph Analysis
     try stdout.print("📊 Demo 4: Graph Analysis\n", .{});
     try stdout.print("---------------------------\n", .{});
-    
+
     const is_connected = try algorithms.AlgorithmUtils.isGraphConnected(&db.node_pool, &db.edge_pool, std.heap.page_allocator);
     const diameter = try algorithms.AlgorithmUtils.getGraphDiameter(&db.node_pool, &db.edge_pool, std.heap.page_allocator);
     const avg_path_length = try algorithms.AlgorithmUtils.getAverageShortestPathLength(&db.node_pool, &db.edge_pool, std.heap.page_allocator);
@@ -138,7 +138,7 @@ pub fn main() !void {
     // Demo 5: Path Finding
     try stdout.print("🎯 Demo 5: Path Finding\n", .{});
     try stdout.print("------------------------\n", .{});
-    
+
     // Find shortest path from Node 0 to Node 5
     const path = try algorithms.AlgorithmExecutor.findShortestPath(
         &db.node_pool,

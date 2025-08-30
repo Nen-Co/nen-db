@@ -12,9 +12,9 @@ pub const pagerank = @import("pagerank.zig");
 
 /// Algorithm types supported by NenDB
 pub const AlgorithmType = enum {
-    bfs,           // Breadth-First Search
-    dijkstra,      // Dijkstra's Shortest Path
-    pagerank,      // PageRank centrality
+    bfs, // Breadth-First Search
+    dijkstra, // Dijkstra's Shortest Path
+    pagerank, // PageRank centrality
 };
 
 /// Algorithm execution options
@@ -273,36 +273,36 @@ pub const AlgorithmUtils = struct {
 
 test "algorithms module integration" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a simple graph: A -> B -> C
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{} });
-    
+
     // Test BFS execution
     const bfs_result = try AlgorithmExecutor.executeDefault(.bfs, &node_pool, &edge_pool, 0, allocator);
     defer AlgorithmExecutor.deinitResult(bfs_result);
-    
+
     try std.testing.expect(bfs_result == .bfs);
     try std.testing.expectEqual(@as(usize, 3), bfs_result.bfs.visited_nodes.len);
-    
+
     // Test PageRank execution
     const pagerank_result = try AlgorithmExecutor.executeDefault(.pagerank, &node_pool, &edge_pool, null, allocator);
     defer AlgorithmExecutor.deinitResult(pagerank_result);
-    
+
     try std.testing.expect(pagerank_result == .pagerank);
     try std.testing.expect(pagerank_result.pagerank.converged);
-    
+
     // Test utility functions
     try std.testing.expect(try AlgorithmUtils.isGraphConnected(&node_pool, &edge_pool, allocator));
     try std.testing.expectEqual(@as(u32, 2), try AlgorithmUtils.getGraphDiameter(&node_pool, &edge_pool, allocator));
-    
+
     const density = AlgorithmUtils.getGraphDensity(&node_pool, &edge_pool);
     try std.testing.expect(density > 0.0);
     try std.testing.expect(density <= 1.0);

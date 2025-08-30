@@ -60,18 +60,22 @@ pub const Dijkstra = struct {
         allocator: std.mem.Allocator,
     ) !DijkstraResult {
         const max_nodes = options.max_nodes orelse node_pool.getStats().total_allocated;
-        
+
         // Initialize result arrays
         var distances = try allocator.alloc(u32, max_nodes);
-        var predecessors: []u64 = if (options.include_predecessors) 
-            try allocator.alloc(u64, max_nodes) else &[_]u64{};
-        var visited_nodes: []u64 = if (options.include_visited) 
-            try allocator.alloc(u64, max_nodes) else &[_]u64{};
+        var predecessors: []u64 = if (options.include_predecessors)
+            try allocator.alloc(u64, max_nodes)
+        else
+            &[_]u64{};
+        var visited_nodes: []u64 = if (options.include_visited)
+            try allocator.alloc(u64, max_nodes)
+        else
+            &[_]u64{};
 
         // Initialize distances to infinity and predecessors to invalid
         @memset(distances, std.math.maxInt(u32));
         distances[source_node_id] = 0;
-        
+
         if (options.include_predecessors and predecessors.len > 0) {
             @memset(predecessors, std.math.maxInt(u64));
             predecessors[source_node_id] = source_node_id; // Self-reference for source
@@ -80,7 +84,7 @@ pub const Dijkstra = struct {
         // Priority queue for Dijkstra's algorithm
         var queue = std.PriorityQueue(QueueEntry, void, QueueEntry.compare).init(allocator, void{});
         defer queue.deinit();
-        
+
         try queue.add(QueueEntry{ .node_id = source_node_id, .distance = 0 });
 
         var visited_count: usize = 0;
@@ -108,7 +112,7 @@ pub const Dijkstra = struct {
 
             // Get current node and iterate through its edges
             _ = node_pool.get_by_id(current_node_id) orelse continue;
-            
+
             var edge_iter = edge_pool.iterFromNode(current_node_id);
             while (edge_iter.next()) |edge| {
                 const neighbor_id = if (edge.from == current_node_id) edge.to else edge.from;
@@ -118,7 +122,7 @@ pub const Dijkstra = struct {
                 // Check if this path is shorter than previously found
                 if (new_distance < distances[neighbor_id]) {
                     distances[neighbor_id] = new_distance;
-                    
+
                     if (options.include_predecessors) {
                         predecessors[neighbor_id] = current_node_id;
                     }
@@ -188,10 +192,10 @@ pub const Dijkstra = struct {
         // Reconstruct path
         const path_length = result.distances[@intCast(target_node_id)] + 1;
         var path = try allocator.alloc(u64, path_length);
-        
+
         var current = target_node_id;
         var path_index = path_length - 1;
-        
+
         while (current != source_node_id) {
             path[path_index] = current;
             current = result.predecessors[@intCast(current)];
@@ -237,10 +241,10 @@ pub const Dijkstra = struct {
             // Reconstruct path for this node
             const path_length = result.distances[node_id] + 1;
             var path = try allocator.alloc(u32, path_length);
-            
+
             var current = node_id;
             var path_index = path_length - 1;
-            
+
             while (current != source_node_id) {
                 path[path_index] = current;
                 current = result.predecessors[current];
@@ -315,7 +319,7 @@ pub const Dijkstra = struct {
 
 test "Dijkstra algorithm basic functionality" {
     const allocator = std.testing.allocator;
-    
+
     // Create a simple weighted graph: A --2-- B --3-- C
     //                                |           |
     //                                1           4
@@ -323,19 +327,19 @@ test "Dijkstra algorithm basic functionality" {
     //                                D ----------+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Add nodes
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     // Add weighted edges
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{2} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{3} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 3, .type = 0, .properties = &[_]u8{1} });
     _ = try edge_pool.alloc(.{ .from = 3, .to = 2, .type = 0, .properties = &[_]u8{4} });
-    
+
     // Custom weight function that reads from edge properties
     const weight_fn = struct {
         fn getWeight(edge: pool.Edge) u32 {
@@ -345,11 +349,11 @@ test "Dijkstra algorithm basic functionality" {
             return 1;
         }
     }.getWeight;
-    
+
     // Test Dijkstra from node A
     const result = try Dijkstra.execute(&node_pool, &edge_pool, 0, .{}, weight_fn, allocator);
     defer result.deinit();
-    
+
     // Check distances
     try std.testing.expectEqual(@as(u32, 0), result.distances[0]); // A: 0
     try std.testing.expectEqual(@as(u32, 2), result.distances[1]); // B: 2
@@ -359,20 +363,20 @@ test "Dijkstra algorithm basic functionality" {
 
 test "Dijkstra shortest path finding" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a chain: A --1-- B --2-- C --3-- D
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{1} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{2} });
     _ = try edge_pool.alloc(.{ .from = 2, .to = 3, .type = 0, .properties = &[_]u8{3} });
-    
+
     const weight_fn = struct {
         fn getWeight(edge: pool.Edge) u32 {
             if (edge.properties.len > 0) {
@@ -381,11 +385,11 @@ test "Dijkstra shortest path finding" {
             return 1;
         }
     }.getWeight;
-    
+
     // Find shortest path from A to D
     const path = try Dijkstra.findShortestPath(&node_pool, &edge_pool, 0, 3, null, weight_fn, allocator);
     defer if (path) |p| allocator.free(p);
-    
+
     try std.testing.expect(path != null);
     if (path) |p| {
         try std.testing.expectEqual(@as(usize, 4), p.len);
@@ -398,20 +402,20 @@ test "Dijkstra shortest path finding" {
 
 test "Dijkstra nodes within distance" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a star graph with weights: A --1-- B, A --2-- C, A --3-- D
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{1} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 2, .type = 0, .properties = &[_]u8{2} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 3, .type = 0, .properties = &[_]u8{3} });
-    
+
     const weight_fn = struct {
         fn getWeight(edge: pool.Edge) u32 {
             if (edge.properties.len > 0) {
@@ -420,14 +424,14 @@ test "Dijkstra nodes within distance" {
             return 1;
         }
     }.getWeight;
-    
+
     // Find nodes within distance 2 from A
     const nodes_within_distance = try Dijkstra.findNodesWithinDistance(&node_pool, &edge_pool, 0, 2, weight_fn, allocator);
     defer allocator.free(nodes_within_distance);
-    
+
     // Should find A (distance 0), B (distance 1), C (distance 2)
     try std.testing.expectEqual(@as(usize, 3), nodes_within_distance.len);
-    
+
     // Check that D is not included (distance 3 > 2)
     var found_d = false;
     for (nodes_within_distance) |node_id| {

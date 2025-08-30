@@ -43,15 +43,21 @@ pub const BFS = struct {
         allocator: std.mem.Allocator,
     ) !BFSResult {
         const max_nodes = options.max_nodes orelse node_pool.getStats().total_allocated;
-        
+
         // Initialize result arrays
         var visited_nodes = try allocator.alloc(u64, max_nodes);
-        var distances: []u32 = if (options.include_distances) 
-            try allocator.alloc(u32, max_nodes) else &[_]u32{};
-        var predecessors: []u64 = if (options.include_predecessors) 
-            try allocator.alloc(u64, max_nodes) else &[_]u64{};
-        var levels: []u32 = if (options.include_levels) 
-            try allocator.alloc(u32, max_nodes) else &[_]u32{};
+        var distances: []u32 = if (options.include_distances)
+            try allocator.alloc(u32, max_nodes)
+        else
+            &[_]u32{};
+        var predecessors: []u64 = if (options.include_predecessors)
+            try allocator.alloc(u64, max_nodes)
+        else
+            &[_]u64{};
+        var levels: []u32 = if (options.include_levels)
+            try allocator.alloc(u32, max_nodes)
+        else
+            &[_]u32{};
 
         // Initialize arrays
         if (options.include_distances and distances.len > 0) {
@@ -83,7 +89,7 @@ pub const BFS = struct {
 
         while (queue.len > 0) {
             const current_node_id = queue.orderedRemove(0);
-            
+
             // Check if we've reached max depth
             if (options.max_depth) |max_depth| {
                 if (current_level >= max_depth) {
@@ -93,12 +99,12 @@ pub const BFS = struct {
 
             // Get current node and its edges
             _ = node_pool.get_by_id(current_node_id) orelse continue;
-            
+
             // Iterate through all edges from current node
             var edge_iter = edge_pool.iterFromNode(current_node_id);
             while (edge_iter.next()) |edge| {
                 const neighbor_id = if (edge.from == current_node_id) edge.to else edge.from;
-                
+
                 // Skip if already visited
                 if (isNodeVisited(neighbor_id, visited_nodes[0..visited_count])) {
                     continue;
@@ -129,7 +135,7 @@ pub const BFS = struct {
             }
 
             nodes_at_current_level -= 1;
-            
+
             // Check if we've finished current level
             if (nodes_at_current_level == 0) {
                 current_level += 1;
@@ -194,10 +200,10 @@ pub const BFS = struct {
         // Reconstruct path
         const path_length = result.distances[@intCast(target_node_id)] + 1;
         var path = try allocator.alloc(u64, path_length);
-        
+
         var current = target_node_id;
         var path_index = path_length - 1;
-        
+
         while (current != source_node_id) {
             path[path_index] = current;
             current = result.predecessors[@intCast(current)];
@@ -271,29 +277,29 @@ pub const BFS = struct {
 
 test "BFS algorithm basic functionality" {
     const allocator = std.testing.allocator;
-    
+
     // Create a simple graph: A -> B -> C, A -> D
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Add nodes
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     // Add edges
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 3, .type = 0, .properties = &[_]u8{} });
-    
+
     // Test BFS from node A
     const result = try BFS.execute(&node_pool, &edge_pool, 0, .{}, allocator);
     defer result.deinit();
-    
+
     // Should visit all 4 nodes
     try std.testing.expectEqual(@as(usize, 4), result.visited_nodes.len);
-    
+
     // Check distances
     try std.testing.expectEqual(@as(u32, 0), result.distances[0]); // A
     try std.testing.expectEqual(@as(u32, 1), result.distances[1]); // B
@@ -303,24 +309,24 @@ test "BFS algorithm basic functionality" {
 
 test "BFS path finding" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a chain: A -> B -> C -> D
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 2, .to = 3, .type = 0, .properties = &[_]u8{} });
-    
+
     // Find path from A to D
     const path = try BFS.findPath(&node_pool, &edge_pool, 0, 3, null, allocator);
     defer if (path) |p| allocator.free(p);
-    
+
     try std.testing.expect(path != null);
     if (path) |p| {
         try std.testing.expectEqual(@as(usize, 4), p.len);
@@ -333,20 +339,20 @@ test "BFS path finding" {
 
 test "BFS nodes within distance" {
     const allocator = std.testing.allocator;
-    
+
     var node_pool = pool.NodePool.init();
     var edge_pool = pool.EdgePool.init();
-    
+
     // Create a star graph: A -> B, A -> C, A -> D
     _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
     _ = try node_pool.alloc(.{ .id = 3, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    
+
     _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 2, .type = 0, .properties = &[_]u8{} });
     _ = try edge_pool.alloc(.{ .from = 0, .to = 3, .type = 0, .properties = &[_]u8{} });
-    
+
     // Find nodes within distance 1 from A
     const nodes_by_distance = try BFS.findNodesWithinDistance(&node_pool, &edge_pool, 0, 1, allocator);
     defer {
@@ -355,13 +361,13 @@ test "BFS nodes within distance" {
         }
         allocator.free(nodes_by_distance);
     }
-    
+
     try std.testing.expectEqual(@as(usize, 2), nodes_by_distance.len); // Distance 0 and 1
-    
+
     // Distance 0 should have 1 node (A)
     try std.testing.expectEqual(@as(usize, 1), nodes_by_distance[0].len);
     try std.testing.expectEqual(@as(u32, 0), nodes_by_distance[0][0]);
-    
+
     // Distance 1 should have 3 nodes (B, C, D)
     try std.testing.expectEqual(@as(usize, 3), nodes_by_distance[1].len);
 }

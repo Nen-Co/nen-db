@@ -56,7 +56,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     algorithms_mod.addImport("nendb", lib_mod);
-    
+
     algorithms_demo.root_module.addImport("nendb", lib_mod);
     algorithms_demo.root_module.addImport("algorithms", algorithms_mod);
 

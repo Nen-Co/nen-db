@@ -180,7 +180,7 @@ pub const QueryExecutor = struct {
                 // Store BFS results in variables
                 const visited_var = QueryValue{ .list = bfs_result.visited_nodes };
                 const distances_var = QueryValue{ .list = bfs_result.distances };
-                
+
                 var row = QueryRow.init(self.allocator);
                 defer row.deinit();
                 try row.set_variable("visited_nodes", visited_var);
@@ -191,7 +191,7 @@ pub const QueryExecutor = struct {
                 // Store Dijkstra results in variables
                 const distances_var = QueryValue{ .list = dijkstra_result.distances };
                 const predecessors_var = QueryValue{ .list = dijkstra_result.predecessors };
-                
+
                 var row = QueryRow.init(self.allocator);
                 defer row.deinit();
                 try row.set_variable("distances", distances_var);
@@ -203,7 +203,7 @@ pub const QueryExecutor = struct {
                 const scores_var = QueryValue{ .list = pagerank_result.scores };
                 const iterations_var = QueryValue{ .integer = pagerank_result.iterations };
                 const converged_var = QueryValue{ .boolean = pagerank_result.converged };
-                
+
                 var row = QueryRow.init(self.allocator);
                 defer row.deinit();
                 try row.set_variable("scores", scores_var);
