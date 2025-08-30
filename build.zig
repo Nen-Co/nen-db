@@ -327,4 +327,19 @@ pub fn build(b: *std.Build) void {
     // Build-only step for CI (doesn't run the demo)
     const build_networking_demo_step = b.step("build-networking-demo", "Build networking demo executable");
     build_networking_demo_step.dependOn(&networking_demo.step);
+
+    // HTTP Server executable using nen-net
+    const server_exe = b.addExecutable(.{
+        .name = "nendb-server",
+        .root_source_file = b.path("src/server_main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    server_exe.root_module.addImport("nen-net", nen_net_mod);
+    server_exe.root_module.addImport("algorithms", algorithms_mod);
+    b.installArtifact(server_exe);
+
+    const run_server = b.addRunArtifact(server_exe);
+    const server_step = b.step("run-server", "Run NenDB HTTP Server");
+    server_step.dependOn(&run_server.step);
 }

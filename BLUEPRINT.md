@@ -123,7 +123,7 @@ NenDB is an AI-native graph database built with Zig, focusing on predictable per
 ### Automated Optimization
 - **Query Tuning**: Automatic performance optimization
 - **Index Recommendations**: Smart index creation
-- **Resource Management**: Dynamic memory allocation
+- **Resource Management**: auto batching
 - **Workload Analysis**: Usage pattern recognition
 
 ### Graph Pattern Learning
