@@ -4,7 +4,6 @@
 
 const std = @import("std");
 const nen_net = @import("nen-net");
-const constants = @import("constants.zig");
 
 pub const ServerConfig = struct {
     port: u16 = 8080,
@@ -302,7 +301,8 @@ fn handleHTTPRequest(data: []const u8) Response {
     const path = parts.next() orelse {
         return Response{ .success = false, .error_message = "Invalid HTTP path" };
     };
-    _ = parts.next(); // Skip version
+            // Skip version part for now
+        _ = parts.next();
     
     // Route based on path using nen-net style
     if (std.mem.startsWith(u8, path, "/graph/algorithms/")) {
@@ -310,9 +310,7 @@ fn handleHTTPRequest(data: []const u8) Response {
     } else if (std.mem.startsWith(u8, path, "/graph/stats")) {
         return handleGraphStats(method, path);
     } else if (std.mem.startsWith(u8, path, "/health")) {
-        return handleHealthCheck(method, path) catch |err| {
-            return Response{ .success = false, .error_message = "Internal server error" };
-        };
+        return handleHealthCheck(method, path);
     } else {
         return Response{ 
             .success = false, 
@@ -323,7 +321,8 @@ fn handleHTTPRequest(data: []const u8) Response {
 
 // Handle graph algorithm endpoints
 fn handleAlgorithmEndpoint(method: []const u8, path: []const u8, data: []const u8) Response {
-    _ = data; // Not used yet
+    // TODO: Implement data processing for algorithm endpoints
+    _ = data;
     if (!std.mem.eql(u8, method, "POST")) {
         return Response{ 
             .success = false, 
@@ -348,7 +347,8 @@ fn handleAlgorithmEndpoint(method: []const u8, path: []const u8, data: []const u
 
 // Handle graph statistics endpoint
 fn handleGraphStats(method: []const u8, path: []const u8) Response {
-    _ = path; // Not used yet
+    // TODO: Implement path-based graph stats filtering
+    _ = path;
     
     if (!std.mem.eql(u8, method, "GET")) {
         return Response{ 
@@ -362,8 +362,9 @@ fn handleGraphStats(method: []const u8, path: []const u8) Response {
 }
 
 // Handle health check endpoint
-fn handleHealthCheck(method: []const u8, path: []const u8) !Response {
-    _ = path; // Not used yet
+fn handleHealthCheck(method: []const u8, path: []const u8) Response {
+    // TODO: Implement path-based health check filtering
+    _ = path;
     
     if (!std.mem.eql(u8, method, "GET")) {
         return Response{ 
@@ -372,7 +373,7 @@ fn handleHealthCheck(method: []const u8, path: []const u8) !Response {
         };
     }
     
-    const health = try std.fmt.allocPrint(server.allocator, "{{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"{s}\"}}", .{constants.VERSION_STRING});
+    const health = "{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"v0.1.0-beta\"}";
     return Response{ .success = true, .data = health };
 }
 
@@ -418,7 +419,12 @@ fn processRequest(data: []const u8) Response {
 pub fn startDefaultServer(port: u16) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
+            defer {
+            const deinit_result = gpa.deinit();
+            if (deinit_result == .leak) {
+                std.debug.print("Warning: Memory leak detected in server\n", .{});
+            }
+        }
 
     const config = ServerConfig{ .port = port };
     var server = try EnhancedServer.init(allocator, config);
