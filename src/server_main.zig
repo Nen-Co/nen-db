@@ -5,6 +5,7 @@
 const std = @import("std");
 const nen_net = @import("nen-net");
 const algorithms = @import("algorithms/algorithms.zig");
+const constants = @import("constants.zig");
 
 // Main server function
 pub fn main() !void {
@@ -77,7 +78,7 @@ fn handleHealth(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
     _ = request;
     return nen_net.http.HttpResponse{
         .status_code = 200,
-        .body = "{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"0.0.1\"}",
+        .body = try std.fmt.allocPrint(std.heap.page_allocator, "{{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"{s}\"}}", .{constants.VERSION_STRING}),
         .headers = &[_]nen_net.http.HttpResponse.Header{},
     };
 }
@@ -86,7 +87,7 @@ fn handleRoot(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
     _ = request;
     return nen_net.http.HttpResponse{
         .status_code = 200,
-        .body = "{\"service\": \"NenDB\", \"version\": \"0.0.1\", \"endpoints\": {\"health\": \"/health\", \"graph_stats\": \"/graph/stats\", \"algorithms\": \"/graph/algorithms/{bfs|dijkstra|pagerank}\"}}",
+        .body = try std.fmt.allocPrint(std.heap.page_allocator, "{{\"service\": \"NenDB\", \"version\": \"{s}\", \"endpoints\": {{\"health\": \"/health\", \"graph_stats\": \"/graph/stats\", \"algorithms\": \"/graph/algorithms/{{bfs|dijkstra|pagerank}}\"}}}}", .{constants.VERSION_STRING}),
         .headers = &[_]nen_net.http.HttpResponse.Header{},
     };
 }

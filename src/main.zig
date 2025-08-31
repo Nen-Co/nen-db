@@ -5,6 +5,7 @@ const std = @import("std");
 const io = @import("io/io.zig");
 const GraphDB = @import("graphdb.zig").GraphDB;
 const pool = @import("memory/pool_v2.zig");
+const constants = @import("constants.zig");
 
 pub fn main() !void {
     const style = @import("cli/style.zig").Style.detect();
@@ -16,7 +17,7 @@ pub fn main() !void {
     } else {
         try io.Terminal.println("NenDB - Graph Engine Core", .{});
     }
-    try io.Terminal.println("Version: 0.0.1 (Beta) | Zig: {s}", .{@import("builtin").zig_version_string});
+    try io.Terminal.println("Version: {s} | Zig: {s}", .{constants.VERSION_STRING, @import("builtin").zig_version_string});
 
     // Simple argument parsing
     var it = std.process.argsWithAllocator(std.heap.page_allocator) catch |err| {
@@ -131,5 +132,5 @@ fn print_help() !void {
     try io.Terminal.println("  • WAL-based durability", .{});
     try io.Terminal.println("  • Static memory pools", .{});
     try io.Terminal.println("", .{});
-    try io.Terminal.println("Version: 0.0.1 (Beta) - Custom I/O Implementation", .{});
+            try io.Terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
 }

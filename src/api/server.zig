@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const nen_net = @import("nen-net");
+const constants = @import("constants.zig");
 
 pub const ServerConfig = struct {
     port: u16 = 8080,
@@ -309,7 +310,9 @@ fn handleHTTPRequest(data: []const u8) Response {
     } else if (std.mem.startsWith(u8, path, "/graph/stats")) {
         return handleGraphStats(method, path);
     } else if (std.mem.startsWith(u8, path, "/health")) {
-        return handleHealthCheck(method, path);
+        return handleHealthCheck(method, path) catch |err| {
+            return Response{ .success = false, .error_message = "Internal server error" };
+        };
     } else {
         return Response{ 
             .success = false, 
@@ -359,7 +362,7 @@ fn handleGraphStats(method: []const u8, path: []const u8) Response {
 }
 
 // Handle health check endpoint
-fn handleHealthCheck(method: []const u8, path: []const u8) Response {
+fn handleHealthCheck(method: []const u8, path: []const u8) !Response {
     _ = path; // Not used yet
     
     if (!std.mem.eql(u8, method, "GET")) {
@@ -369,7 +372,7 @@ fn handleHealthCheck(method: []const u8, path: []const u8) Response {
         };
     }
     
-    const health = "{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"0.0.1\"}";
+    const health = try std.fmt.allocPrint(server.allocator, "{{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"{s}\"}}", .{constants.VERSION_STRING});
     return Response{ .success = true, .data = health };
 }
 

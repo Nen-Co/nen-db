@@ -50,8 +50,8 @@ pub fn create_graph(allocator: std.mem.Allocator, config: Config) !GraphDB {
 }
 
 // Version information
-pub const VERSION = "0.0.1";
-pub const VERSION_STRING = "NenDB v" ++ VERSION ++ " (Beta)";
+pub const VERSION = constants.VERSION_SHORT;
+pub const VERSION_STRING = constants.VERSION_FULL;
 
 // Feature flags
 pub const FEATURES = struct {
