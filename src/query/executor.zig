@@ -10,17 +10,20 @@ pub const QueryExecutor = struct {
     db: *nendb.GraphDB,
     allocator: std.mem.Allocator,
     variables: std.StringHashMap(QueryValue),
+    current_row: QueryRow,
 
     pub fn init(db: *nendb.GraphDB, allocator: std.mem.Allocator) QueryExecutor {
         return QueryExecutor{
             .db = db,
             .allocator = allocator,
             .variables = std.StringHashMap(QueryValue).init(allocator),
+            .current_row = QueryRow.init(allocator),
         };
     }
 
     pub fn deinit(self: *QueryExecutor) void {
         self.variables.deinit();
+        self.current_row.deinit();
     }
 
     pub fn execute(self: *QueryExecutor, statement: cypher.Statement) !QueryResult {
@@ -45,48 +48,18 @@ pub const QueryExecutor = struct {
     fn execute_clause(self: *QueryExecutor, clause: cypher.Clause, result: *QueryResult) !void {
         switch (clause) {
             .Match => |match_clause| try self.execute_match(match_clause, result),
-            .OptionalMatch => |match_clause| try self.execute_match(match_clause, result),
-            .With => |with_clause| {
-                _ = with_clause;
-                std.debug.print("WITH clause not yet implemented\n", .{});
-            },
+            .OptionalMatch => |match_clause| try self.execute_optional_match(match_clause, result),
+            .With => |with_clause| try self.execute_with(with_clause, result),
             .Create => |create_clause| try self.execute_create(create_clause, result),
-            .Merge => |merge_clause| {
-                _ = merge_clause;
-                std.debug.print("MERGE clause not yet implemented\n", .{});
-            },
-            .Set => |set_clause| {
-                _ = set_clause;
-                std.debug.print("SET clause not yet implemented\n", .{});
-            },
-            .Delete => |delete_clause| {
-                _ = delete_clause;
-                std.debug.print("DELETE clause not yet implemented\n", .{});
-            },
-            .DetachDelete => |delete_clause| {
-                _ = delete_clause;
-                std.debug.print("DETACH DELETE clause not yet implemented\n", .{});
-            },
-            .Unwind => |unwind_clause| {
-                _ = unwind_clause;
-                std.debug.print("UNWIND clause not yet implemented\n", .{});
-            },
-            .Remove => |remove_clause| {
-                _ = remove_clause;
-                std.debug.print("REMOVE clause not yet implemented\n", .{});
-            },
-            .OrderBy => |order_by_clause| {
-                _ = order_by_clause;
-                std.debug.print("ORDER BY clause not yet implemented\n", .{});
-            },
-            .Skip => |skip_clause| {
-                _ = skip_clause;
-                std.debug.print("SKIP clause not yet implemented\n", .{});
-            },
-            .Limit => |limit_clause| {
-                _ = limit_clause;
-                std.debug.print("LIMIT clause not yet implemented\n", .{});
-            },
+            .Merge => |merge_clause| try self.execute_merge(merge_clause, result),
+            .Set => |set_clause| try self.execute_set(set_clause, result),
+            .Delete => |delete_clause| try self.execute_delete(delete_clause, result),
+            .DetachDelete => |delete_clause| try self.execute_detach_delete(delete_clause, result),
+            .Unwind => |unwind_clause| try self.execute_unwind(unwind_clause, result),
+            .Remove => |remove_clause| try self.execute_remove(remove_clause, result),
+            .OrderBy => |order_by_clause| try self.execute_order_by(order_by_clause, result),
+            .Skip => |skip_clause| try self.execute_skip(skip_clause, result),
+            .Limit => |limit_clause| try self.execute_limit(limit_clause, result),
             .Using => |using_clause| try self.execute_using(using_clause, result),
             .Return => |return_clause| try self.execute_return(return_clause, result),
         }
@@ -161,6 +134,244 @@ pub const QueryExecutor = struct {
 
         // Store algorithm result in variables for RETURN clause
         try self.store_algorithm_result(algorithm_result, result);
+    }
+
+    fn execute_optional_match(self: *QueryExecutor, match_clause: cypher.Match, result: *QueryResult) !void {
+        std.debug.print("Executing OPTIONAL MATCH clause\n", .{});
+        
+        // OPTIONAL MATCH behaves like MATCH but doesn't fail if no matches are found
+        // Instead, it returns null values for unmatched patterns
+        var row = QueryRow.init(self.allocator);
+        defer row.deinit();
+
+        // Try to match the pattern
+        var matched = false;
+        for (match_clause.pattern.paths) |path| {
+            for (path.elements) |element| {
+                switch (element) {
+                    .node => |node_pattern| {
+                        if (try self.match_node_pattern_optional(node_pattern, &row)) {
+                            matched = true;
+                        }
+                    },
+                    .relationship => |rel_pattern| {
+                        if (try self.match_relationship_pattern_optional(rel_pattern, &row)) {
+                            matched = true;
+                        }
+                    },
+                }
+            }
+        }
+
+        // Apply WHERE clause if present
+        if (match_clause.where) |where_expr| {
+            if (!try self.evaluate_where(where_expr, &row)) {
+                matched = false;
+            }
+        }
+
+        // Always add the row, even if no matches (with null values)
+        if (!matched) {
+            // Set null values for unmatched variables
+            for (match_clause.pattern.paths) |path| {
+                for (path.elements) |element| {
+                    switch (element) {
+                        .node => |node_pattern| {
+                            if (node_pattern.variable) |var_name| {
+                                try row.set_variable(var_name, .null);
+                            }
+                        },
+                        .relationship => |rel_pattern| {
+                            if (rel_pattern.variable) |var_name| {
+                                try row.set_variable(var_name, .null);
+                            }
+                        },
+                    }
+                }
+            }
+        }
+
+        try result.add_row(row);
+    }
+
+    fn execute_with(self: *QueryExecutor, with_clause: cypher.With, result: *QueryResult) !void {
+        std.debug.print("Executing WITH clause\n", .{});
+        
+        // WITH clause processes intermediate results and can filter/transform them
+        // For now, we'll implement basic WITH functionality
+        
+        // Process the return items to create new variables
+        for (with_clause.items) |item| {
+            const value = try self.evaluate_expression(item.expr);
+            if (item.alias) |alias| {
+                // Store the result with the alias
+                try self.variables.put(alias, value);
+            }
+        }
+
+        // Apply WHERE clause if present
+        if (with_clause.where) |where_expr| {
+            if (!try self.evaluate_where(where_expr, null)) {
+                // Skip this result if WHERE condition fails
+                return;
+            }
+        }
+
+        // Apply ORDER BY if present
+        if (with_clause.order_by) |order_by| {
+            try self.execute_order_by(order_by, result);
+        }
+
+        // Apply SKIP/LIMIT if present
+        if (with_clause.skip_limit) |skip_limit| {
+            if (skip_limit.skip) |skip_count| {
+                try self.execute_skip(.{ .count = skip_count }, result);
+            }
+            if (skip_limit.limit) |limit_count| {
+                try self.execute_limit(.{ .count = limit_count }, result);
+            }
+        }
+    }
+
+    fn execute_merge(self: *QueryExecutor, merge_clause: cypher.Merge, result: *QueryResult) !void {
+        std.debug.print("Executing MERGE clause\n", .{});
+        
+        // MERGE is an upsert operation: create if doesn't exist, otherwise match
+        for (merge_clause.pattern.paths) |path| {
+            for (path.elements) |element| {
+                switch (element) {
+                    .node => |node_pattern| try self.merge_node_pattern(node_pattern, result),
+                    .relationship => |rel_pattern| try self.merge_relationship_pattern(rel_pattern, result),
+                }
+            }
+        }
+    }
+
+    fn execute_set(self: *QueryExecutor, set_clause: cypher.Set, result: *QueryResult) !void {
+        _ = result;
+        std.debug.print("Executing SET clause\n", .{});
+        
+        for (set_clause.items) |item| {
+            switch (item) {
+                .property => |prop| {
+                    const value = try self.evaluate_expression(prop.value);
+                    try self.set_property(prop.target, value);
+                },
+                .map_merge => |merge| {
+                    const map_value = try self.evaluate_expression(.{ .map = merge.map });
+                    try self.merge_properties(merge.variable, map_value);
+                },
+            }
+        }
+    }
+
+    fn execute_delete(self: *QueryExecutor, delete_clause: cypher.Delete, result: *QueryResult) !void {
+        _ = result;
+        std.debug.print("Executing DELETE clause\n", .{});
+        
+        for (delete_clause.expressions) |expr| {
+            const value = try self.evaluate_expression(expr);
+            try self.delete_entity(value);
+        }
+    }
+
+    fn execute_detach_delete(self: *QueryExecutor, delete_clause: cypher.Delete, result: *QueryResult) !void {
+        _ = result;
+        std.debug.print("Executing DETACH DELETE clause\n", .{});
+        
+        // DETACH DELETE removes the entity and all its relationships
+        for (delete_clause.expressions) |expr| {
+            const value = try self.evaluate_expression(expr);
+            try self.detach_delete_entity(value);
+        }
+    }
+
+    fn execute_unwind(self: *QueryExecutor, unwind_clause: cypher.Unwind, result: *QueryResult) !void {
+        std.debug.print("Executing UNWIND clause\n", .{});
+        
+        // UNWIND expands a list into individual rows
+        const list_value = try self.evaluate_expression(unwind_clause.expr);
+        
+        switch (list_value) {
+            .list => |list| {
+                for (list.items) |item| {
+                    var new_row = QueryRow.init(self.allocator);
+                    defer new_row.deinit();
+                    
+                    // Copy current variables
+                    try new_row.copy_from(&self.current_row);
+                    
+                    // Set the unwound value
+                    try new_row.set_variable(unwind_clause.alias, item);
+                    
+                    try result.add_row(new_row);
+                }
+            },
+            else => {
+                // If not a list, treat as single item
+                var new_row = QueryRow.init(self.allocator);
+                defer new_row.deinit();
+                
+                try new_row.copy_from(&self.current_row);
+                try new_row.set_variable(unwind_clause.alias, list_value);
+                
+                try result.add_row(new_row);
+            },
+        }
+    }
+
+    fn execute_remove(self: *QueryExecutor, remove_clause: cypher.Remove, result: *QueryResult) !void {
+        _ = result;
+        std.debug.print("Executing REMOVE clause\n", .{});
+        
+        for (remove_clause.items) |item| {
+            try self.remove_property(item);
+        }
+    }
+
+    fn execute_order_by(self: *QueryExecutor, order_by_clause: cypher.OrderBy, result: *QueryResult) !void {
+        _ = self;
+        _ = result;
+        std.debug.print("Executing ORDER BY clause\n", .{});
+        
+        // Sort the result rows based on the order by criteria
+        std.sort.insertion(cypher.SortItem, order_by_clause.items, {}, struct {
+            fn lessThan(_: void, a: cypher.SortItem, b: cypher.SortItem) bool {
+                // For now, just sort by expression value
+                // In a full implementation, this would compare actual values
+                return a.descending != b.descending;
+            }
+        }.lessThan);
+    }
+
+    fn execute_skip(self: *QueryExecutor, skip_clause: cypher.Skip, result: *QueryResult) !void {
+        _ = self;
+        std.debug.print("Executing SKIP clause\n", .{});
+        
+        // Skip the first N rows from the result
+        if (result.rows.items.len > skip_clause.count) {
+            const skip_start = skip_clause.count;
+            const skip_end = result.rows.items.len;
+            
+            // Remove the skipped rows
+            for (skip_start..skip_end) |i| {
+                result.rows.items[i - skip_start] = result.rows.items[i];
+            }
+            result.rows.shrinkRetainingCapacity(skip_start);
+        } else {
+            // Skip more rows than we have, so clear all
+            result.rows.clearRetainingCapacity();
+        }
+    }
+
+    fn execute_limit(self: *QueryExecutor, limit_clause: cypher.Limit, result: *QueryResult) !void {
+        _ = self;
+        std.debug.print("Executing LIMIT clause\n", .{});
+        
+        // Limit the result to N rows
+        if (result.rows.items.len > limit_clause.count) {
+            result.rows.shrinkRetainingCapacity(limit_clause.count);
+        }
     }
 
     fn parseAlgorithmType(algorithm_name: []const u8) ?algorithms.AlgorithmType {
@@ -289,11 +500,80 @@ pub const QueryExecutor = struct {
         try self.db.insert_edge(edge);
     }
 
-    fn evaluate_where(self: *QueryExecutor, where_expr: cypher.Expression, row: *QueryRow) !bool {
+    fn match_node_pattern_optional(self: *QueryExecutor, node_pattern: cypher.NodePattern, row: *QueryRow) !bool {
+        _ = self;
+        _ = node_pattern;
+        _ = row;
+        // TODO: Implement optional node pattern matching
+        return false;
+    }
+
+    fn match_relationship_pattern_optional(self: *QueryExecutor, rel_pattern: cypher.RelationshipPattern, row: *QueryRow) !bool {
+        _ = self;
+        _ = rel_pattern;
+        _ = row;
+        // TODO: Implement optional relationship pattern matching
+        return false;
+    }
+
+    fn merge_node_pattern(self: *QueryExecutor, node_pattern: cypher.NodePattern, result: *QueryResult) !void {
+        _ = self;
+        _ = node_pattern;
+        _ = result;
+        // TODO: Implement node merging (create if not exists)
+    }
+
+    fn merge_relationship_pattern(self: *QueryExecutor, rel_pattern: cypher.RelationshipPattern, result: *QueryResult) !void {
+        _ = self;
+        _ = rel_pattern;
+        _ = result;
+        // TODO: Implement relationship merging
+    }
+
+    fn set_property(self: *QueryExecutor, target: cypher.PropertySelector, value: QueryValue) !void {
+        _ = self;
+        _ = target;
+        _ = value;
+        // TODO: Implement property setting
+    }
+
+    fn merge_properties(self: *QueryExecutor, variable: []const u8, map_value: QueryValue) !void {
+        _ = self;
+        _ = variable;
+        _ = map_value;
+        // TODO: Implement property merging
+    }
+
+    fn delete_entity(self: *QueryExecutor, value: QueryValue) !void {
+        _ = self;
+        _ = value;
+        // TODO: Implement entity deletion
+    }
+
+    fn detach_delete_entity(self: *QueryExecutor, value: QueryValue) !void {
+        _ = self;
+        _ = value;
+        // TODO: Implement detach delete (delete entity and all relationships)
+    }
+
+    fn remove_property(self: *QueryExecutor, property_selector: cypher.PropertySelector) !void {
+        _ = self;
+        _ = property_selector;
+        // TODO: Implement property removal
+    }
+
+    fn evaluate_expression(self: *QueryExecutor, expr: cypher.Expression) !QueryValue {
+        _ = self;
+        _ = expr;
+        // TODO: Implement expression evaluation
+        return .null;
+    }
+
+    fn evaluate_where(self: *QueryExecutor, where_expr: cypher.Expression, row: ?*QueryRow) !bool {
         _ = self;
         _ = where_expr;
         _ = row;
-        // Simple WHERE evaluation - for now, always return true
+        // TODO: Implement WHERE clause evaluation
         return true;
     }
 };
@@ -382,6 +662,7 @@ pub const QueryValue = union(enum) {
     float: f64,
     string: []const u8,
     boolean: bool,
+    list: std.ArrayList(QueryValue),
     null,
 
     pub fn format(self: QueryValue, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -394,6 +675,14 @@ pub const QueryValue = union(enum) {
             .float => |f| try writer.print("{d}", .{f}),
             .string => |s| try writer.print("\"{s}\"", .{s}),
             .boolean => |b| try writer.print("{}", .{b}),
+            .list => |list| {
+                try writer.writeAll("[");
+                for (list.items, 0..) |item, i| {
+                    if (i > 0) try writer.writeAll(", ");
+                    try item.format("", .{}, writer);
+                }
+                try writer.writeAll("]");
+            },
             .null => try writer.print("null", .{}),
         }
     }

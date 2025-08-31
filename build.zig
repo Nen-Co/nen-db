@@ -176,6 +176,16 @@ pub fn build(b: *std.Build) void {
     const run_query_tests_new = b.addRunArtifact(query_tests_new);
     test_step.dependOn(&run_query_tests_new.step);
 
+    // Advanced Cypher features tests
+    const query_tests_advanced = b.addTest(.{
+        .root_source_file = b.path("tests/legacy/test_cypher_advanced.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    query_tests_advanced.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
+    const run_query_tests_advanced = b.addRunArtifact(query_tests_advanced);
+    test_step.dependOn(&run_query_tests_advanced.step);
+
     // ===== ENHANCED BENCHMARKING SUPPORT =====
 
     // Optional benchmarks (gated by -Dbench)
