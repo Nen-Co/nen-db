@@ -28,13 +28,13 @@ RUN zig build -Doptimize=ReleaseSafe
 # Create data directory
 RUN mkdir -p /data
 
-# Expose port for TCP server
-EXPOSE 5454
+# Expose ports for both TCP and HTTP servers
+EXPOSE 5454 8080
 
 # Set environment variables
 ENV NENDB_DATA_DIR=/data
 ENV NENDB_SYNC_EVERY=100
 ENV NENDB_SEGMENT_SIZE=1048576
 
-# Default command
-CMD ["./zig-out/bin/nen", "serve"]
+# Default command - run HTTP server on port 8080
+CMD ["./zig-out/bin/nendb-server"]
