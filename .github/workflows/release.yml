@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup Zig 0.14.1
-        uses: ziglang/setup-zig@v1
+        uses: mlugg/setup-zig@v1
         with:
           version: 0.14.1
       - name: Build
