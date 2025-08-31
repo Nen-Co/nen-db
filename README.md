@@ -1,241 +1,204 @@
-# NenDB (GraphDB)
+# 🚀 NenDB - AI-Native Graph Database
 
-Production-focused, static-memory graph store with crash-safe persistence, predictable performance, and advanced graph algorithms.
+> **Lightning-fast graph database built with Zig for AI workloads** ⚡
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Nen-Co/nendb/ci.yml?branch=main)](../../actions)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Issues](https://img.shields.io/github/issues/Nen-Co/nendb)](../../issues)
-[![Discussions](https://img.shields.io/github/discussions/Nen-Co/nendb)](../../discussions)
+[![Zig](https://img.shields.io/badge/Zig-0.14.1-F7A41D)](https://ziglang.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-v0.1.0--beta-green.svg)](https://github.com/Nen-Co/nen-db/releases)
+[![Docker](https://img.shields.io/badge/Docker-GHCR-blue.svg)](https://ghcr.io/nen-co/nendb)
 
-> Status: Beta (v0.0.1). Core graph operations and algorithms are functional with production-ready durability features.
+## 🎯 What is NenDB?
 
-## Table of Contents
-- [Features (production-ready)](#features-production-ready)
-- [Quick install (prebuilt)](#quick-install-prebuilt)
-- [Build from source](#build-from-source)
-- [Common operations](#common-ops-anytime)
-- [Configuration](#configuration)
-- [Durability details](#durability-details)
-- [Health and operations](#health-and-operations)
-- [Limitations and expectations](#limitations-and-expectations)
-- [Tests](#tests)
-- [Architecture](#architecture)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Benchmarks](#benchmarks)
-- [License](#license)
+NenDB is a **static memory graph database** designed specifically for AI applications. Built with Zig for maximum performance and predictable memory usage, it provides:
 
-## Features (production-ready)
-- **Core Graph Operations**: Node/Edge CRUD, graph traversal, path finding
-- **Advanced Graph Algorithms**: BFS, Dijkstra's shortest path, PageRank centrality
-- **Graph Analysis Tools**: Connectivity analysis, diameter calculation, path finding, density metrics
-- **Enhanced I/O Module**: Static memory, inline functions, UTF-8 support, colored terminal output
-- **WAL with header/version**: CRC per entry, and segment rotation
-- **Tail scan and auto-truncate**: Trailing/partial or corrupt bytes
-- **Atomic snapshots**: Temp → fsync → rename → dir fsync, length + CRC
-- **Snapshot .bak fallback**: On restore
-- **LSN-aware recovery**: Restore snapshot, then replay WAL after LSN
-- **Strict durability**: Fsync + F_FULLFSYNC on macOS where possible
-- **Single-writer safety**: Lock file next to WAL
-- **Static memory pools**: Nodes/edges/embeddings; lock-free reads, mutex-guarded writes
-- **CLI**: Init/status/snapshot/restore/check/compact with enhanced output
-- **Health reporting**: WAL health exposed via CLI and API
+- 🧠 **AI-Native Design**: Optimized for graph reasoning and AI workloads
+- ⚡ **Static Memory**: Zero garbage collection overhead
+- 🚀 **Lightning Fast**: Built with Zig for maximum performance
+- 🛡️ **Crash Safe**: WAL-based durability with point-in-time recovery
+- 🔧 **Zero Dependencies**: Self-contained with minimal external requirements
 
-## Quick install (prebuilt)
-Prebuilt binaries are published on GitHub Releases (Linux x86_64, macOS universal, Windows x86_64).
+## ✨ Key Features
 
-If no release has been tagged yet, skip to [Build from source](#build-from-source).
+### 🎨 **Core Capabilities**
+- **Static Memory Pools**: Predictable performance with configurable memory limits
+- **Write-Ahead Logging**: Crash-safe persistence with point-in-time recovery
+- **Graph Algorithms**: BFS, Dijkstra, PageRank, and Community Detection
+- **HTTP API**: RESTful interface using nen-net networking framework
+- **CLI Interface**: Command-line tool for database management
 
-### One-line (Linux/macOS)
+### 🚀 **Performance Features**
+- **Memory Pools**: Static allocation for zero GC overhead
+- **Predictable Latency**: Consistent response times under load
+- **Efficient Storage**: Optimized data structures for graph operations
+- **Cross-Platform**: Linux, macOS, and Windows support
+
+### 🔌 **API Endpoints**
+- `GET /health` - Server health check
+- `GET /graph/stats` - Graph statistics
+- `POST /graph/algorithms/bfs` - Breadth-first search
+- `POST /graph/algorithms/dijkstra` - Shortest path
+- `POST /graph/algorithms/pagerank` - PageRank centrality
+- `POST /graph/algorithms/community` - Community detection
+
+## 🚀 Quick Start
+
+### 📦 **Installation**
+
+**Linux/macOS (Quick Install)**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Nen-Co/nendb/main/scripts/install.sh | sh
-# Then:
-nendb --help
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-linux-x86_64.tar.gz | tar -xz
 ```
-This script:
-- Detects OS/arch
-- Downloads latest release asset + SHA256SUMS
-- Verifies checksum
-- Places `nen` into `$HOME/.local/bin` (creates if missing)
 
-### Windows (PowerShell)
+**Windows PowerShell**
 ```powershell
-# Replace VERSION after first release (placeholder using latest tag API):
-$uri = Invoke-RestMethod https://api.github.com/repos/Nen-Co/nendb/releases/latest; \
-$asset = ($uri.assets | Where-Object { $_.name -like 'nendb-windows-x86_64.zip' }).browser_download_url; \
-Invoke-WebRequest $asset -OutFile nendb.zip; Expand-Archive nendb.zip -DestinationPath .; \
-Move-Item nendb-windows-x86_64.exe nendb.exe; Write-Host 'Run: ./nendb --help'
+Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/latest/download/nen-windows-x86_64.zip" -OutFile "nen-windows.zip"
+Expand-Archive -Path "nen-windows.zip" -DestinationPath "."
 ```
 
-### Manual download
-1. Visit: https://github.com/Nen-Co/nendb/releases
-2. Download archive: `nendb-linux-x86_64.tar.gz`, `nendb-macos-universal.tar.gz`, or `nendb-windows-x86_64.zip`
-3. Verify checksum (compare against `SHA256SUMS`):
-   ```bash
-   sha256sum -c SHA256SUMS | grep nendb-linux-x86_64
-   ```
-4. Put `nendb` on your PATH.
-
-(If the latest release isn’t tagged yet, build from source below.)
-
-## Build from source
+**🐳 Docker (Recommended)**
 ```bash
-# Build and run demo (copy-paste)
-zig build -Doptimize=ReleaseSafe && \
-    ./zig-out/bin/nendb demo
+# Pull and run with HTTP server on port 8080
+docker run --rm -p 8080:8080 --name nendb \
+  -v $(pwd)/data:/data \
+  ghcr.io/nen-co/nendb:latest
 ```
 
-Try basic operations:
+### 🏃 **Running NenDB**
 
+**Start HTTP Server**
 ```bash
-# Check help
-./zig-out/bin/nendb --help
-
-# Run demo
-./zig-out/bin/nendb demo
+./zig-out/bin/nendb-server
+# Server will be available at http://localhost:8080
 ```
 
-## Common ops (anytime):
+**CLI Commands**
 ```bash
-# Graph operations demo
-./zig-out/bin/nendb demo
+# Check version
+./zig-out/bin/nendb --version
 
-# Run algorithms demo
-zig build demo
-
-# Basic help
-./zig-out/bin/nendb --help
-
-# TODO: Add more operations as implemented
-# ./zig-out/bin/nendb snapshot ./data
-# ./zig-out/bin/nendb restore ./data
-# ./zig-out/bin/nendb check ./data
-# ./zig-out/bin/nendb compact ./data
-# ./zig-out/bin/nendb force-unlock ./data
+# Start TCP server
+./zig-out/bin/nendb serve
 ```
 
-Optional server mode (TODO):
+### 🧪 **Test the Server**
+
 ```bash
-./zig-out/bin/nendb serve  # listens on :5454
+# Health check
+curl http://localhost:8080/health
+
+# Graph statistics
+curl http://localhost:8080/graph/stats
 ```
 
-Quick try without a full build:
+## 🏗️ Building from Source
+
+### 📋 **Prerequisites**
+- [Zig 0.14.1](https://ziglang.org/download/) or later
+- Git
+
+### 🔨 **Build Steps**
 ```bash
-zig run src/main.zig -- demo
-```
+# Clone the repository
+git clone https://github.com/Nen-Co/nen-db.git
+cd nen-db
 
-Add build output to PATH:
-```bash
-export PATH="$PWD/zig-out/bin:$PATH"  # zsh/bash
-```
+# Build the project
+zig build
 
-## Install (optional)
-User install (no sudo):
-```bash
-zig build -Doptimize=ReleaseSafe install-user
-```
-System install:
-```bash
-zig build -Doptimize=ReleaseSafe install-system  # may need: sudo zig build ...
-```
-
-## Configuration
-- Compile-time (see `nendb/src/constants.zig`):
-  - memory.node_pool_size, edge_pool_size, embedding_pool_size
-  - storage.wal_segment_size, storage.snapshot_interval
-- Environment overrides:
-  - NENDB_SYNC_EVERY (batch fsync interval)
-  - NENDB_SEGMENT_SIZE (bytes)
-
-## Durability details
-- Appends are O(1) using in-memory tail; correctness from tail-scan on open/rotate
-- Rotation fsyncs file and directory before/after rename; header written and fsynced on new active WAL
-- Snapshot is atomic (temp file → fsync → rename → dir fsync); then WAL is truncated to header
-- Restore prefers `nendb.snapshot`; on CRC/length failure, falls back to `.bak`; then replays WAL after LSN
-- On any CRC mismatch during replay (segments or active), truncates to last good boundary
-
-## Health and operations
-- Single-writer lock: `<path>/nendb.wal.lock`
-- `wal_health` includes healthy flag, io_error_count, last_error, end_pos, segment stats
-- Use `status --fail-on-unhealthy` for automation / monitoring hooks
-
-## Limitations and expectations
-- Single-writer process model (readers are lock-free)
-- No replication yet; rely on snapshots + external backup
-- Concurrency: writes serialized by mutex
-- Memory sizes fixed at start (static pools)
-
-## Tests
-```bash
+# Run tests
 zig build test
+
+# Build optimized release
+zig build -Doptimize=ReleaseSafe
 ```
-Includes tests for WAL persistence, rotation/replay, tail truncation recovery, snapshot .bak fallback, and single-writer lock.
 
-## Architecture
-High-level design, lifecycle, and recovery flow: see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## 🐳 Docker Support
 
-## Roadmap
+NenDB provides official Docker images via GitHub Container Registry (GHCR):
 
-### Phase 1: Core Graph Engine (✅ Complete)
-- ✅ Static memory pools for nodes, edges, and embeddings
-- ✅ WAL persistence with crash-safe recovery
-- ✅ Basic graph CRUD operations
-- ✅ Core graph algorithms (BFS, Dijkstra, PageRank)
-- ✅ Graph analysis utilities (connectivity, diameter, density)
-- ✅ Algorithm integration with query executor
+- **Latest**: `ghcr.io/nen-co/nendb:latest`
+- **Versioned**: `ghcr.io/nen-co/nendb:v0.1.0-beta`
+- **Simple variant**: `ghcr.io/nen-co/nendb:simple-latest`
 
-### Phase 2: Query Language & Optimization (In Progress)
-- 🔄 Cypher-like query language implementation
-- 🔄 Query optimization and execution planning
-- 🔄 Index structures for performance
-- 🔄 Advanced graph traversal patterns
-- 🔄 Subgraph operations and filtering
+See [DOCKER.md](DOCKER.md) for comprehensive Docker usage instructions.
 
-### Phase 3: Advanced Algorithms & Analytics
-- 📋 Community detection algorithms
-- 📋 Graph clustering and partitioning
-- 📋 Centrality measures (betweenness, closeness)
-- 📋 Graph embeddings and similarity
-- 📋 Machine learning integration
+## 📚 Documentation
 
-### Phase 4: Production Features
-- 📋 Horizontal scaling and sharding
-- 📋 Multi-tenant support
-- 📋 Advanced monitoring and metrics
-- 📋 Backup and disaster recovery
-- 📋 Performance benchmarking suite
+- 🌐 **Website**: [https://nen-co.github.io/docs/nendb/](https://nen-co.github.io/docs/nendb/)
+- 📖 **API Reference**: [https://nen-co.github.io/docs/nendb/api/](https://nen-co.github.io/docs/nendb/api/)
+- 🐍 **Python Client**: [https://nen-co.github.io/docs/nendb-python-driver/](https://nen-co.github.io/docs/nendb-python-driver/)
+- 🐳 **Docker Guide**: [DOCKER.md](DOCKER.md)
 
-### Phase 5: AI-Native Features
-- 📋 Natural language query interface
-- 📋 Automated query optimization
-- 📋 Intelligent indexing recommendations
-- 📋 Graph pattern learning
-- 📋 Predictive analytics
+## 🧪 Testing
 
-### Long-term Vision
-- 📋 Distributed graph processing
-- 📋 Real-time streaming graph updates
-- 📋 Advanced visualization tools
-- 📋 Enterprise security features
-- 📋 Cloud-native deployment
-
-## Contributing
-1. Fork & clone
-2. `zig build test`
-3. Make changes + add tests
-4. Open PR (auto-templates included)
-
-Looking for first contributions? See issues labeled `good first issue` or propose improvements in Discussions.
-
-## Benchmarks
-Benchmarks are gated behind `-Dbench`:
 ```bash
-zig build -Dbench bench
-```
-(Expect synthetic placeholders; realistic suite in progress. Artifacts removed to keep repo lean.)
+# Run all tests
+zig build test
 
-## License
-Apache-2.0
+# Run specific test categories
+zig build test-unit
+zig build test-integration
+zig build test-performance
+
+# Run with coverage
+zig build test --summary all
+```
+
+## 🚀 Performance
+
+NenDB is designed for high-performance graph operations:
+
+- **Static Memory**: No dynamic allocations during runtime
+- **Predictable Latency**: Consistent response times under load
+- **Efficient Algorithms**: Optimized implementations of graph algorithms
+- **Zero GC Overhead**: Static memory pools eliminate garbage collection
+
+## 🔮 Roadmap
+
+### 🎯 **v0.1.0-beta (Current)**
+- ✅ Static memory graph database
+- ✅ HTTP API server
+- ✅ Basic graph algorithms
+- ✅ WAL persistence
+- ✅ CLI interface
+
+### 🚀 **Future Releases**
+- 🔄 Enhanced graph algorithms
+- 🔍 Cypher-like query language
+- 🧠 Vector similarity search
+- 📊 GraphRAG support
+- ⚡ Performance optimizations
+- 🌐 Distributed clustering
+
+## 🤝 Contributing
+
+We welcome contributions! 🎉
+
+1. 🍴 Fork the repository
+2. 🌿 Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. 💾 Commit your changes (`git commit -m 'Add amazing feature'`)
+4. 📤 Push to the branch (`git push origin feature/amazing-feature`)
+5. 🔄 Open a Pull Request
+
+See our [Contributing Guide](CONTRIBUTING.md) for detailed information.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- 🐛 **Issues**: [GitHub Issues](https://github.com/Nen-Co/nen-db/issues)
+- 📖 **Documentation**: [https://nen-co.github.io/docs/nendb/](https://nen-co.github.io/docs/nendb/)
+- 💬 **Community**: [Discord](https://discord.gg/nen-co)
+
+## 🙏 Acknowledgments
+
+- Built with [Zig](https://ziglang.org/) for maximum performance
+- Networking powered by [nen-net](https://github.com/Nen-Co/nen-net)
+- I/O operations using [nen-io](https://github.com/Nen-Co/nen-io)
+- JSON handling via [nen-json](https://github.com/Nen-Co/nen-json)
 
 ---
-Security / Disclosure: For potential data-loss or integrity issues, please open a private security advisory instead of a public issue.
+
+**Ready to build AI-native graph applications?** 🚀 [Get started now!](https://nen-co.github.io/docs/nendb/)
