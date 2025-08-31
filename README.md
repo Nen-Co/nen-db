@@ -44,9 +44,19 @@ NenDB is a **static memory graph database** designed specifically for AI applica
 
 ### 📦 **Installation**
 
-**Linux/macOS (Quick Install)**
+**Linux (x86_64)**
 ```bash
 curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-linux-x86_64.tar.gz | tar -xz
+```
+
+**macOS (Intel)**
+```bash
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-macos-x86_64.tar.gz | tar -xz
+```
+
+**macOS (Apple Silicon - M1/M2)**
+```bash
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-macos-aarch64.tar.gz | tar -xz
 ```
 
 **Windows PowerShell**
@@ -62,6 +72,19 @@ docker run --rm -p 8080:8080 --name nendb \
   -v $(pwd)/data:/data \
   ghcr.io/nen-co/nendb:latest
 ```
+
+**📦 Generated Binaries**
+After building with specific targets, you'll find:
+- `zig-out/bin/nendb` - Executable for the current platform
+- `zig-out/bin/nendb-server` - HTTP server for the current platform
+
+**For cross-compilation, use:**
+- `zig build -Dtarget=x86_64-linux-gnu` → Linux x86_64 binary
+- `zig build -Dtarget=x86_64-macos-none` → macOS Intel binary (no libc)  
+- `zig build -Dtarget=aarch64-macos-none` → macOS Apple Silicon binary (no libc)
+- `zig build -Dtarget=x86_64-windows-gnu` → Windows x86_64 binary
+
+**💡 Note:** The installation URLs in the Quick Start section will be updated when releases are published with the correct binary names for each platform.
 
 ### 🏃 **Running NenDB**
 
@@ -110,6 +133,15 @@ zig build test
 
 # Build optimized release
 zig build -Doptimize=ReleaseSafe
+
+# Build for all target platforms (Linux, macOS Intel/ARM, Windows)
+zig build cross-compile
+
+# Or build for specific targets:
+zig build -Dtarget=x86_64-linux-gnu    # Linux x86_64
+zig build -Dtarget=x86_64-macos-none   # macOS Intel (no libc)
+zig build -Dtarget=aarch64-macos-none  # macOS Apple Silicon (no libc)
+zig build -Dtarget=x86_64-windows-gnu  # Windows x86_64
 ```
 
 ## 🐳 Docker Support

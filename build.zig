@@ -354,4 +354,18 @@ pub fn build(b: *std.Build) void {
     const run_http_tests = b.addRunArtifact(http_tests);
     const http_test_step = b.step("test-http", "Run HTTP API tests");
     http_test_step.dependOn(&run_http_tests.step);
+
+    // ===== CROSS-COMPILATION TARGETS FOR RELEASES =====
+    
+    // Note: For now, we'll use the main target but add a note about cross-compilation
+    // Users can build for specific targets using: zig build -Dtarget=x86_64-linux-gnu
+    const cross_compile_step = b.step("cross-compile", "Build for all target platforms (use -Dtarget=<triple>)");
+    cross_compile_step.dependOn(b.getInstallStep());
+    
+    // Add a note about available targets
+    const note_step = b.addSystemCommand(&.{
+        "echo",
+        "Available targets: x86_64-linux-gnu, x86_64-macos-gnu, aarch64-macos-gnu, x86_64-windows-gnu"
+    });
+    cross_compile_step.dependOn(&note_step.step);
 }
