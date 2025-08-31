@@ -7,11 +7,11 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Try a different Zig installation method
-RUN wget https://ziglang.org/download/0.14.1/zig-linux-x86_64-0.14.1.tar.xz \
-    && tar -xf zig-linux-x86_64-0.14.1.tar.xz \
-    && mv zig-linux-x86_64-0.14.1 /usr/local/zig \
-    && rm zig-linux-x86_64-0.14.1.tar.xz
+# Install Zig with correct URL
+RUN wget https://ziglang.org/download/0.14.1/zig-0.14.1.tar.xz \
+    && tar -xf zig-0.14.1.tar.xz \
+    && mv zig-0.14.1 /usr/local/zig \
+    && rm zig-0.14.1.tar.xz
 
 # Add Zig to PATH
 ENV PATH="/usr/local/zig:${PATH}"

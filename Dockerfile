@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Zig (fixed method)
-RUN curl -L https://ziglang.org/download/0.14.1/zig-linux-x86_64-0.14.1.tar.xz -o zig.tar.xz \
+# Install Zig (fixed URL)
+RUN curl -L https://ziglang.org/download/0.14.1/zig-0.14.1.tar.xz -o zig.tar.xz \
     && tar -xf zig.tar.xz \
-    && mv zig-linux-x86_64-0.14.1 /usr/local/zig \
+    && mv zig-0.14.1 /usr/local/zig \
     && rm zig.tar.xz
 
 # Add Zig to PATH
