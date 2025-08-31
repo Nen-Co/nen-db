@@ -16,23 +16,23 @@ pub fn main() !void {
     std.debug.print("   POST /graph/algorithms/bfs\n", .{});
     std.debug.print("   POST /graph/algorithms/dijkstra\n", .{});
     std.debug.print("   POST /graph/algorithms/pagerank\n", .{});
-    
+
     // Create HTTP server using enhanced nen-net
     var server = try nen_net.createHttpServer(8080);
-    
+
     // Add graph algorithm endpoints
     try server.addRoute("POST", "/graph/algorithms/bfs", handleBFS);
     try server.addRoute("POST", "/graph/algorithms/dijkstra", handleDijkstra);
     try server.addRoute("POST", "/graph/algorithms/pagerank", handlePageRank);
-    
+
     // Add utility endpoints
     try server.addRoute("GET", "/graph/stats", handleGraphStats);
     try server.addRoute("GET", "/health", handleHealth);
     try server.addRoute("GET", "/", handleRoot);
-    
+
     std.debug.print("✅ Server configured with {d} routes\n", .{6});
     std.debug.print("🌐 Starting nen-net HTTP server...\n", .{});
-    
+
     // Start the server
     try server.start();
 }

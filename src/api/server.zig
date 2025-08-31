@@ -293,7 +293,7 @@ fn handleHTTPRequest(data: []const u8) Response {
     const request_line = lines.next() orelse {
         return Response{ .success = false, .error_message = "Invalid HTTP request" };
     };
-    
+
     var parts = std.mem.splitSequence(u8, request_line, " ");
     const method = parts.next() orelse {
         return Response{ .success = false, .error_message = "Invalid HTTP method" };
@@ -301,9 +301,9 @@ fn handleHTTPRequest(data: []const u8) Response {
     const path = parts.next() orelse {
         return Response{ .success = false, .error_message = "Invalid HTTP path" };
     };
-            // Skip version part for now
-        _ = parts.next();
-    
+    // Skip version part for now
+    _ = parts.next();
+
     // Route based on path using nen-net style
     if (std.mem.startsWith(u8, path, "/graph/algorithms/")) {
         return handleAlgorithmEndpoint(method, path, data);
@@ -312,10 +312,7 @@ fn handleHTTPRequest(data: []const u8) Response {
     } else if (std.mem.startsWith(u8, path, "/health")) {
         return handleHealthCheck(method, path);
     } else {
-        return Response{ 
-            .success = false, 
-            .error_message = "{\"error\": \"Endpoint not found\"}" 
-        };
+        return Response{ .success = false, .error_message = "{\"error\": \"Endpoint not found\"}" };
     }
 }
 
@@ -324,12 +321,9 @@ fn handleAlgorithmEndpoint(method: []const u8, path: []const u8, data: []const u
     // TODO: Implement data processing for algorithm endpoints
     _ = data;
     if (!std.mem.eql(u8, method, "POST")) {
-        return Response{ 
-            .success = false, 
-            .error_message = "{\"error\": \"Method not allowed\"}" 
-        };
+        return Response{ .success = false, .error_message = "{\"error\": \"Method not allowed\"}" };
     }
-    
+
     // Extract algorithm type from path
     if (std.mem.startsWith(u8, path, "/graph/algorithms/bfs")) {
         return Response{ .success = true, .data = "{\"algorithm\": \"bfs\", \"status\": \"queued\", \"message\": \"BFS algorithm queued for execution\"}" };
@@ -337,26 +331,20 @@ fn handleAlgorithmEndpoint(method: []const u8, path: []const u8, data: []const u
         return Response{ .success = true, .data = "{\"algorithm\": \"dijkstra\", \"status\": \"queued\", \"message\": \"Dijkstra algorithm queued for execution\"}" };
     } else if (std.mem.startsWith(u8, path, "/graph/algorithms/pagerank")) {
         return Response{ .success = true, .data = "{\"algorithm\": \"pagerank\", \"status\": \"queued\", \"message\": \"PageRank algorithm queued for execution\"}" };
-            } else {
-            return Response{ 
-                .success = false, 
-                .error_message = "{\"error\": \"Algorithm not found\"}" 
-            };
-        }
+    } else {
+        return Response{ .success = false, .error_message = "{\"error\": \"Algorithm not found\"}" };
+    }
 }
 
 // Handle graph statistics endpoint
 fn handleGraphStats(method: []const u8, path: []const u8) Response {
     // TODO: Implement path-based graph stats filtering
     _ = path;
-    
+
     if (!std.mem.eql(u8, method, "GET")) {
-        return Response{ 
-            .success = false, 
-            .error_message = "{\"error\": \"Method not allowed\"}" 
-        };
+        return Response{ .success = false, .error_message = "{\"error\": \"Method not allowed\"}" };
     }
-    
+
     const stats = "{\"nodes\": 0, \"edges\": 0, \"algorithms\": [\"bfs\", \"dijkstra\", \"pagerank\"], \"status\": \"operational\"}";
     return Response{ .success = true, .data = stats };
 }
@@ -365,14 +353,11 @@ fn handleGraphStats(method: []const u8, path: []const u8) Response {
 fn handleHealthCheck(method: []const u8, path: []const u8) Response {
     // TODO: Implement path-based health check filtering
     _ = path;
-    
+
     if (!std.mem.eql(u8, method, "GET")) {
-        return Response{ 
-            .success = false, 
-            .error_message = "{\"error\": \"Method not allowed\"}" 
-        };
+        return Response{ .success = false, .error_message = "{\"error\": \"Method not allowed\"}" };
     }
-    
+
     const health = "{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"v0.1.0-beta\"}";
     return Response{ .success = true, .data = health };
 }
@@ -387,14 +372,14 @@ fn getCurrentTimestamp() []const u8 {
 
 fn processRequest(data: []const u8) Response {
     // Try to parse as HTTP request first
-    if (std.mem.startsWith(u8, data, "GET ") or 
+    if (std.mem.startsWith(u8, data, "GET ") or
         std.mem.startsWith(u8, data, "POST ") or
         std.mem.startsWith(u8, data, "PUT ") or
-        std.mem.startsWith(u8, data, "DELETE ")) {
-        
+        std.mem.startsWith(u8, data, "DELETE "))
+    {
         return handleHTTPRequest(data);
     }
-    
+
     // Fallback to legacy protocol parsing
     const request = std.mem.trim(u8, data, " \r\n");
 
@@ -419,12 +404,12 @@ fn processRequest(data: []const u8) Response {
 pub fn startDefaultServer(port: u16) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-            defer {
-            const deinit_result = gpa.deinit();
-            if (deinit_result == .leak) {
-                std.debug.print("Warning: Memory leak detected in server\n", .{});
-            }
+    defer {
+        const deinit_result = gpa.deinit();
+        if (deinit_result == .leak) {
+            std.debug.print("Warning: Memory leak detected in server\n", .{});
         }
+    }
 
     const config = ServerConfig{ .port = port };
     var server = try EnhancedServer.init(allocator, config);
