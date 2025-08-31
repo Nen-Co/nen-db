@@ -38,11 +38,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{version}}-{{prerelease}}
-            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-,format=short
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -62,7 +62,7 @@ jobs:
           context: .
           file: ./Dockerfile.simple
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:simple-${{ steps.meta.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:simple-${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -73,3 +73,4 @@ jobs:
           echo "Images pushed to:"
           echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           echo "Tags: ${{ steps.meta.outputs.tags }}"
+          echo "Version: ${{ steps.meta.outputs.version }}"
