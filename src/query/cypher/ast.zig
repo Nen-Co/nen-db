@@ -131,8 +131,46 @@ pub const Expression = union(enum) {
     null: void,
     map: MapLiteral,
     list: ListLiteral,
-    // Operators (minimal for now)
-    eq: struct { left: *Expression, right: *Expression },
+    
+    // Comparison Operators
+    eq: struct { left: *Expression, right: *Expression },      // =
+    ne: struct { left: *Expression, right: *Expression },      // <>
+    lt: struct { left: *Expression, right: *Expression },      // <
+    lte: struct { left: *Expression, right: *Expression },     // <=
+    gt: struct { left: *Expression, right: *Expression },      // >
+    gte: struct { left: *Expression, right: *Expression },     // >=
+    
+    // Arithmetic Operators
+    add: struct { left: *Expression, right: *Expression },     // +
+    sub: struct { left: *Expression, right: *Expression },     // -
+    mul: struct { left: *Expression, right: *Expression },     // *
+    div: struct { left: *Expression, right: *Expression },     // /
+    mod: struct { left: *Expression, right: *Expression },     // %
+    
+    // Logical Operators
+    logical_and: struct { left: *Expression, right: *Expression },     // AND
+    logical_or: struct { left: *Expression, right: *Expression },      // OR
+    logical_not: struct { expr: *Expression },                         // NOT
+    
+    // String Functions
+    toUpper: struct { expr: *Expression },
+    toLower: struct { expr: *Expression },
+    trim: struct { expr: *Expression },
+    substring: struct { expr: *Expression, start: *Expression, length: *Expression },
+    
+    // Mathematical Functions
+    abs: struct { expr: *Expression },
+    round: struct { expr: *Expression },
+    ceil: struct { expr: *Expression },
+    floor: struct { expr: *Expression },
+    sqrt: struct { expr: *Expression },
+    
+    // Aggregation Functions
+    count: struct { expr: *Expression, distinct: bool },
+    sum: struct { expr: *Expression },
+    avg: struct { expr: *Expression },
+    min: struct { expr: *Expression },
+    max: struct { expr: *Expression },
 };
 
 pub const MapLiteral = struct {
@@ -249,12 +287,56 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
         .property => |*ps| allocator.free(ps.keys),
         .map => |*map| deinitMap(allocator, map),
         .list => |*lst| allocator.free(lst.items),
-        .eq => |*cmp| {
+        
+        // Comparison Operators
+        .eq, .ne, .lt, .lte, .gt, .gte => |*cmp| {
             deinitExpr(allocator, cmp.left);
             deinitExpr(allocator, cmp.right);
             allocator.destroy(cmp.left);
             allocator.destroy(cmp.right);
         },
-        else => {},
+        
+        // Arithmetic Operators
+        .add, .sub, .mul, .div, .mod => |*arith| {
+            deinitExpr(allocator, arith.left);
+            deinitExpr(allocator, arith.right);
+            allocator.destroy(arith.left);
+            allocator.destroy(arith.right);
+        },
+        
+        // Logical Operators
+        .logical_and, .logical_or => |*logical| {
+            deinitExpr(allocator, logical.left);
+            deinitExpr(allocator, logical.right);
+            allocator.destroy(logical.left);
+            allocator.destroy(logical.right);
+        },
+        .logical_not => |*not_expr| {
+            deinitExpr(allocator, not_expr.expr);
+            allocator.destroy(not_expr.expr);
+        },
+        
+        // String Functions
+        .toUpper, .toLower, .trim, .abs, .round, .ceil, .floor, .sqrt => |*func| {
+            deinitExpr(allocator, func.expr);
+            allocator.destroy(func.expr);
+        },
+        .substring => |*substr| {
+            deinitExpr(allocator, substr.expr);
+            deinitExpr(allocator, substr.start);
+            deinitExpr(allocator, substr.length);
+            allocator.destroy(substr.expr);
+            allocator.destroy(substr.start);
+            allocator.destroy(substr.length);
+        },
+        
+        // Aggregation Functions
+        .count, .sum, .avg, .min, .max => |*agg| {
+            deinitExpr(allocator, agg.expr);
+            allocator.destroy(agg.expr);
+        },
+        
+        // Primary types (no cleanup needed)
+        .variable, .string, .integer, .float, .boolean, .null => {},
     }
 }

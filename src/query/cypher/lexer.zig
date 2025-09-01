@@ -161,7 +161,50 @@ fn toUpperTemp(slice: []const u8) []const u8 {
 
 fn isKeyword(s: []const u8) bool {
     // Case-insensitive checks during parse; here treat any of these as keyword when matched ignoring case
-    return std.ascii.eqlIgnoreCase(s, "MATCH") or std.ascii.eqlIgnoreCase(s, "RETURN") or std.ascii.eqlIgnoreCase(s, "WITH") or std.ascii.eqlIgnoreCase(s, "WHERE") or std.ascii.eqlIgnoreCase(s, "CREATE") or std.ascii.eqlIgnoreCase(s, "MERGE") or std.ascii.eqlIgnoreCase(s, "SET") or std.ascii.eqlIgnoreCase(s, "DELETE") or std.ascii.eqlIgnoreCase(s, "DETACH") or std.ascii.eqlIgnoreCase(s, "AS") or std.ascii.eqlIgnoreCase(s, "ASC") or std.ascii.eqlIgnoreCase(s, "DESC") or std.ascii.eqlIgnoreCase(s, "REMOVE") or std.ascii.eqlIgnoreCase(s, "UNWIND") or std.ascii.eqlIgnoreCase(s, "ORDER") or std.ascii.eqlIgnoreCase(s, "BY") or std.ascii.eqlIgnoreCase(s, "SKIP") or std.ascii.eqlIgnoreCase(s, "LIMIT") or std.ascii.eqlIgnoreCase(s, "USING");
+    return std.ascii.eqlIgnoreCase(s, "MATCH") or 
+           std.ascii.eqlIgnoreCase(s, "RETURN") or 
+           std.ascii.eqlIgnoreCase(s, "WITH") or 
+           std.ascii.eqlIgnoreCase(s, "WHERE") or 
+           std.ascii.eqlIgnoreCase(s, "CREATE") or 
+           std.ascii.eqlIgnoreCase(s, "MERGE") or 
+           std.ascii.eqlIgnoreCase(s, "SET") or 
+           std.ascii.eqlIgnoreCase(s, "DELETE") or 
+           std.ascii.eqlIgnoreCase(s, "DETACH") or 
+           std.ascii.eqlIgnoreCase(s, "AS") or 
+           std.ascii.eqlIgnoreCase(s, "ASC") or 
+           std.ascii.eqlIgnoreCase(s, "DESC") or 
+           std.ascii.eqlIgnoreCase(s, "REMOVE") or 
+           std.ascii.eqlIgnoreCase(s, "UNWIND") or 
+           std.ascii.eqlIgnoreCase(s, "ORDER") or 
+           std.ascii.eqlIgnoreCase(s, "BY") or 
+           std.ascii.eqlIgnoreCase(s, "SKIP") or 
+           std.ascii.eqlIgnoreCase(s, "LIMIT") or 
+           std.ascii.eqlIgnoreCase(s, "USING") or
+           // Logical operators
+           std.ascii.eqlIgnoreCase(s, "AND") or
+           std.ascii.eqlIgnoreCase(s, "OR") or
+           std.ascii.eqlIgnoreCase(s, "NOT") or
+           // String functions
+           std.ascii.eqlIgnoreCase(s, "TOUPPER") or
+           std.ascii.eqlIgnoreCase(s, "TOLOWER") or
+           std.ascii.eqlIgnoreCase(s, "TRIM") or
+           std.ascii.eqlIgnoreCase(s, "SUBSTRING") or
+           // Mathematical functions
+           std.ascii.eqlIgnoreCase(s, "ABS") or
+           std.ascii.eqlIgnoreCase(s, "ROUND") or
+           std.ascii.eqlIgnoreCase(s, "CEIL") or
+           std.ascii.eqlIgnoreCase(s, "FLOOR") or
+           std.ascii.eqlIgnoreCase(s, "SQRT") or
+           // Aggregation functions
+           std.ascii.eqlIgnoreCase(s, "COUNT") or
+           std.ascii.eqlIgnoreCase(s, "SUM") or
+           std.ascii.eqlIgnoreCase(s, "AVG") or
+           std.ascii.eqlIgnoreCase(s, "MIN") or
+           std.ascii.eqlIgnoreCase(s, "MAX") or
+           std.ascii.eqlIgnoreCase(s, "DISTINCT") or
+           // Grouping
+           std.ascii.eqlIgnoreCase(s, "GROUP") or
+           std.ascii.eqlIgnoreCase(s, "HAVING");
 }
 
 test "lexer basic punctuation" {

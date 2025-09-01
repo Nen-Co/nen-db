@@ -563,18 +563,325 @@ pub const QueryExecutor = struct {
     }
 
     fn evaluate_expression(self: *QueryExecutor, expr: cypher.Expression) !QueryValue {
-        _ = self;
-        _ = expr;
-        // TODO: Implement expression evaluation
-        return .null;
+        return switch (expr) {
+            // Primary types
+            .variable => |var_name| {
+                // TODO: Look up variable in current row
+                _ = var_name;
+                return .null;
+            },
+            .property => |prop| {
+                // TODO: Look up property in current row
+                _ = prop;
+                return .null;
+            },
+            .string => |s| .{ .string = s },
+            .integer => |i| .{ .integer = i },
+            .float => |f| .{ .float = f },
+            .boolean => |b| .{ .boolean = b },
+            .null => .null,
+            .map => |m| {
+                // TODO: Convert map to QueryValue
+                _ = m;
+                return .null;
+            },
+            .list => |l| {
+                // TODO: Convert list to QueryValue
+                _ = l;
+                return .null;
+            },
+            
+            // Comparison Operators
+            .eq => |cmp| {
+                const left = try self.evaluate_expression(cmp.left.*);
+                const right = try self.evaluate_expression(cmp.right.*);
+                return .{ .boolean = try self.compare_values(left, right) == 0 };
+            },
+            .ne => |cmp| {
+                const left = try self.evaluate_expression(cmp.left.*);
+                const right = try self.evaluate_expression(cmp.right.*);
+                return .{ .boolean = try self.compare_values(left, right) != 0 };
+            },
+            .lt => |cmp| {
+                const left = try self.evaluate_expression(cmp.left.*);
+                const right = try self.evaluate_expression(cmp.right.*);
+                return .{ .boolean = try self.compare_values(left, right) < 0 };
+            },
+            .lte => |cmp| {
+                const left = try self.evaluate_expression(cmp.left.*);
+                const right = try self.evaluate_expression(cmp.right.*);
+                return .{ .boolean = try self.compare_values(left, right) <= 0 };
+            },
+            .gt => |cmp| {
+                const left = try self.evaluate_expression(cmp.left.*);
+                const right = try self.evaluate_expression(cmp.right.*);
+                return .{ .boolean = try self.compare_values(left, right) > 0 };
+            },
+            .gte => |cmp| {
+                const left = try self.evaluate_expression(cmp.left.*);
+                const right = try self.evaluate_expression(cmp.right.*);
+                return .{ .boolean = try self.compare_values(left, right) >= 0 };
+            },
+            
+            // Arithmetic Operators
+            .add => |arith| {
+                const left = try self.evaluate_expression(arith.left.*);
+                const right = try self.evaluate_expression(arith.right.*);
+                return try self.arithmetic_operation(left, right, .add);
+            },
+            .sub => |arith| {
+                const left = try self.evaluate_expression(arith.left.*);
+                const right = try self.evaluate_expression(arith.right.*);
+                return try self.arithmetic_operation(left, right, .sub);
+            },
+            .mul => |arith| {
+                const left = try self.evaluate_expression(arith.left.*);
+                const right = try self.evaluate_expression(arith.right.*);
+                return try self.arithmetic_operation(left, right, .mul);
+            },
+            .div => |arith| {
+                const left = try self.evaluate_expression(arith.left.*);
+                const right = try self.evaluate_expression(arith.right.*);
+                return try self.arithmetic_operation(left, right, .div);
+            },
+            .mod => |arith| {
+                const left = try self.evaluate_expression(arith.left.*);
+                const right = try self.evaluate_expression(arith.right.*);
+                return try self.arithmetic_operation(left, right, .mod);
+            },
+            
+            // Logical Operators
+            .logical_and => |logical| {
+                const left = try self.evaluate_expression(logical.left.*);
+                const right = try self.evaluate_expression(logical.right.*);
+                return .{ .boolean = left.boolean and right.boolean };
+            },
+            .logical_or => |logical| {
+                const left = try self.evaluate_expression(logical.left.*);
+                const right = try self.evaluate_expression(logical.right.*);
+                return .{ .boolean = left.boolean or right.boolean };
+            },
+            .logical_not => |not_expr| {
+                const expr_val = try self.evaluate_expression(not_expr.expr.*);
+                return .{ .boolean = !expr_val.boolean };
+            },
+            
+            // String Functions
+            .toUpper => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                if (expr_val != .string) return error.TypeError;
+                // TODO: Implement toUpper
+                return expr_val;
+            },
+            .toLower => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                if (expr_val != .string) return error.TypeError;
+                // TODO: Implement toLower
+                return expr_val;
+            },
+            .trim => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                if (expr_val != .string) return error.TypeError;
+                // TODO: Implement trim
+                return expr_val;
+            },
+            .substring => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                const start_val = try self.evaluate_expression(func.start.*);
+                const length_val = try self.evaluate_expression(func.length.*);
+                if (expr_val != .string or start_val != .integer or length_val != .integer) return error.TypeError;
+                // TODO: Implement substring
+                return expr_val;
+            },
+            
+            // Mathematical Functions
+            .abs => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                return try self.math_function(expr_val, .abs);
+            },
+            .round => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                return try self.math_function(expr_val, .round);
+            },
+            .ceil => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                return try self.math_function(expr_val, .ceil);
+            },
+            .floor => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                return try self.math_function(expr_val, .floor);
+            },
+            .sqrt => |func| {
+                const expr_val = try self.evaluate_expression(func.expr.*);
+                return try self.math_function(expr_val, .sqrt);
+            },
+            
+            // Aggregation Functions
+            .count => |agg| {
+                const expr_val = try self.evaluate_expression(agg.expr.*);
+                // TODO: Implement count aggregation
+                _ = agg.distinct;
+                _ = expr_val;
+                return .{ .integer = 0 };
+            },
+            .sum => |agg| {
+                const expr_val = try self.evaluate_expression(agg.expr.*);
+                // TODO: Implement sum aggregation
+                _ = expr_val;
+                return .{ .integer = 0 };
+            },
+            .avg => |agg| {
+                const expr_val = try self.evaluate_expression(agg.expr.*);
+                // TODO: Implement avg aggregation
+                _ = expr_val;
+                return .{ .float = 0.0 };
+            },
+            .min => |agg| {
+                const expr_val = try self.evaluate_expression(agg.expr.*);
+                // TODO: Implement min aggregation
+                _ = agg.distinct;
+                return expr_val;
+            },
+            .max => |agg| {
+                const expr_val = try self.evaluate_expression(agg.expr.*);
+                // TODO: Implement max aggregation
+                _ = agg.distinct;
+                return expr_val;
+            },
+        };
     }
 
     fn evaluate_where(self: *QueryExecutor, where_expr: cypher.Expression, row: ?*QueryRow) !bool {
+        _ = row; // TODO: Use row for variable lookup
+        const result = try self.evaluate_expression(where_expr);
+        return result.boolean;
+    }
+
+    fn compare_values(_: *QueryExecutor, left: QueryValue, right: QueryValue) !i32 {
+        return switch (left) {
+            .integer => |l| switch (right) {
+                .integer => |r| if (l < r) -1 else if (l > r) 1 else 0,
+                .float => |r| if (@as(f64, @floatFromInt(l)) < r) -1 else if (@as(f64, @floatFromInt(l)) > r) 1 else 0,
+                else => return error.TypeError,
+            },
+            .float => |l| switch (right) {
+                .integer => |r| if (l < @as(f64, @floatFromInt(r))) -1 else if (l > @as(f64, @floatFromInt(r))) 1 else 0,
+                .float => |r| if (l < r) -1 else if (l > r) 1 else 0,
+                else => return error.TypeError,
+            },
+            .string => |l| switch (right) {
+                .string => |r| if (std.mem.lessThan(u8, l, r)) -1 else if (std.mem.greaterThan(u8, l, r)) 1 else 0,
+                else => return error.TypeError,
+            },
+            .boolean => |l| switch (right) {
+                .boolean => |r| if (l == r) 0 else if (!l and r) -1 else 1,
+                else => return error.TypeError,
+            },
+            .null => switch (right) {
+                .null => 0,
+                else => -1, // null is less than everything
+            },
+            else => return error.TypeError,
+        };
+    }
+
+    fn arithmetic_operation(self: *QueryExecutor, left: QueryValue, right: QueryValue, op: enum { add, sub, mul, div, mod }) !QueryValue {
+        return switch (op) {
+            .add => switch (left) {
+                .integer => |l| switch (right) {
+                    .integer => |r| .{ .integer = l + r },
+                    .float => |r| .{ .float = @as(f64, @floatFromInt(l)) + r },
+                    else => return error.TypeError,
+                },
+                .float => |l| switch (right) {
+                    .integer => |r| .{ .float = l + @as(f64, @floatFromInt(r)) },
+                    .float => |r| .{ .float = l + r },
+                    else => return error.TypeError,
+                },
+                .string => |l| switch (right) {
+                    .string => |r| .{ .string = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ l, r }) },
+                    else => return error.TypeError,
+                },
+                else => return error.TypeError,
+            },
+            .sub => switch (left) {
+                .integer => |l| switch (right) {
+                    .integer => |r| .{ .integer = l - r },
+                    .float => |r| .{ .float = @as(f64, @floatFromInt(l)) - r },
+                    else => return error.TypeError,
+                },
+                .float => |l| switch (right) {
+                    .integer => |r| .{ .float = l - @as(f64, @floatFromInt(r)) },
+                    .float => |r| .{ .float = l - r },
+                    else => return error.TypeError,
+                },
+                else => return error.TypeError,
+            },
+            .mul => switch (left) {
+                .integer => |l| switch (right) {
+                    .integer => |r| .{ .integer = l * r },
+                    .float => |r| .{ .float = @as(f64, @floatFromInt(l)) * r },
+                    else => return error.TypeError,
+                },
+                .float => |l| switch (right) {
+                    .integer => |r| .{ .float = l * @as(f64, @floatFromInt(r)) },
+                    .float => |r| .{ .float = l * r },
+                    else => return error.TypeError,
+                },
+                else => return error.TypeError,
+            },
+            .div => switch (left) {
+                .integer => |l| switch (right) {
+                    .integer => |r| if (r == 0) return error.DivisionByZero else .{ .integer = l / r },
+                    .float => |r| if (r == 0.0) return error.DivisionByZero else .{ .float = @as(f64, @floatFromInt(l)) / r },
+                    else => return error.TypeError,
+                },
+                .float => |l| switch (right) {
+                    .integer => |r| if (r == 0) return error.DivisionByZero else .{ .float = l / @as(f64, @floatFromInt(r)) },
+                    .float => |r| if (r == 0.0) return error.DivisionByZero else .{ .float = l / r },
+                    else => return error.TypeError,
+                },
+                else => return error.TypeError,
+            },
+            .mod => switch (left) {
+                .integer => |l| switch (right) {
+                    .integer => |r| if (r == 0) return error.DivisionByZero else .{ .integer = l % r },
+                    else => return error.TypeError,
+                },
+                else => return error.TypeError,
+            },
+        };
+    }
+
+    fn math_function(self: *QueryExecutor, value: QueryValue, func: enum { abs, round, ceil, floor, sqrt }) !QueryValue {
         _ = self;
-        _ = where_expr;
-        _ = row;
-        // TODO: Implement WHERE clause evaluation
-        return true;
+        return switch (func) {
+            .abs => switch (value) {
+                .integer => |i| .{ .integer = if (i < 0) -i else i },
+                .float => |f| .{ .float = if (f < 0) -f else f },
+                else => return error.TypeError,
+            },
+            .round => switch (value) {
+                .integer => |i| .{ .integer = i },
+                .float => |f| .{ .integer = @intFromFloat(@round(f)) },
+                else => return error.TypeError,
+            },
+            .ceil => switch (value) {
+                .integer => |i| .{ .integer = i },
+                .float => |f| .{ .integer = @intFromFloat(@ceil(f)) },
+                else => return error.TypeError,
+            },
+            .floor => switch (value) {
+                .integer => |i| .{ .integer = i },
+                .float => |f| .{ .integer = @intFromFloat(@floor(f)) },
+                else => return error.TypeError,
+            },
+            .sqrt => switch (value) {
+                .integer => |i| if (i < 0) return error.DomainError else .{ .float = @sqrt(@as(f64, @floatFromInt(i))) },
+                .float => |f| if (f < 0) return error.DomainError else .{ .float = @sqrt(f) },
+                else => return error.TypeError,
+            },
+        };
     }
 };
 
