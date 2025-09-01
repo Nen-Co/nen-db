@@ -90,6 +90,19 @@ pub fn build(b: *std.Build) void {
     const batch_processing_demo_step = b.step("demo-batch-processing", "Run TigerBeetle-style batch processing demo");
     batch_processing_demo_step.dependOn(&run_batch_processing_demo.step);
 
+    // Complete TigerBeetle-style batch processing demo
+    const tigerbeetle_batch_demo = b.addExecutable(.{
+        .name = "nendb-tigerbeetle-batch-demo",
+        .root_source_file = b.path("examples/tigerbeetle_style_batch_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    tigerbeetle_batch_demo.root_module.addImport("nendb", lib_mod);
+
+    const run_tigerbeetle_batch_demo = b.addRunArtifact(tigerbeetle_batch_demo);
+    const tigerbeetle_batch_demo_step = b.step("demo-tigerbeetle-batch", "Run complete TigerBeetle-style batch processing demo");
+    tigerbeetle_batch_demo_step.dependOn(&run_tigerbeetle_batch_demo.step);
+
     // Monitoring module
     const monitoring_mod = b.addModule("monitoring", .{
         .root_source_file = b.path("src/monitoring/resource_monitor.zig"),

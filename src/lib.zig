@@ -13,6 +13,8 @@ pub const graphdb = @import("graphdb.zig");
 
 // Batch processing system (TigerBeetle-style)
 pub const batch = @import("batch/batch_processor.zig");
+pub const client_batcher = @import("batch/client_batcher.zig");
+pub const server_batcher = @import("batch/server_batcher.zig");
 
 // JSON library with static memory pools
 pub const json = @import("json/lib.zig");
