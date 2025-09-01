@@ -12,7 +12,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
       - name: Setup Zig 0.14.1
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v1
         with:
           version: 0.14.1
       - name: Verify Zig installation
