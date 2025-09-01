@@ -1,10 +1,9 @@
-# NenDB TigerBeetle-Style Batch Processing Enhancements
+# NenDB  Batch Processing Enhancements
 
-**Complete implementation of TigerBeetle's sophisticated batch processing patterns for maximum throughput and efficiency.**
+**Complete ibatch processing patterns for maximum throughput and efficiency.**
 
 ## 🎯 **Overview**
 
-Based on your notes about TigerBeetle's batch processing approach, I've implemented a comprehensive system that mirrors TigerBeetle's architecture:
 
 - **Client-side automatic batching** - Groups operations to reduce network overhead
 - **Server-side LSM organization** - Log-Structured Merge trees for high durability
@@ -18,7 +17,7 @@ Based on your notes about TigerBeetle's batch processing approach, I've implemen
 
 **Automatic Operation Grouping:**
 ```zig
-// TigerBeetle-style client configuration
+
 const config = client_batcher.ClientBatchConfig{
     .max_batch_size = 8192,
     .max_batch_wait_ms = 10,        // Maximum time to wait for batch to fill
@@ -212,7 +211,7 @@ for (load_scenarios) |scenario| {
 | **Level 2** | 800K ops | 100-1000 | Low |
 | **Level 3** | 8M ops | 1000+ | Very Low |
 
-## 🔄 **TigerBeetle Pattern Implementation**
+
 
 ### **1. Client-Side Batching**
 ✅ **Automatic operation grouping** - Operations automatically batched
@@ -305,5 +304,3 @@ zig build test-all
 ```
 
 ---
-
-*This implementation brings TigerBeetle's sophisticated batch processing patterns to NenDB, achieving similar performance characteristics while maintaining the zero-allocation philosophy that makes NenDB predictable and reliable.*
