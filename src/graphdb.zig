@@ -367,6 +367,74 @@ pub const GraphDB = struct {
         return &[_]?Path{null} ** targets.len;
     }
 
+    /// Execute the breakthrough O(m log^2/3 n) SSSP algorithm
+    /// Based on "Breaking the Sorting Barrier for Directed Single-Source Shortest Paths"
+    pub fn executeBreakthroughSSSP(
+        self: *const GraphDB,
+        source_node_id: u64,
+        _: @import("algorithms/sssp_breakthrough.zig").BreakthroughSSSPOptions,
+        weight_fn: @import("algorithms/sssp_breakthrough.zig").EdgeWeightFn,
+        allocator: std.mem.Allocator,
+    ) !@import("algorithms/sssp_breakthrough.zig").BreakthroughSSSPResult {
+        return try @import("algorithms/sssp_breakthrough.zig").BreakthroughSSSP.executeSimple(
+            &self.node_pool,
+            &self.edge_pool,
+            source_node_id,
+            weight_fn,
+            allocator,
+        );
+    }
+
+    /// Execute the breakthrough SSSP algorithm with default options
+    pub fn executeBreakthroughSSSPDefault(
+        self: *const GraphDB,
+        source_node_id: u64,
+        allocator: std.mem.Allocator,
+    ) !@import("algorithms/sssp_breakthrough.zig").BreakthroughSSSPResult {
+        return try self.executeBreakthroughSSSP(
+            source_node_id,
+            @import("algorithms/sssp_breakthrough.zig").BreakthroughSSSPOptions{},
+            @import("algorithms/sssp_breakthrough.zig").defaultEdgeWeight,
+            allocator,
+        );
+    }
+
+    /// Find shortest path from source to target using breakthrough algorithm
+    pub fn findShortestPathBreakthrough(
+        self: *const GraphDB,
+        source_node_id: u64,
+        target_node_id: u64,
+        max_distance: ?f64,
+        weight_fn: @import("algorithms/sssp_breakthrough.zig").EdgeWeightFn,
+        allocator: std.mem.Allocator,
+    ) !?[]u64 {
+        return try @import("algorithms/sssp_breakthrough.zig").BreakthroughSSSP.findShortestPath(
+            &self.node_pool,
+            &self.edge_pool,
+            source_node_id,
+            target_node_id,
+            max_distance,
+            weight_fn,
+            allocator,
+        );
+    }
+
+    /// Benchmark breakthrough algorithm against Dijkstra's
+    pub fn benchmarkSSSPAlgorithms(
+        self: *const GraphDB,
+        source_node_id: u64,
+        weight_fn: @import("algorithms/sssp_breakthrough.zig").EdgeWeightFn,
+        allocator: std.mem.Allocator,
+    ) !@import("algorithms/sssp_breakthrough.zig").PerformanceComparison {
+        return try @import("algorithms/sssp_breakthrough.zig").benchmarkAlgorithms(
+            &self.node_pool,
+            &self.edge_pool,
+            source_node_id,
+            weight_fn,
+            allocator,
+        );
+    }
+
     pub inline fn get_node_degree(self: *const GraphDB, node_id: u64) !u32 {
         _ = self.node_pool.get_by_id(node_id) orelse return constants.NenDBError.NodeNotFound;
         var degree: u32 = 0;
