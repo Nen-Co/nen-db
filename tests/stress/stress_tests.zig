@@ -52,6 +52,7 @@ test "memory_pressure_small" {
         }
 
         pub fn deallocate(ptr: *u32) void {
+            _ = ptr; // Mark as used to avoid unused parameter warning
             // Simple deallocation tracking
             if (total_memory > 0) {
                 total_memory = if (total_memory > 4) total_memory - 4 else 0;
@@ -178,7 +179,10 @@ test "long_running_operations" {
             for (0..1000) |i| {
                 dummy += i;
             }
-            _ = dummy;
+            // Use dummy to avoid pointless discard warning
+            if (dummy > 0) {
+                // This will always be true, but prevents the warning
+            }
 
             // Check memory usage periodically
             if (operation_count % 1000 == 0) {
@@ -231,7 +235,7 @@ test "edge_case_boundaries" {
 
     // Test boundary conditions
     const BoundaryTester = struct {
-        pub fn testU64Boundaries() void {
+        pub fn testU64Boundaries() !void {
             // Test u64 boundary operations
             var value: u64 = 0;
             value += 1;
@@ -242,11 +246,11 @@ test "edge_case_boundaries" {
             try testing.expect(value == max_u64);
 
             value = max_u64;
-            value += 1;
+            value = value +% 1; // Use wrapping addition
             try testing.expect(value == 0); // Wraps around
         }
 
-        pub fn testU32Boundaries() void {
+        pub fn testU32Boundaries() !void {
             // Test u32 boundary operations
             var value: u32 = 0;
             value += 1;
@@ -257,11 +261,11 @@ test "edge_case_boundaries" {
             try testing.expect(value == max_u32);
 
             value = max_u32;
-            value += 1;
+            value = value +% 1; // Use wrapping addition
             try testing.expect(value == 0); // Wraps around
         }
 
-        pub fn testArrayBoundaries() void {
+        pub fn testArrayBoundaries() !void {
             // Test array boundary access
             const test_array = [_]u8{ 1, 2, 3, 4, 5 };
 
@@ -270,16 +274,16 @@ test "edge_case_boundaries" {
             try testing.expect(test_array[4] == 5);
 
             // Boundary access (should panic in debug mode)
-            if (std.builtin.mode == .Debug) {
+            if (@import("builtin").mode == .Debug) {
                 // In debug mode, this should panic
                 // test_array[5]; // Out of bounds
             }
         }
     };
 
-    BoundaryTester.testU64Boundaries();
-    BoundaryTester.testU32Boundaries();
-    BoundaryTester.testArrayBoundaries();
+    try BoundaryTester.testU64Boundaries();
+    try BoundaryTester.testU32Boundaries();
+    try BoundaryTester.testArrayBoundaries();
 
     std.debug.print("✅ Edge case boundaries: PASSED\n", .{});
 }
@@ -287,7 +291,7 @@ test "edge_case_boundaries" {
 test "edge_case_corner_cases" {
     // Test various corner cases
     const CornerCaseTester = struct {
-        pub fn testEmptyOperations() void {
+        pub fn testEmptyOperations() !void {
             // Test operations on empty data
             const empty_array: [0]u8 = .{};
             try testing.expect(empty_array.len == 0);
@@ -300,7 +304,7 @@ test "edge_case_corner_cases" {
             try testing.expect(zero_value == 0);
         }
 
-        pub fn testNullPointerHandling() void {
+        pub fn testNullPointerHandling() !void {
             // Test null pointer handling
             var optional_ptr: ?*u64 = null;
             try testing.expect(optional_ptr == null);
@@ -311,7 +315,7 @@ test "edge_case_corner_cases" {
             try testing.expect(optional_ptr.?.* == 42);
         }
 
-        pub fn testStringEdgeCases() void {
+        pub fn testStringEdgeCases() !void {
             // Test string edge cases
             const empty_string = "";
             try testing.expect(empty_string.len == 0);
@@ -325,9 +329,9 @@ test "edge_case_corner_cases" {
         }
     };
 
-    CornerCaseTester.testEmptyOperations();
-    CornerCaseTester.testNullPointerHandling();
-    CornerCaseTester.testStringEdgeCases();
+    try CornerCaseTester.testEmptyOperations();
+    try CornerCaseTester.testNullPointerHandling();
+    try CornerCaseTester.testStringEdgeCases();
 
     std.debug.print("✅ Edge case corner cases: PASSED\n", .{});
 }
