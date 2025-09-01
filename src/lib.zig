@@ -11,6 +11,9 @@ pub const io = @import("io/io.zig");
 // Legacy nendb.zig removed; GraphDB is primary engine now (graphdb.zig)
 pub const graphdb = @import("graphdb.zig");
 
+// Batch processing system (TigerBeetle-style)
+pub const batch = @import("batch/batch_processor.zig");
+
 // JSON library with static memory pools
 pub const json = @import("json/lib.zig");
 

@@ -77,6 +77,19 @@ pub fn build(b: *std.Build) void {
     const compiled_cypher_demo_step = b.step("demo-compiled-cypher", "Run compiled Cypher + vector demo");
     compiled_cypher_demo_step.dependOn(&run_compiled_cypher_demo.step);
 
+    // Batch processing demo (TigerBeetle-style)
+    const batch_processing_demo = b.addExecutable(.{
+        .name = "nendb-batch-demo",
+        .root_source_file = b.path("examples/batch_processing_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    batch_processing_demo.root_module.addImport("nendb", lib_mod);
+
+    const run_batch_processing_demo = b.addRunArtifact(batch_processing_demo);
+    const batch_processing_demo_step = b.step("demo-batch-processing", "Run TigerBeetle-style batch processing demo");
+    batch_processing_demo_step.dependOn(&run_batch_processing_demo.step);
+
     // Monitoring module
     const monitoring_mod = b.addModule("monitoring", .{
         .root_source_file = b.path("src/monitoring/resource_monitor.zig"),

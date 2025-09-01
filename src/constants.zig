@@ -44,6 +44,25 @@ pub const memory = struct {
     pub const message_size_max = 2048;
 };
 
+// Batch Processing Configuration (TigerBeetle-style)
+pub const batch = struct {
+    pub const max_batch_size: u32 = 8192; // Maximum messages per batch
+    pub const max_message_size: u32 = 64; // Fixed message size for predictability
+    pub const batch_timeout_ms: u32 = 100; // Maximum time to wait for batch completion
+    pub const auto_commit_threshold: u32 = 1000; // Auto-commit when batch reaches this size
+    
+    // Pre-allocated buffer sizes
+    pub const node_buffer_size: u32 = max_batch_size * @sizeOf(@import("memory/pool.zig").Node);
+    pub const edge_buffer_size: u32 = max_batch_size * @sizeOf(@import("memory/pool.zig").Edge);
+    pub const vector_buffer_size: u32 = max_batch_size * 264; // 8 bytes node_id + 256 bytes vector
+    
+    // Performance tuning
+    pub const enable_zero_copy: bool = true;
+    pub const enable_atomic_commit: bool = true;
+    pub const enable_batch_statistics: bool = true;
+};
+};
+
 // Data Structure Constraints
 pub const data = struct {
     pub const node_id_max = std.math.maxInt(u64);
