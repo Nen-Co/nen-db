@@ -115,16 +115,16 @@ test "node_edge_relationship_integration" {
                     count += 1;
                 }
             }
-            
+
             if (count == 0) return &[_]TestEdge{};
-            
+
             // For simplicity, just return the first matching edge
             for (edges[0..edge_count]) |edge| {
                 if (edge.source == source) {
                     return &[_]TestEdge{edge};
                 }
             }
-            
+
             return &[_]TestEdge{};
         }
 
@@ -223,7 +223,7 @@ test "memory_pool_integration" {
             if (string_next_free + length > string_pool_size) return null;
             const start = string_next_free;
             string_next_free += length;
-            return string_pool[start .. string_next_free];
+            return string_pool[start..string_next_free];
         }
 
         pub fn reset() void {
@@ -304,13 +304,13 @@ test "storage_memory_integration" {
             };
 
             if (storage_offset + header.len + id_bytes.len + 1 + properties.len <= storage_buffer.len) {
-                @memcpy(storage_buffer[storage_offset..storage_offset + header.len], &header);
+                @memcpy(storage_buffer[storage_offset .. storage_offset + header.len], &header);
                 storage_offset += header.len;
-                @memcpy(storage_buffer[storage_offset..storage_offset + id_bytes.len], &id_bytes);
+                @memcpy(storage_buffer[storage_offset .. storage_offset + id_bytes.len], &id_bytes);
                 storage_offset += id_bytes.len;
                 storage_buffer[storage_offset] = kind;
                 storage_offset += 1;
-                @memcpy(storage_buffer[storage_offset..storage_offset + properties.len], properties);
+                @memcpy(storage_buffer[storage_offset .. storage_offset + properties.len], properties);
                 storage_offset += properties.len;
             }
         }
@@ -415,16 +415,16 @@ test "query_memory_integration" {
                     count += 1;
                 }
             }
-            
+
             if (count == 0) return &[_]QueryNode{};
-            
+
             // For simplicity, just return the first matching node
             for (nodes[0..node_count]) |node| {
                 if (node.kind == kind) {
                     return &[_]QueryNode{node};
                 }
             }
-            
+
             return &[_]QueryNode{};
         }
 
@@ -436,16 +436,16 @@ test "query_memory_integration" {
                     count += 1;
                 }
             }
-            
+
             if (count == 0) return &[_]QueryEdge{};
-            
+
             // For simplicity, just return the first matching edge
             for (edges[0..edge_count]) |edge| {
                 if (edge.source == source) {
                     return &[_]QueryEdge{edge};
                 }
             }
-            
+
             return &[_]QueryEdge{};
         }
 
