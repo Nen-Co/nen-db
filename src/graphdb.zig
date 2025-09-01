@@ -6,6 +6,7 @@ const std = @import("std");
 pub const pool = @import("memory/pool_v2.zig");
 pub const constants = @import("constants.zig");
 const wal_mod = @import("wal.zig");
+const query = @import("query/query.zig");
 
 pub const GraphDB = struct {
     // Global DB state
@@ -21,6 +22,8 @@ pub const GraphDB = struct {
     // Simple metrics
     inserts_total: u64 = 0,
     lookups_total: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    // Allocator for dynamic operations
+    allocator: std.mem.Allocator,
 
     pub const DBMemoryStats = struct {
         nodes: pool.MemoryStats,
@@ -37,7 +40,7 @@ pub const GraphDB = struct {
     const SNAP_MAGIC: u32 = 0x4E454E53; // 'NENS'
     const SNAP_VERSION: u16 = 1;
 
-    pub inline fn init_inplace(self: *GraphDB) !void {
+    pub inline fn init_inplace(self: *GraphDB, allocator: std.mem.Allocator) !void {
         self.mutex = .{};
         self.node_pool = pool.NodePool.init();
         self.edge_pool = pool.EdgePool.init();
@@ -47,6 +50,7 @@ pub const GraphDB = struct {
         self.inserts_total = 0;
         self.read_seq = std.atomic.Value(u64).init(0);
         self.lookups_total = std.atomic.Value(u64).init(0);
+        self.allocator = allocator;
         self.wal = try wal_mod.Wal.open("nendb.wal");
         // Restore from snapshot in current dir (may be absent); replay happens inside on success
         try self.restore_from_snapshot(".");
@@ -505,6 +509,133 @@ pub const GraphDB = struct {
 
     pub inline fn deinit(self: *GraphDB) void {
         self.wal.close();
+    }
+
+    /// Execute a compiled Cypher query with vector similarity search
+    pub fn executeCompiledQuery(self: *GraphDB, query: []const u8, params: query.compiler.QueryParams) !query.compiler.QueryResult {
+        var compiler = query.compiler.CypherCompiler.init(self.allocator);
+        defer compiler.deinit();
+        
+        const compiled_query = try compiler.compile(query);
+        defer compiled_query.deinit();
+        
+        return compiled_query.function(self.allocator, params);
+    }
+    
+    /// Find nodes similar to a query vector using cosine similarity
+    pub fn findSimilarNodes(self: *GraphDB, query_vector: [256]f32, threshold: f32, limit: ?usize) ![]Node {
+        var similar_nodes = std.ArrayList(Node).init(self.allocator);
+        defer similar_nodes.deinit();
+        
+        // Search through all nodes with embeddings
+        var node_iter = self.node_pool.iterator();
+        while (node_iter.next()) |node_entry| {
+            const node = node_entry.value_ptr;
+            
+            // Get node embedding
+            if (self.getNodeEmbedding(node.id)) |embedding| {
+                const similarity = self.calculateCosineSimilarity(query_vector, embedding.vector);
+                
+                if (similarity >= threshold) {
+                    try similar_nodes.append(node.*);
+                    
+                    // Apply limit if specified
+                    if (limit) |max_nodes| {
+                        if (similar_nodes.items.len >= max_nodes) break;
+                    }
+                }
+            }
+        }
+        
+        // Sort by similarity (highest first)
+        std.mem.sort(Node, similar_nodes.items, query_vector, self.compareBySimilarity);
+        
+        return similar_nodes.toOwnedSlice();
+    }
+    
+    /// Calculate cosine similarity between two vectors
+    pub fn calculateCosineSimilarity(self: *GraphDB, vec1: [256]f32, vec2: [256]f32) f32 {
+        var dot_product: f32 = 0.0;
+        var norm1: f32 = 0.0;
+        var norm2: f32 = 0.0;
+        
+        for (0..256) |i| {
+            dot_product += vec1[i] * vec2[i];
+            norm1 += vec1[i] * vec1[i];
+            norm2 += vec2[i] * vec2[i];
+        }
+        
+        const denominator = @sqrt(norm1) * @sqrt(norm2);
+        if (denominator == 0.0) return 0.0;
+        
+        return dot_product / denominator;
+    }
+    
+    /// Get node embedding by node ID
+    pub fn getNodeEmbedding(self: *GraphDB, node_id: u64) ?*const Embedding {
+        var embedding_iter = self.embedding_pool.iterator();
+        while (embedding_iter.next()) |embedding_entry| {
+            const embedding = embedding_entry.value_ptr;
+            if (embedding.node_id == node_id) {
+                return embedding;
+            }
+        }
+        return null;
+    }
+    
+    /// Set node embedding
+    pub fn setNodeEmbedding(self: *GraphDB, node_id: u64, vector: [256]f32) !void {
+        // Check if embedding already exists
+        if (self.getNodeEmbedding(node_id)) |existing_embedding| {
+            // Update existing embedding
+            @memcpy(existing_embedding.vector, vector);
+        } else {
+            // Create new embedding
+            const embedding = Embedding{
+                .node_id = node_id,
+                .vector = vector,
+            };
+            
+            if (self.embedding_pool.alloc(embedding) == null) {
+                return error.EmbeddingPoolFull;
+            }
+        }
+    }
+    
+    /// Hybrid query: Combine vector similarity with graph traversal
+    pub fn hybridQuery(self: *GraphDB, query_vector: [256]f32, graph_pattern: []const u8, threshold: f32, limit: usize) !query.compiler.QueryResult {
+        var result = query.compiler.QueryResult.init(self.allocator);
+        errdefer result.deinit();
+        
+        // Step 1: Find similar nodes via vector search
+        const similar_nodes = try self.findSimilarNodes(query_vector, threshold, limit * 2); // Get more candidates
+        defer self.allocator.free(similar_nodes);
+        
+        // Step 2: Apply graph traversal from similar nodes
+        for (similar_nodes) |node| {
+            // TODO: Parse and execute graph_pattern
+            // For now, just add the node to results
+            var row = query.compiler.QueryRow.init(self.allocator);
+            defer row.deinit();
+            
+            try row.set("node_id", try std.fmt.allocPrint(self.allocator, "{d}", .{node.id}));
+            try row.set("similarity", try std.fmt.allocPrint(self.allocator, "{d}", .{self.calculateCosineSimilarity(query_vector, (self.getNodeEmbedding(node.id) orelse return error.NodeHasNoEmbedding).vector)}));
+            
+            try result.add_row(row);
+        }
+        
+        return result;
+    }
+    
+    /// Compare nodes by similarity to query vector (for sorting)
+    fn compareBySimilarity(self: *GraphDB, node1: Node, node2: Node, query_vector: [256]f32) bool {
+        const embedding1 = self.getNodeEmbedding(node1.id) orelse return false;
+        const embedding2 = self.getNodeEmbedding(node2.id) orelse return true;
+        
+        const similarity1 = self.calculateCosineSimilarity(query_vector, embedding1.vector);
+        const similarity2 = self.calculateCosineSimilarity(query_vector, embedding2.vector);
+        
+        return similarity1 > similarity2; // Sort descending
     }
 
     pub inline fn get_memory_stats(self: *const GraphDB) DBMemoryStats {
