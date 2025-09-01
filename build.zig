@@ -186,6 +186,17 @@ pub fn build(b: *std.Build) void {
     const run_query_tests_advanced = b.addRunArtifact(query_tests_advanced);
     test_step.dependOn(&run_query_tests_advanced.step);
 
+    // Cypher integration tests
+    const query_tests_integration = b.addTest(.{
+        .root_source_file = b.path("tests/legacy/test_cypher_integration.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    query_tests_integration.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
+    query_tests_integration.root_module.addImport("nendb", lib_mod);
+    const run_query_tests_integration = b.addRunArtifact(query_tests_integration);
+    test_step.dependOn(&run_query_tests_integration.step);
+
     // ===== ENHANCED BENCHMARKING SUPPORT =====
 
     // Optional benchmarks (gated by -Dbench)

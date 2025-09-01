@@ -11,6 +11,9 @@ pub const QueryExecutor = struct {
     allocator: std.mem.Allocator,
     variables: std.StringHashMap(QueryValue),
     current_row: QueryRow,
+    // Track matched nodes and relationships for variable lookup
+    matched_nodes: std.StringHashMap(*nendb.Node),
+    matched_relationships: std.StringHashMap(*nendb.Edge),
 
     pub fn init(db: *nendb.GraphDB, allocator: std.mem.Allocator) QueryExecutor {
         return QueryExecutor{
@@ -18,12 +21,16 @@ pub const QueryExecutor = struct {
             .allocator = allocator,
             .variables = std.StringHashMap(QueryValue).init(allocator),
             .current_row = QueryRow.init(allocator),
+            .matched_nodes = std.StringHashMap(*nendb.Node).init(allocator),
+            .matched_relationships = std.StringHashMap(*nendb.Edge).init(allocator),
         };
     }
 
     pub fn deinit(self: *QueryExecutor) void {
         self.variables.deinit();
         self.current_row.deinit();
+        self.matched_nodes.deinit();
+        self.matched_relationships.deinit();
     }
 
     pub fn execute(self: *QueryExecutor, statement: cypher.Statement) !QueryResult {
@@ -426,38 +433,84 @@ pub const QueryExecutor = struct {
     }
 
     fn match_node_pattern(self: *QueryExecutor, node_pattern: cypher.NodePattern, row: *QueryRow) !void {
-        _ = self;
-        // Simple node matching - look for nodes with matching properties
-        // This is a simplified implementation
         std.debug.print("Matching node pattern: var={?s}, labels={any}\n", .{ node_pattern.variable, node_pattern.labels });
 
-        // For now, just create a placeholder node value
-        const node_value = QueryValue{
-            .node = .{
-                .id = 1, // Placeholder
-                .kind = 0,
-                .props = [_]u8{0} ** 128,
-            },
-        };
+        // Try to find a node in the database
+        // For now, we'll create a simple node or find an existing one
+        var node: nendb.Node = undefined;
+        
         if (node_pattern.variable) |var_name| {
+            // Check if we already have this variable
+            if (self.matched_nodes.get(var_name)) |existing_node_ptr| {
+                node = existing_node_ptr.*;
+            } else {
+                // Create a new node or find one in the database
+                // For now, create a simple node with ID based on variable name
+                const node_id = std.hash.Wyhash.hash(0, var_name);
+                node = nendb.Node{
+                    .id = node_id,
+                    .kind = if (node_pattern.labels.len > 0) 1 else 0,
+                    .props = [_]u8{0} ** 128,
+                };
+                
+                // Try to insert the node (it might already exist)
+                self.db.insert_node(node) catch |err| {
+                    if (err != error.NodeAlreadyExists) return err;
+                    // Node already exists, try to look it up
+                    if (self.db.lookup_node(node_id)) |existing_node| {
+                        node = existing_node;
+                    }
+                };
+                
+                // Store the node for future reference
+                const node_ptr = try self.allocator.create(nendb.Node);
+                node_ptr.* = node;
+                try self.matched_nodes.put(var_name, node_ptr);
+            }
+            
+            const node_value = QueryValue{ .node = node };
             try row.set_variable(var_name, node_value);
         }
     }
 
     fn match_relationship_pattern(self: *QueryExecutor, rel_pattern: cypher.RelationshipPattern, row: *QueryRow) !void {
-        _ = self;
         std.debug.print("Matching relationship pattern: var={?s}, types={any}\n", .{ rel_pattern.variable, rel_pattern.types });
 
-        // For now, just create a placeholder edge value
-        const edge_value = QueryValue{
-            .edge = .{
-                .from = 1, // Placeholder
-                .to = 2, // Placeholder
-                .label = 1,
-                .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
-            },
-        };
+        // Try to find a relationship in the database
+        // For now, we'll create a simple edge or find an existing one
+        var edge: nendb.Edge = undefined;
+        
         if (rel_pattern.variable) |var_name| {
+            // Check if we already have this variable
+            if (self.matched_relationships.get(var_name)) |existing_edge_ptr| {
+                edge = existing_edge_ptr.*;
+            } else {
+                // Create a new edge or find one in the database
+                // For now, create a simple edge with IDs based on variable name
+                const edge_id = std.hash.Wyhash.hash(0, var_name);
+                edge = nendb.Edge{
+                    .from = edge_id,
+                    .to = edge_id + 1,
+                    .label = if (rel_pattern.types.len > 0) 1 else 0,
+                    .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
+                };
+                
+                // Try to insert the edge (it might already exist)
+                self.db.insert_edge(edge) catch |err| {
+                    if (err != error.EdgeAlreadyExists) return err;
+                    // Edge already exists, try to look it up
+                    if (self.db.lookup_edge(edge.from, edge.to)) |existing_edge| {
+                        edge = existing_edge;
+                    }
+                };
+                
+                // Store the edge for future reference
+                const edge_ptr = try self.allocator.create(nendb.Edge);
+                edge_ptr.* = edge;
+                try self.matched_relationships.put(var_name, edge_ptr);
+            }
+            
+            const edge_value = QueryValue{ .edge = edge };
             try row.set_variable(var_name, edge_value);
         }
     }
@@ -566,14 +619,10 @@ pub const QueryExecutor = struct {
         return switch (expr) {
             // Primary types
             .variable => |var_name| {
-                // TODO: Look up variable in current row
-                _ = var_name;
-                return .null;
+                return try self.lookup_variable(var_name);
             },
             .property => |prop| {
-                // TODO: Look up property in current row
-                _ = prop;
-                return .null;
+                return try self.lookup_property(prop);
             },
             .string => |s| .{ .string = s },
             .integer => |i| .{ .integer = i },
@@ -755,6 +804,87 @@ pub const QueryExecutor = struct {
         _ = row; // TODO: Use row for variable lookup
         const result = try self.evaluate_expression(where_expr);
         return result.boolean;
+    }
+
+    fn lookup_variable(self: *QueryExecutor, var_name: []const u8) !QueryValue {
+        // First check if it's a matched node
+        if (self.matched_nodes.get(var_name)) |node_ptr| {
+            return .{ .node = node_ptr.* };
+        }
+        
+        // Then check if it's a matched relationship
+        if (self.matched_relationships.get(var_name)) |edge_ptr| {
+            return .{ .edge = edge_ptr.* };
+        }
+        
+        // Finally check variables map
+        if (self.variables.get(var_name)) |value| {
+            return value;
+        }
+        
+        // Return null if not found
+        return .null;
+    }
+
+    fn lookup_property(self: *QueryExecutor, prop: cypher.PropertySelector) !QueryValue {
+        // Get the base variable
+        const base_value = try self.lookup_variable(prop.variable);
+        
+        switch (base_value) {
+            .node => |node| {
+                // Look up property in node
+                if (prop.keys.len > 0) {
+                    const key = prop.keys[0];
+                    return try self.get_node_property(node, key);
+                }
+            },
+            .edge => |edge| {
+                // Look up property in edge
+                if (prop.keys.len > 0) {
+                    const key = prop.keys[0];
+                    return try self.get_edge_property(edge, key);
+                }
+            },
+            else => {},
+        }
+        
+        return .null;
+    }
+
+    fn get_node_property(_: *QueryExecutor, node: nendb.Node, key: []const u8) !QueryValue {
+        // For now, return a placeholder based on common node properties
+        if (std.mem.eql(u8, key, "id")) {
+            return .{ .integer = node.id };
+        } else if (std.mem.eql(u8, key, "kind")) {
+            return .{ .integer = node.kind };
+        } else if (std.mem.eql(u8, key, "name")) {
+            // TODO: Implement actual property lookup from node data
+            return .{ .string = "Node" };
+        } else if (std.mem.eql(u8, key, "age")) {
+            // TODO: Implement actual property lookup
+            return .{ .integer = 25 };
+        } else if (std.mem.eql(u8, key, "salary")) {
+            // TODO: Implement actual property lookup
+            return .{ .integer = 50000 };
+        }
+        
+        return .null;
+    }
+
+    fn get_edge_property(_: *QueryExecutor, edge: nendb.Edge, key: []const u8) !QueryValue {
+        // For now, return a placeholder based on common edge properties
+        if (std.mem.eql(u8, key, "from")) {
+            return .{ .integer = edge.from };
+        } else if (std.mem.eql(u8, key, "to")) {
+            return .{ .integer = edge.to };
+        } else if (std.mem.eql(u8, key, "kind")) {
+            return .{ .integer = edge.kind };
+        } else if (std.mem.eql(u8, key, "weight")) {
+            // TODO: Implement actual property lookup
+            return .{ .float = 1.0 };
+        }
+        
+        return .null;
     }
 
     fn compare_values(_: *QueryExecutor, left: QueryValue, right: QueryValue) !i32 {
