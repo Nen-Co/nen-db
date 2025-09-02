@@ -150,7 +150,7 @@ fn demoServerSideLSM(allocator: std.mem.Allocator, db: *nendb.GraphDB) !void {
         total_operations += result.processed;
         
         if (!result.success) {
-            std.debug.print("❌ Batch {} failed: {}\n", .{batch_idx, result.error});
+            std.debug.print("❌ Batch {} failed: {}\n", .{batch_idx, result.err});
             return;
         }
     }

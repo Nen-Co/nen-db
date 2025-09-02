@@ -80,7 +80,7 @@ fn demoBasicBatching(batch_api: *batch.BatchAPI) !void {
     if (result.success) {
         std.debug.print("✅ Batch processed successfully: {} operations\n", .{result.processed});
     } else {
-        std.debug.print("❌ Batch failed: {}\n", .{result.error});
+        std.debug.print("❌ Batch failed: {}\n", .{result.err});
     }
     
     std.debug.print("\n", .{});
