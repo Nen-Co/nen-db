@@ -145,7 +145,7 @@ pub const QueryExecutor = struct {
 
     fn execute_optional_match(self: *QueryExecutor, match_clause: cypher.Match, result: *QueryResult) !void {
         std.debug.print("Executing OPTIONAL MATCH clause\n", .{});
-        
+
         // OPTIONAL MATCH behaves like MATCH but doesn't fail if no matches are found
         // Instead, it returns null values for unmatched patterns
         var row = QueryRow.init(self.allocator);
@@ -203,10 +203,10 @@ pub const QueryExecutor = struct {
 
     fn execute_with(self: *QueryExecutor, with_clause: cypher.With, result: *QueryResult) !void {
         std.debug.print("Executing WITH clause\n", .{});
-        
+
         // WITH clause processes intermediate results and can filter/transform them
         // For now, we'll implement basic WITH functionality
-        
+
         // Process the return items to create new variables
         for (with_clause.items) |item| {
             const value = try self.evaluate_expression(item.expr);
@@ -242,7 +242,7 @@ pub const QueryExecutor = struct {
 
     fn execute_merge(self: *QueryExecutor, merge_clause: cypher.Merge, result: *QueryResult) !void {
         std.debug.print("Executing MERGE clause\n", .{});
-        
+
         // MERGE is an upsert operation: create if doesn't exist, otherwise match
         for (merge_clause.pattern.paths) |path| {
             for (path.elements) |element| {
@@ -257,7 +257,7 @@ pub const QueryExecutor = struct {
     fn execute_set(self: *QueryExecutor, set_clause: cypher.Set, result: *QueryResult) !void {
         _ = result;
         std.debug.print("Executing SET clause\n", .{});
-        
+
         for (set_clause.items) |item| {
             switch (item) {
                 .property => |prop| {
@@ -275,7 +275,7 @@ pub const QueryExecutor = struct {
     fn execute_delete(self: *QueryExecutor, delete_clause: cypher.Delete, result: *QueryResult) !void {
         _ = result;
         std.debug.print("Executing DELETE clause\n", .{});
-        
+
         for (delete_clause.expressions) |expr| {
             const value = try self.evaluate_expression(expr);
             try self.delete_entity(value);
@@ -285,7 +285,7 @@ pub const QueryExecutor = struct {
     fn execute_detach_delete(self: *QueryExecutor, delete_clause: cypher.Delete, result: *QueryResult) !void {
         _ = result;
         std.debug.print("Executing DETACH DELETE clause\n", .{});
-        
+
         // DETACH DELETE removes the entity and all its relationships
         for (delete_clause.expressions) |expr| {
             const value = try self.evaluate_expression(expr);
@@ -295,22 +295,22 @@ pub const QueryExecutor = struct {
 
     fn execute_unwind(self: *QueryExecutor, unwind_clause: cypher.Unwind, result: *QueryResult) !void {
         std.debug.print("Executing UNWIND clause\n", .{});
-        
+
         // UNWIND expands a list into individual rows
         const list_value = try self.evaluate_expression(unwind_clause.expr);
-        
+
         switch (list_value) {
             .list => |list| {
                 for (list.items) |item| {
                     var new_row = QueryRow.init(self.allocator);
                     defer new_row.deinit();
-                    
+
                     // Copy current variables
                     try new_row.copy_from(&self.current_row);
-                    
+
                     // Set the unwound value
                     try new_row.set_variable(unwind_clause.alias, item);
-                    
+
                     try result.add_row(new_row);
                 }
             },
@@ -318,10 +318,10 @@ pub const QueryExecutor = struct {
                 // If not a list, treat as single item
                 var new_row = QueryRow.init(self.allocator);
                 defer new_row.deinit();
-                
+
                 try new_row.copy_from(&self.current_row);
                 try new_row.set_variable(unwind_clause.alias, list_value);
-                
+
                 try result.add_row(new_row);
             },
         }
@@ -330,7 +330,7 @@ pub const QueryExecutor = struct {
     fn execute_remove(self: *QueryExecutor, remove_clause: cypher.Remove, result: *QueryResult) !void {
         _ = result;
         std.debug.print("Executing REMOVE clause\n", .{});
-        
+
         for (remove_clause.items) |item| {
             try self.remove_property(item);
         }
@@ -340,7 +340,7 @@ pub const QueryExecutor = struct {
         _ = self;
         _ = result;
         std.debug.print("Executing ORDER BY clause\n", .{});
-        
+
         // Sort the result rows based on the order by criteria
         std.sort.insertion(cypher.SortItem, order_by_clause.items, {}, struct {
             fn lessThan(_: void, a: cypher.SortItem, b: cypher.SortItem) bool {
@@ -354,12 +354,12 @@ pub const QueryExecutor = struct {
     fn execute_skip(self: *QueryExecutor, skip_clause: cypher.Skip, result: *QueryResult) !void {
         _ = self;
         std.debug.print("Executing SKIP clause\n", .{});
-        
+
         // Skip the first N rows from the result
         if (result.rows.items.len > skip_clause.count) {
             const skip_start = skip_clause.count;
             const skip_end = result.rows.items.len;
-            
+
             // Remove the skipped rows
             for (skip_start..skip_end) |i| {
                 result.rows.items[i - skip_start] = result.rows.items[i];
@@ -374,7 +374,7 @@ pub const QueryExecutor = struct {
     fn execute_limit(self: *QueryExecutor, limit_clause: cypher.Limit, result: *QueryResult) !void {
         _ = self;
         std.debug.print("Executing LIMIT clause\n", .{});
-        
+
         // Limit the result to N rows
         if (result.rows.items.len > limit_clause.count) {
             result.rows.shrinkRetainingCapacity(limit_clause.count);
@@ -438,7 +438,7 @@ pub const QueryExecutor = struct {
         // Try to find a node in the database
         // For now, we'll create a simple node or find an existing one
         var node: nendb.Node = undefined;
-        
+
         if (node_pattern.variable) |var_name| {
             // Check if we already have this variable
             if (self.matched_nodes.get(var_name)) |existing_node_ptr| {
@@ -452,7 +452,7 @@ pub const QueryExecutor = struct {
                     .kind = if (node_pattern.labels.len > 0) 1 else 0,
                     .props = [_]u8{0} ** 128,
                 };
-                
+
                 // Try to insert the node (it might already exist)
                 self.db.insert_node(node) catch |err| {
                     if (err != error.NodeAlreadyExists) return err;
@@ -461,13 +461,13 @@ pub const QueryExecutor = struct {
                         node = existing_node;
                     }
                 };
-                
+
                 // Store the node for future reference
                 const node_ptr = try self.allocator.create(nendb.Node);
                 node_ptr.* = node;
                 try self.matched_nodes.put(var_name, node_ptr);
             }
-            
+
             const node_value = QueryValue{ .node = node };
             try row.set_variable(var_name, node_value);
         }
@@ -479,7 +479,7 @@ pub const QueryExecutor = struct {
         // Try to find a relationship in the database
         // For now, we'll create a simple edge or find an existing one
         var edge: nendb.Edge = undefined;
-        
+
         if (rel_pattern.variable) |var_name| {
             // Check if we already have this variable
             if (self.matched_relationships.get(var_name)) |existing_edge_ptr| {
@@ -494,7 +494,7 @@ pub const QueryExecutor = struct {
                     .label = if (rel_pattern.types.len > 0) 1 else 0,
                     .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
                 };
-                
+
                 // Try to insert the edge (it might already exist)
                 self.db.insert_edge(edge) catch |err| {
                     if (err != error.EdgeAlreadyExists) return err;
@@ -503,13 +503,13 @@ pub const QueryExecutor = struct {
                         edge = existing_edge;
                     }
                 };
-                
+
                 // Store the edge for future reference
                 const edge_ptr = try self.allocator.create(nendb.Edge);
                 edge_ptr.* = edge;
                 try self.matched_relationships.put(var_name, edge_ptr);
             }
-            
+
             const edge_value = QueryValue{ .edge = edge };
             try row.set_variable(var_name, edge_value);
         }
@@ -639,7 +639,7 @@ pub const QueryExecutor = struct {
                 _ = l;
                 return .null;
             },
-            
+
             // Comparison Operators
             .eq => |cmp| {
                 const left = try self.evaluate_expression(cmp.left.*);
@@ -671,7 +671,7 @@ pub const QueryExecutor = struct {
                 const right = try self.evaluate_expression(cmp.right.*);
                 return .{ .boolean = try self.compare_values(left, right) >= 0 };
             },
-            
+
             // Arithmetic Operators
             .add => |arith| {
                 const left = try self.evaluate_expression(arith.left.*);
@@ -698,7 +698,7 @@ pub const QueryExecutor = struct {
                 const right = try self.evaluate_expression(arith.right.*);
                 return try self.arithmetic_operation(left, right, .mod);
             },
-            
+
             // Logical Operators
             .logical_and => |logical| {
                 const left = try self.evaluate_expression(logical.left.*);
@@ -714,7 +714,7 @@ pub const QueryExecutor = struct {
                 const expr_val = try self.evaluate_expression(not_expr.expr.*);
                 return .{ .boolean = !expr_val.boolean };
             },
-            
+
             // String Functions
             .toUpper => |func| {
                 const expr_val = try self.evaluate_expression(func.expr.*);
@@ -742,7 +742,7 @@ pub const QueryExecutor = struct {
                 // TODO: Implement substring
                 return expr_val;
             },
-            
+
             // Mathematical Functions
             .abs => |func| {
                 const expr_val = try self.evaluate_expression(func.expr.*);
@@ -764,7 +764,7 @@ pub const QueryExecutor = struct {
                 const expr_val = try self.evaluate_expression(func.expr.*);
                 return try self.math_function(expr_val, .sqrt);
             },
-            
+
             // Aggregation Functions
             .count => |agg| {
                 const expr_val = try self.evaluate_expression(agg.expr.*);
@@ -811,17 +811,17 @@ pub const QueryExecutor = struct {
         if (self.matched_nodes.get(var_name)) |node_ptr| {
             return .{ .node = node_ptr.* };
         }
-        
+
         // Then check if it's a matched relationship
         if (self.matched_relationships.get(var_name)) |edge_ptr| {
             return .{ .edge = edge_ptr.* };
         }
-        
+
         // Finally check variables map
         if (self.variables.get(var_name)) |value| {
             return value;
         }
-        
+
         // Return null if not found
         return .null;
     }
@@ -829,7 +829,7 @@ pub const QueryExecutor = struct {
     fn lookup_property(self: *QueryExecutor, prop: cypher.PropertySelector) !QueryValue {
         // Get the base variable
         const base_value = try self.lookup_variable(prop.variable);
-        
+
         switch (base_value) {
             .node => |node| {
                 // Look up property in node
@@ -847,7 +847,7 @@ pub const QueryExecutor = struct {
             },
             else => {},
         }
-        
+
         return .null;
     }
 
@@ -867,7 +867,7 @@ pub const QueryExecutor = struct {
             // TODO: Implement actual property lookup
             return .{ .integer = 50000 };
         }
-        
+
         return .null;
     }
 
@@ -883,7 +883,7 @@ pub const QueryExecutor = struct {
             // TODO: Implement actual property lookup
             return .{ .float = 1.0 };
         }
-        
+
         return .null;
     }
 

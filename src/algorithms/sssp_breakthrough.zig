@@ -56,7 +56,7 @@ pub const Frontier = struct {
     size: usize,
     capacity: usize,
     allocator: std.mem.Allocator,
-    
+
     pub fn init(allocator: std.mem.Allocator, capacity: usize) !Frontier {
         return Frontier{
             .vertices = try allocator.alloc(u64, capacity),
@@ -66,12 +66,12 @@ pub const Frontier = struct {
             .allocator = allocator,
         };
     }
-    
+
     pub fn deinit(self: *Frontier) void {
         self.allocator.free(self.vertices);
         self.allocator.free(self.distances);
     }
-    
+
     /// Add vertex to frontier without full sorting
     /// This is key to breaking the sorting barrier
     pub fn addVertex(self: *Frontier, vertex: u64, distance: f64) !void {
@@ -82,42 +82,42 @@ pub const Frontier = struct {
             self.distances = try self.allocator.realloc(self.distances, new_capacity);
             self.capacity = new_capacity;
         }
-        
+
         self.vertices[self.size] = vertex;
         self.distances[self.size] = distance;
         self.size += 1;
     }
-    
+
     /// Extract minimum distance vertex optimally
     /// Uses the algorithm's clever selection mechanism
     pub fn extractMin(self: *Frontier) ?u64 {
         if (self.size == 0) return null;
-        
+
         // Find minimum without full sorting
         var min_idx: usize = 0;
         var min_distance = self.distances[0];
-        
+
         for (1..self.size) |i| {
             if (self.distances[i] < min_distance) {
                 min_distance = self.distances[i];
                 min_idx = i;
             }
         }
-        
+
         // Remove the minimum vertex
         const result = self.vertices[min_idx];
         self.vertices[min_idx] = self.vertices[self.size - 1];
         self.distances[min_idx] = self.distances[self.size - 1];
         self.size -= 1;
-        
+
         return result;
     }
-    
+
     /// Get current frontier size
     pub fn getSize(self: *const Frontier) usize {
         return self.size;
     }
-    
+
     /// Check if frontier is empty
     pub fn isEmpty(self: *const Frontier) bool {
         return self.size == 0;
@@ -128,14 +128,14 @@ pub const Frontier = struct {
 pub const DependencyGraph = struct {
     dependencies: std.AutoHashMap(u64, std.ArrayList(u64)),
     allocator: std.mem.Allocator,
-    
+
     pub fn init(allocator: std.mem.Allocator) DependencyGraph {
         return DependencyGraph{
             .dependencies = std.AutoHashMap(u64, std.ArrayList(u64)).init(allocator),
             .allocator = allocator,
         };
     }
-    
+
     pub fn deinit(self: *DependencyGraph) void {
         var iter = self.dependencies.iterator();
         while (iter.next()) |entry| {
@@ -143,7 +143,7 @@ pub const DependencyGraph = struct {
         }
         self.dependencies.deinit();
     }
-    
+
     /// Add dependency relationship
     pub fn addDependency(self: *DependencyGraph, vertex: u64, depends_on: u64) !void {
         var list = self.dependencies.get(depends_on) orelse {
@@ -151,11 +151,11 @@ pub const DependencyGraph = struct {
             try self.dependencies.put(depends_on, new_list);
             return try self.addDependency(vertex, depends_on);
         };
-        
+
         try list.append(vertex);
         try self.dependencies.put(depends_on, list);
     }
-    
+
     /// Get vertices that depend on this vertex
     pub fn getDependencies(self: *DependencyGraph, vertex: u64) ?[]u64 {
         const list = self.dependencies.get(vertex) orelse return null;
@@ -166,7 +166,7 @@ pub const DependencyGraph = struct {
 /// Main breakthrough SSSP algorithm implementation
 pub const BreakthroughSSSP = struct {
     const Self = @This();
-    
+
     graph: struct {
         node_pool: *const pool.NodePool,
         edge_pool: *const pool.EdgePool,
@@ -175,14 +175,14 @@ pub const BreakthroughSSSP = struct {
     options: BreakthroughSSSPOptions,
     weight_fn: EdgeWeightFn,
     allocator: std.mem.Allocator,
-    
+
     // Algorithm state
     distances: []f64,
     predecessors: []u64,
     visited: []bool,
     frontier: Frontier,
     dependencies: DependencyGraph,
-    
+
     pub fn init(
         node_pool: *const pool.NodePool,
         edge_pool: *const pool.EdgePool,
@@ -192,25 +192,25 @@ pub const BreakthroughSSSP = struct {
         allocator: std.mem.Allocator,
     ) !Self {
         const max_nodes = options.max_nodes orelse @max(node_pool.getStats().total_allocated, 1000);
-        
+
         // Initialize arrays
         var distances = try allocator.alloc(f64, max_nodes);
         var predecessors = try allocator.alloc(u64, max_nodes);
         const visited = try allocator.alloc(bool, max_nodes);
-        
+
         // Initialize distances to infinity and predecessors to invalid
         @memset(distances, std.math.inf(f64));
         @memset(predecessors, std.math.maxInt(u64));
         @memset(visited, false);
-        
+
         // Set source distance to 0
         distances[source] = 0.0;
         predecessors[source] = source;
-        
+
         // Initialize frontier and dependencies
         const frontier = try Frontier.init(allocator, options.frontier_capacity);
         const dependencies = DependencyGraph.init(allocator);
-        
+
         return Self{
             .graph = .{ .node_pool = node_pool, .edge_pool = edge_pool },
             .source = source,
@@ -224,7 +224,7 @@ pub const BreakthroughSSSP = struct {
             .dependencies = dependencies,
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.distances);
         self.allocator.free(self.predecessors);
@@ -232,43 +232,41 @@ pub const BreakthroughSSSP = struct {
         self.frontier.deinit();
         self.dependencies.deinit();
     }
-    
+
     /// Execute the breakthrough SSSP algorithm
     pub fn execute(self: *Self) !BreakthroughSSSPResult {
         // Initialize frontier with source
         try self.frontier.addVertex(self.source, 0.0);
-        
+
         var iterations: usize = 0;
         var visited_count: usize = 0;
         var visited_nodes = try self.allocator.alloc(u64, self.options.max_nodes orelse 1000);
-        
 
-        
         // Main algorithm loop
         while (!self.frontier.isEmpty()) {
             iterations += 1;
-            
+
             // Extract minimum vertex from frontier
             const current_vertex = self.frontier.extractMin() orelse break;
-            
+
             // Skip if already visited
             if (self.visited[current_vertex]) continue;
-            
+
             // Mark as visited
             self.visited[current_vertex] = true;
             visited_nodes[visited_count] = current_vertex;
             visited_count += 1;
-            
+
             // Check max distance constraint
             if (self.options.max_distance) |max_distance| {
                 if (self.distances[current_vertex] >= max_distance) {
                     continue;
                 }
             }
-            
+
             // Process neighbors using recursive partitioning
             try self.processNeighbors(current_vertex);
-            
+
             // Check max nodes limit
             if (self.options.max_nodes) |max_nodes_limit| {
                 if (visited_count >= max_nodes_limit) {
@@ -276,16 +274,14 @@ pub const BreakthroughSSSP = struct {
                 }
             }
         }
-        
+
         // Resize visited nodes array
         visited_nodes = try self.allocator.realloc(visited_nodes, visited_count);
-        
 
-        
         // Copy distances and predecessors to avoid memory issues
         const result_distances = try self.allocator.dupe(f64, self.distances);
         const result_predecessors = try self.allocator.dupe(u64, self.predecessors);
-        
+
         return BreakthroughSSSPResult{
             .distances = result_distances,
             .predecessors = result_predecessors,
@@ -295,27 +291,27 @@ pub const BreakthroughSSSP = struct {
             .allocator = self.allocator,
         };
     }
-    
+
     /// Process neighbors using recursive partitioning technique
     fn processNeighbors(self: *Self, current_vertex: u64) !void {
         const current_distance = self.distances[current_vertex];
-        
+
         // Get edges from current vertex
         var edge_iter = self.graph.edge_pool.iterFromNode(current_vertex);
         var neighbors = std.ArrayList(Neighbor).init(self.allocator);
         defer neighbors.deinit();
-        
+
         // Collect all neighbors and their weights
         while (edge_iter.next()) |edge| {
             const neighbor_id = if (edge.from == current_vertex) edge.to else edge.from;
             const edge_weight = self.weight_fn(edge);
             try neighbors.append(Neighbor{ .vertex = neighbor_id, .weight = edge_weight });
         }
-        
+
         // Use recursive partitioning for neighbor processing
         try self.recursivePartitioning(neighbors.items, current_distance, current_vertex);
     }
-    
+
     /// Recursive partitioning technique - the breakthrough part of the algorithm
     fn recursivePartitioning(
         self: *Self,
@@ -324,7 +320,7 @@ pub const BreakthroughSSSP = struct {
         current_vertex: u64,
     ) !void {
         if (neighbors.len == 0) return;
-        
+
         // Base case: small number of neighbors, process directly
         if (neighbors.len <= 4) {
             for (neighbors) |neighbor| {
@@ -332,39 +328,39 @@ pub const BreakthroughSSSP = struct {
             }
             return;
         }
-        
+
         // Recursive case: partition neighbors and process recursively
         const mid = neighbors.len / 2;
         const left = neighbors[0..mid];
         const right = neighbors[mid..];
-        
+
         // Process left partition
         try self.recursivePartitioning(left, current_distance, current_vertex);
-        
+
         // Process right partition
         try self.recursivePartitioning(right, current_distance, current_vertex);
-        
+
         // Merge results and update dependencies
         try self.mergePartitions(left, right, current_vertex);
     }
-    
+
     /// Relax an edge (update distance if shorter path found)
     fn relaxEdge(self: *Self, from: u64, to: u64, weight: f64, current_distance: f64) !void {
         const new_distance = current_distance + weight;
-        
+
         // Check if this path is shorter
         if (new_distance < self.distances[to]) {
             self.distances[to] = new_distance;
             self.predecessors[to] = from;
-            
+
             // Add to frontier for processing
             try self.frontier.addVertex(to, new_distance);
-            
+
             // Update dependencies
             try self.dependencies.addDependency(to, from);
         }
     }
-    
+
     /// Merge partitions and update dependencies
     fn mergePartitions(
         self: *Self,
@@ -374,21 +370,21 @@ pub const BreakthroughSSSP = struct {
     ) !void {
         // This is where the algorithm's clever merging happens
         // We don't need to sort, just merge the results
-        
+
         // Update dependencies for vertices in both partitions
         for (left) |neighbor| {
             if (self.distances[neighbor.vertex] < std.math.inf(f64)) {
                 try self.dependencies.addDependency(neighbor.vertex, current_vertex);
             }
         }
-        
+
         for (right) |neighbor| {
             if (self.distances[neighbor.vertex] < std.math.inf(f64)) {
                 try self.dependencies.addDependency(neighbor.vertex, current_vertex);
             }
         }
     }
-    
+
     /// Find shortest path from source to a specific target node
     pub fn findShortestPath(
         node_pool: *const pool.NodePool,
@@ -404,38 +400,38 @@ pub const BreakthroughSSSP = struct {
             .include_predecessors = true,
             .include_visited = false,
         };
-        
+
         var algorithm = try Self.init(node_pool, edge_pool, source_node_id, options, weight_fn, allocator);
         defer algorithm.deinit();
-        
+
         const result = try algorithm.execute();
         defer {
             var mutable_result = result;
             mutable_result.deinit();
         }
-        
+
         // Check if target was reached
         if (result.distances[target_node_id] == std.math.inf(f64)) {
             return null; // Target not reachable
         }
-        
+
         // Reconstruct path
         const path_length = @as(usize, @intFromFloat(result.distances[target_node_id])) + 1;
         var path = try allocator.alloc(u64, path_length);
-        
+
         var current = target_node_id;
         var path_index = path_length - 1;
-        
+
         while (current != source_node_id) {
             path[path_index] = current;
             current = result.predecessors[current];
             path_index -= 1;
         }
-        
+
         path[0] = source_node_id;
         return path;
     }
-    
+
     /// Execute the algorithm with default options
     pub fn executeSimple(
         node_pool: *const pool.NodePool,
@@ -454,12 +450,12 @@ pub const BreakthroughSSSP = struct {
 /// Performance comparison between breakthrough and Dijkstra's algorithms
 pub const PerformanceComparison = struct {
     breakthrough_time: u64, // nanoseconds
-    dijkstra_time: u64,     // nanoseconds
+    dijkstra_time: u64, // nanoseconds
     speedup: f64,
     memory_usage_breakthrough: usize,
     memory_usage_dijkstra: usize,
     memory_savings: f64,
-    
+
     pub fn print(self: *const PerformanceComparison) void {
         std.debug.print("\n=== SSSP Algorithm Performance Comparison ===\n", .{});
         std.debug.print("Breakthrough Algorithm: {} ns\n", .{self.breakthrough_time});
@@ -481,30 +477,23 @@ pub fn benchmarkAlgorithms(
     allocator: std.mem.Allocator,
 ) !PerformanceComparison {
     const timer = std.time.Timer;
-    
+
     // Benchmark breakthrough algorithm
     const breakthrough_start = try timer.start();
-    const breakthrough_result = try BreakthroughSSSP.executeSimple(
-        node_pool, edge_pool, source_node_id, weight_fn, allocator
-    );
+    const breakthrough_result = try BreakthroughSSSP.executeSimple(node_pool, edge_pool, source_node_id, weight_fn, allocator);
     const breakthrough_time = breakthrough_start.read();
     defer breakthrough_result.deinit();
-    
+
     // Benchmark Dijkstra's algorithm (import from dijkstra.zig)
     const dijkstra_start = try timer.start();
-    const dijkstra_result = try @import("dijkstra.zig").Dijkstra.execute(
-        node_pool, edge_pool, source_node_id, 
-        @import("dijkstra.zig").DijkstraOptions{}, 
-        @import("dijkstra.zig").defaultEdgeWeight, 
-        allocator
-    );
+    const dijkstra_result = try @import("dijkstra.zig").Dijkstra.execute(node_pool, edge_pool, source_node_id, @import("dijkstra.zig").DijkstraOptions{}, @import("dijkstra.zig").defaultEdgeWeight, allocator);
     const dijkstra_time = dijkstra_start.read();
     defer dijkstra_result.deinit();
-    
+
     const speedup = @as(f64, @floatFromInt(dijkstra_time)) / @as(f64, @floatFromInt(breakthrough_time));
-    const memory_savings = 100.0 * (1.0 - @as(f64, @floatFromInt(breakthrough_result.frontier_size)) / 
-                                   @as(f64, @floatFromInt(dijkstra_result.visited_nodes.len)));
-    
+    const memory_savings = 100.0 * (1.0 - @as(f64, @floatFromInt(breakthrough_result.frontier_size)) /
+        @as(f64, @floatFromInt(dijkstra_result.visited_nodes.len)));
+
     return PerformanceComparison{
         .breakthrough_time = breakthrough_time,
         .dijkstra_time = dijkstra_time,

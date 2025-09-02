@@ -145,40 +145,40 @@ pub const Expression = union(enum) {
     null: void,
     map: MapLiteral,
     list: ListLiteral,
-    
+
     // Comparison Operators
-    eq: BinaryOperator,      // =
-    ne: BinaryOperator,      // <>
-    lt: BinaryOperator,      // <
-    lte: BinaryOperator,     // <=
-    gt: BinaryOperator,      // >
-    gte: BinaryOperator,     // >=
-    
+    eq: BinaryOperator, // =
+    ne: BinaryOperator, // <>
+    lt: BinaryOperator, // <
+    lte: BinaryOperator, // <=
+    gt: BinaryOperator, // >
+    gte: BinaryOperator, // >=
+
     // Arithmetic Operators
-    add: BinaryOperator,     // +
-    sub: BinaryOperator,     // -
-    mul: BinaryOperator,     // *
-    div: BinaryOperator,     // /
-    mod: BinaryOperator,     // %
-    
+    add: BinaryOperator, // +
+    sub: BinaryOperator, // -
+    mul: BinaryOperator, // *
+    div: BinaryOperator, // /
+    mod: BinaryOperator, // %
+
     // Logical Operators
-    logical_and: BinaryOperator,     // AND
-    logical_or: BinaryOperator,      // OR
-    logical_not: UnaryOperator,      // NOT
-    
+    logical_and: BinaryOperator, // AND
+    logical_or: BinaryOperator, // OR
+    logical_not: UnaryOperator, // NOT
+
     // String Functions
     toUpper: UnaryOperator,
     toLower: UnaryOperator,
     trim: UnaryOperator,
     substring: SubstringOperator,
-    
+
     // Mathematical Functions
     abs: UnaryOperator,
     round: UnaryOperator,
     ceil: UnaryOperator,
     floor: UnaryOperator,
     sqrt: UnaryOperator,
-    
+
     // Aggregation Functions
     count: CountOperator,
     sum: UnaryOperator,
@@ -294,7 +294,7 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
         .property => |*ps| allocator.free(ps.keys),
         .map => |*map| deinitMap(allocator, map),
         .list => |*lst| allocator.free(lst.items),
-        
+
         // Comparison Operators
         .eq, .ne, .lt, .lte, .gt, .gte => |*cmp| {
             deinitExpr(allocator, cmp.left);
@@ -302,7 +302,7 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
             allocator.destroy(cmp.left);
             allocator.destroy(cmp.right);
         },
-        
+
         // Arithmetic Operators
         .add, .sub, .mul, .div, .mod => |*arith| {
             deinitExpr(allocator, arith.left);
@@ -310,7 +310,7 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
             allocator.destroy(arith.left);
             allocator.destroy(arith.right);
         },
-        
+
         // Logical Operators
         .logical_and, .logical_or => |*logical| {
             deinitExpr(allocator, logical.left);
@@ -322,7 +322,7 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
             deinitExpr(allocator, not_expr.expr);
             allocator.destroy(not_expr.expr);
         },
-        
+
         // String Functions
         .toUpper, .toLower, .trim, .abs, .round, .ceil, .floor, .sqrt => |*func| {
             deinitExpr(allocator, func.expr);
@@ -336,7 +336,7 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
             allocator.destroy(substr.start);
             allocator.destroy(substr.length);
         },
-        
+
         // Aggregation Functions
         .count => |*agg| {
             deinitExpr(allocator, agg.expr);
@@ -346,7 +346,7 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
             deinitExpr(allocator, agg.expr);
             allocator.destroy(agg.expr);
         },
-        
+
         // Primary types (no cleanup needed)
         .variable, .string, .integer, .float, .boolean, .null => {},
     }

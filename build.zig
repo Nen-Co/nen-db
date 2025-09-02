@@ -220,8 +220,6 @@ pub fn build(b: *std.Build) void {
     const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
     test_step.dependOn(&run_monitoring_tests.step);
 
-
-
     // Cypher parser tests (query language subset)
     const query_tests = b.addTest(.{
         .root_module = b.createModule(.{
@@ -282,7 +280,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("tests/benchmark.zig"),
                 .target = target,
                 .optimize = optimize,
-                    }),
+            }),
         });
         bench_exe.root_module.addImport("nendb", lib_mod);
         const run_bench = b.addRunArtifact(bench_exe);
@@ -296,7 +294,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("tests/real_benchmark.zig"),
                 .target = target,
                 .optimize = optimize,
-                    }),
+            }),
         });
         const run_real_bench = b.addRunArtifact(real_bench_exe);
         const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
@@ -472,16 +470,13 @@ pub fn build(b: *std.Build) void {
     http_test_step.dependOn(&run_http_tests.step);
 
     // ===== CROSS-COMPILATION TARGETS FOR RELEASES =====
-    
+
     // Note: For now, we'll use the main target but add a note about cross-compilation
     // Users can build for specific targets using: zig build -Dtarget=x86_64-linux-gnu
     const cross_compile_step = b.step("cross-compile", "Build for all target platforms (use -Dtarget=<triple>)");
     cross_compile_step.dependOn(b.getInstallStep());
-    
+
     // Add a note about available targets
-    const note_step = b.addSystemCommand(&.{
-        "echo",
-        "Available targets: x86_64-linux-gnu, x86_64-macos-gnu, aarch64-macos-gnu, x86_64-windows-gnu"
-    });
+    const note_step = b.addSystemCommand(&.{ "echo", "Available targets: x86_64-linux-gnu, x86_64-macos-gnu, aarch64-macos-gnu, x86_64-windows-gnu" });
     cross_compile_step.dependOn(&note_step.step);
 }

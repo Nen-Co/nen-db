@@ -379,12 +379,12 @@ pub const Parser = struct {
             .identifier => {
                 const name = self.current.lexeme;
                 self.advance();
-                
+
                 // Check for function call
                 if (self.current.kind == .l_paren) {
                     return try self.parseFunctionCall(name);
                 }
-                
+
                 // Check for property access
                 if (self.current.kind == .dot) {
                     self.advance();
@@ -393,7 +393,7 @@ pub const Parser = struct {
                     self.advance();
                     return .{ .property = .{ .variable = name, .keys = &[_][]const u8{} } };
                 }
-                
+
                 return .{ .variable = name };
             },
             .string => {
@@ -422,7 +422,7 @@ pub const Parser = struct {
 
     fn parseFunctionCall(self: *Parser, func_name: []const u8) !ast.Expression {
         self.advance(); // consume (
-        
+
         // For now, just consume the arguments without parsing them
         var paren_count: u32 = 1;
         while (self.current.kind != .eof and paren_count > 0) {
@@ -433,7 +433,7 @@ pub const Parser = struct {
             }
             self.advance();
         }
-        
+
         // Handle different function types (simplified for now)
         if (std.ascii.eqlIgnoreCase(func_name, "COUNT")) {
             return .{ .count = .{ .expr = try self.allocator.create(ast.Expression), .distinct = false } };
@@ -462,7 +462,7 @@ pub const Parser = struct {
         } else if (std.ascii.eqlIgnoreCase(func_name, "SQRT")) {
             return .{ .sqrt = .{ .expr = try self.allocator.create(ast.Expression) } };
         }
-        
+
         // Unknown function - return as variable for now
         return .{ .variable = func_name };
     }
@@ -474,43 +474,43 @@ pub const Parser = struct {
     // Operator precedence parsing (highest to lowest)
     fn parseLogicalOr(self: *Parser) !ast.Expression {
         var left = try self.parseLogicalAnd();
-        
+
         while (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "OR")) {
             self.advance();
             const right = try self.parseLogicalAnd();
-            
+
             const left_box = try self.allocator.create(ast.Expression);
             left_box.* = left;
             const right_box = try self.allocator.create(ast.Expression);
             right_box.* = right;
-            
+
             left = .{ .logical_or = .{ .left = left_box, .right = right_box } };
         }
-        
+
         return left;
     }
 
     fn parseLogicalAnd(self: *Parser) !ast.Expression {
         var left = try self.parseEquality();
-        
+
         while (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "AND")) {
             self.advance();
             const right = try self.parseEquality();
-            
+
             const left_box = try self.allocator.create(ast.Expression);
             left_box.* = left;
             const right_box = try self.allocator.create(ast.Expression);
             right_box.* = right;
-            
+
             left = .{ .logical_and = .{ .left = left_box, .right = right_box } };
         }
-        
+
         return left;
     }
 
     fn parseEquality(self: *Parser) !ast.Expression {
         var left = try self.parseComparison();
-        
+
         while (self.current.kind == .eq) {
             self.advance();
             const right = try self.parseComparison();
@@ -520,77 +520,77 @@ pub const Parser = struct {
             right_box.* = right;
             left = .{ .eq = .{ .left = left_box, .right = right_box } };
         }
-        
+
         return left;
     }
 
     fn parseComparison(self: *Parser) !ast.Expression {
         var left = try self.parseAdditive();
-        
+
         while (self.current.kind == .lt or self.current.kind == .gt) {
             const op_kind = self.current.kind;
             self.advance();
-            
+
             // Check for <= or >= (simplified - we'll handle this in lexer later)
             const right = try self.parseAdditive();
             const left_box = try self.allocator.create(ast.Expression);
             left_box.* = left;
             const right_box = try self.allocator.create(ast.Expression);
             right_box.* = right;
-            
+
             left = switch (op_kind) {
                 .lt => .{ .lt = .{ .left = left_box, .right = right_box } },
                 .gt => .{ .gt = .{ .left = left_box, .right = right_box } },
                 else => unreachable,
             };
         }
-        
+
         return left;
     }
 
     fn parseAdditive(self: *Parser) !ast.Expression {
         var left = try self.parseMultiplicative();
-        
+
         while (self.current.kind == .plus or self.current.kind == .minus) {
             const op = self.current.kind;
             self.advance();
             const right = try self.parseMultiplicative();
-            
+
             const left_box = try self.allocator.create(ast.Expression);
             left_box.* = left;
             const right_box = try self.allocator.create(ast.Expression);
             right_box.* = right;
-            
+
             left = switch (op) {
                 .plus => .{ .add = .{ .left = left_box, .right = right_box } },
                 .minus => .{ .sub = .{ .left = left_box, .right = right_box } },
                 else => unreachable,
             };
         }
-        
+
         return left;
     }
 
     fn parseMultiplicative(self: *Parser) !ast.Expression {
         var left = try self.parseUnary();
-        
+
         while (self.current.kind == .star or self.current.kind == .slash) {
             const op = self.current.kind;
             self.advance();
             const right = try self.parseUnary();
-            
+
             const left_box = try self.allocator.create(ast.Expression);
             left_box.* = left;
             const right_box = try self.allocator.create(ast.Expression);
             right_box.* = right;
-            
+
             left = switch (op) {
                 .star => .{ .mul = .{ .left = left_box, .right = right_box } },
                 .slash => .{ .div = .{ .left = left_box, .right = right_box } },
                 else => unreachable,
             };
         }
-        
+
         return left;
     }
 
@@ -602,7 +602,7 @@ pub const Parser = struct {
             expr_box.* = expr;
             return .{ .logical_not = .{ .expr = expr_box } };
         }
-        
+
         return try self.parsePrimaryExpr();
     }
 };

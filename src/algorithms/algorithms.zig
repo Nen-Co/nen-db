@@ -70,7 +70,6 @@ pub const AlgorithmExecutor = struct {
                 const result = try pagerank.PageRank.execute(node_pool, edge_pool, pagerank_options, allocator);
                 return AlgorithmResult{ .pagerank = result };
             },
-
         };
     }
 
