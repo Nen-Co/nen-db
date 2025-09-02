@@ -8,18 +8,22 @@ pub fn build(b: *std.Build) void {
     //NenDB CLI (Production Version)
     const exe = b.addExecutable(.{
         .name = "nendb-production",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     b.installArtifact(exe);
 
     // Dedicated NenDB CLI binary (renamed from generic 'nen' to avoid collision with unified multi-product CLI)
     const nen_cli = b.addExecutable(.{
         .name = "nendb",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     b.installArtifact(nen_cli);
 
@@ -46,9 +50,11 @@ pub fn build(b: *std.Build) void {
     // Algorithms demo executable
     const algorithms_demo = b.addExecutable(.{
         .name = "algorithms-demo",
-        .root_source_file = b.path("examples/algorithms_demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/algorithms_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     const algorithms_mod = b.addModule("algorithms", .{
         .root_source_file = b.path("src/algorithms/algorithms.zig"),
@@ -67,9 +73,11 @@ pub fn build(b: *std.Build) void {
     // Compiled Cypher + Vector demo executable
     const compiled_cypher_demo = b.addExecutable(.{
         .name = "compiled-cypher-demo",
-        .root_source_file = b.path("examples/compiled_cypher_vector_demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/compiled_cypher_vector_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     compiled_cypher_demo.root_module.addImport("nendb", lib_mod);
 
@@ -80,9 +88,11 @@ pub fn build(b: *std.Build) void {
     // Batch processing demo (TigerBeetle-style)
     const batch_processing_demo = b.addExecutable(.{
         .name = "nendb-batch-demo",
-        .root_source_file = b.path("examples/batch_processing_demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/batch_processing_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     batch_processing_demo.root_module.addImport("nendb", lib_mod);
 
@@ -93,9 +103,11 @@ pub fn build(b: *std.Build) void {
     // Complete TigerBeetle-style batch processing demo
     const tigerbeetle_batch_demo = b.addExecutable(.{
         .name = "nendb-tigerbeetle-batch-demo",
-        .root_source_file = b.path("examples/tigerbeetle_style_batch_demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/tigerbeetle_style_batch_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     tigerbeetle_batch_demo.root_module.addImport("nendb", lib_mod);
 
@@ -244,7 +256,11 @@ pub fn build(b: *std.Build) void {
     if (bench_enabled) {
         const bench_exe = b.addExecutable(.{
             .name = "nendb-bench",
-            .root_source_file = b.path("tests/benchmark.zig"),
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tests/benchmark.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
             .target = target,
             .optimize = optimize,
         });
@@ -256,7 +272,11 @@ pub fn build(b: *std.Build) void {
         // Real performance benchmark (still synthetic placeholder)
         const real_bench_exe = b.addExecutable(.{
             .name = "nendb-real-bench",
-            .root_source_file = b.path("tests/real_benchmark.zig"),
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tests/real_benchmark.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
             .target = target,
             .optimize = optimize,
         });
@@ -270,9 +290,11 @@ pub fn build(b: *std.Build) void {
     // Performance profiling executable
     const profile_exe = b.addExecutable(.{
         .name = "nendb-profile",
-        .root_source_file = b.path("tests/profile/performance_profile.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/profile/performance_profile.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     profile_exe.root_module.addImport("nendb", lib_mod);
 
@@ -285,9 +307,11 @@ pub fn build(b: *std.Build) void {
     // Memory usage analysis
     const memory_analysis_exe = b.addExecutable(.{
         .name = "nendb-memory",
-        .root_source_file = b.path("tests/memory/memory_analysis.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/memory/memory_analysis.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     memory_analysis_exe.root_module.addImport("nendb", lib_mod);
 
@@ -309,9 +333,11 @@ pub fn build(b: *std.Build) void {
     // Resource Monitor Demo
     const monitor_demo_exe = b.addExecutable(.{
         .name = "nendb-monitor-demo",
-        .root_source_file = b.path("src/monitoring/demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/monitoring/demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     monitor_demo_exe.root_module.addImport("monitoring", monitoring_mod);
 
@@ -360,9 +386,11 @@ pub fn build(b: *std.Build) void {
     // Networking Demo
     const networking_demo = b.addExecutable(.{
         .name = "networking-demo",
-        .root_source_file = b.path("examples/networking_demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/networking_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     networking_demo.root_module.addImport("nendb", lib_mod);
     networking_demo.root_module.addImport("nen-net", nen_net_mod);
@@ -381,9 +409,11 @@ pub fn build(b: *std.Build) void {
     // Conversation Storage Demo
     const conversation_demo = b.addExecutable(.{
         .name = "conversation-storage-demo",
-        .root_source_file = b.path("examples/conversation_storage_demo.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/conversation_storage_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     conversation_demo.root_module.addImport("nendb", lib_mod);
     conversation_demo.root_module.addImport("nencache", nencache_mod);
@@ -395,9 +425,11 @@ pub fn build(b: *std.Build) void {
     // HTTP Server executable using nen-net
     const server_exe = b.addExecutable(.{
         .name = "nendb-server",
-        .root_source_file = b.path("src/server_main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/server_main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     server_exe.root_module.addImport("nen-net", nen_net_mod);
     server_exe.root_module.addImport("algorithms", algorithms_mod);

@@ -128,7 +128,11 @@ fn demoBulkInsert(batch_api: *batch.BatchAPI) !void {
         if (result.success) {
             total_operations += result.processed;
         } else {
-            std.debug.print("❌ Batch {} failed: {}\n", .{batch_count, result.error});
+            if (result.err) |err| {
+                std.debug.print("❌ Batch {} failed: {}\n", .{batch_count, @errorName(err)});
+            } else {
+                std.debug.print("❌ Batch {} failed: unknown error\n", .{batch_count});
+            }
             return;
         }
     }
