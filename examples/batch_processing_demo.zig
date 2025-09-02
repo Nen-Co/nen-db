@@ -197,7 +197,11 @@ fn demoMixedOperations(batch_api: *batch.BatchAPI) !void {
         std.debug.print("   - Edges created: 2\n", .{});
         std.debug.print("   - Embeddings set: 2\n", .{});
     } else {
-        std.debug.print("❌ Mixed batch failed: {}\n", .{result.error});
+        if (result.err) |err| {
+            std.debug.print("❌ Mixed batch failed: {}\n", .{@errorName(err)});
+        } else {
+            std.debug.print("❌ Mixed batch failed: unknown error\n", .{});
+        }
     }
     
     std.debug.print("\n", .{});

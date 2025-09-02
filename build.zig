@@ -282,9 +282,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("tests/benchmark.zig"),
                 .target = target,
                 .optimize = optimize,
-            }),
-            .target = target,
-            .optimize = optimize,
+                    }),
         });
         bench_exe.root_module.addImport("nendb", lib_mod);
         const run_bench = b.addRunArtifact(bench_exe);
@@ -298,9 +296,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("tests/real_benchmark.zig"),
                 .target = target,
                 .optimize = optimize,
-            }),
-            .target = target,
-            .optimize = optimize,
+                    }),
         });
         const run_real_bench = b.addRunArtifact(real_bench_exe);
         const real_bench_step = b.step("real-bench", "Run real performance benchmarks");
