@@ -1,7 +1,7 @@
 const std = @import("std");
 const style_mod = @import("style.zig");
 
-// We can't store generic anytype function pointers directly. For now define a concrete signature using std.io.Writer for stdout.
+// We can't store generic anytype function pointers directly. For now define a concrete signature using std.Io.Writer for stdout.
 pub const CommandFn = fn (writer: anytype, args: [][]const u8, sty: style_mod.Style) anyerror!void;
 
 pub const Command = struct {
