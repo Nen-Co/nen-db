@@ -5,7 +5,7 @@ pub const Style = struct {
     use_color: bool,
 
     pub fn detect() Style {
-        const stdout = std.io.getStdOut();
+        const stdout = std.Io.getStdOut();
         const is_tty = stdout.isTty();
         return Style{ .use_color = is_tty };
     }

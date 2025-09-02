@@ -113,7 +113,7 @@ pub const Wal = struct {
         if (DEBUG_WAL) std.debug.print("append: start end_pos={} entries_written={} ops\n", .{ self.end_pos, self.entries_written });
         // Build entry buffer: [id(8) | kind(1) | props(N) | crc32(4)]
         const props_len = pool.constants.data.node_props_size;
-        var fbs = std.io.fixedBufferStream(&self.entry_buf);
+        var fbs = std.Io.fixedBufferStream(&self.entry_buf);
         const w = fbs.writer();
         try w.writeInt(u64, node.id, .little);
         try w.writeByte(node.kind);
@@ -173,7 +173,7 @@ pub const Wal = struct {
         if (self.read_only) return error.AccessDenied;
         if (DEBUG_WAL) std.debug.print("append_delete_node: node_id={}\n", .{node_id});
         // Build entry buffer: [op_type(1) | node_id(8) | crc32(4)]
-        var fbs = std.io.fixedBufferStream(&self.entry_buf);
+        var fbs = std.Io.fixedBufferStream(&self.entry_buf);
         const w = fbs.writer();
         try w.writeByte(0x02); // Delete node operation
         try w.writeInt(u64, node_id, .little);
@@ -219,7 +219,7 @@ pub const Wal = struct {
         if (self.read_only) return error.AccessDenied;
         if (DEBUG_WAL) std.debug.print("append_delete_edge: from={} to={}\n", .{ from, to });
         // Build entry buffer: [op_type(1) | from(8) | to(8) | crc32(4)]
-        var fbs = std.io.fixedBufferStream(&self.entry_buf);
+        var fbs = std.Io.fixedBufferStream(&self.entry_buf);
         const w = fbs.writer();
         try w.writeByte(0x03); // Delete edge operation
         try w.writeInt(u64, from, .little);
@@ -267,7 +267,7 @@ pub const Wal = struct {
         if (DEBUG_WAL) std.debug.print("append_edge: start end_pos={} entries_written={} ops\n", .{ self.end_pos, self.entries_written });
         // Build entry buffer: [from(8) | to(8) | label(2) | reserved(6) | props(N) | crc32(4)]
         const props_len = pool.constants.data.edge_props_size;
-        var fbs = std.io.fixedBufferStream(&self.entry_buf);
+        var fbs = std.Io.fixedBufferStream(&self.entry_buf);
         const w = fbs.writer();
         try w.writeInt(u64, edge.from, .little);
         try w.writeInt(u64, edge.to, .little);
@@ -348,7 +348,7 @@ pub const Wal = struct {
             var hdr: [HEADER_SIZE]u8 = undefined;
             const ok = try readExactAt(&self.file, 0, &hdr);
             if (ok) {
-                var rbs = std.io.fixedBufferStream(&hdr);
+                var rbs = std.Io.fixedBufferStream(&hdr);
                 const r = rbs.reader();
                 const magic = try r.readInt(u32, .little);
                 const version = try r.readInt(u16, .little);
@@ -373,7 +373,7 @@ pub const Wal = struct {
                     break;
                 }
                 const crc_calc = std.hash.crc.Crc32.hash(self.entry_buf[0 .. 8 + 1 + pool.constants.data.node_props_size]);
-                var fbs = std.io.fixedBufferStream(&self.entry_buf);
+                var fbs = std.Io.fixedBufferStream(&self.entry_buf);
                 var r = fbs.reader();
                 const id = try r.readInt(u64, .little);
                 const kind = try r.readByte();
@@ -425,7 +425,7 @@ pub const Wal = struct {
     inline fn writeHeader(self: *Wal) !void {
         if (self.read_only) return error.AccessDenied;
         var buf: [HEADER_SIZE]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&buf);
+        var fbs = std.Io.fixedBufferStream(&buf);
         const w = fbs.writer();
         try w.writeInt(u32, WAL_MAGIC, .little);
         try w.writeInt(u16, WAL_VERSION, .little);
@@ -446,7 +446,7 @@ pub const Wal = struct {
         var hdr: [HEADER_SIZE]u8 = undefined;
         const n = try self.file.read(&hdr);
         if (n < HEADER_SIZE) return false; // legacy or empty
-        var rbs = std.io.fixedBufferStream(&hdr);
+        var rbs = std.Io.fixedBufferStream(&hdr);
         const r = rbs.reader();
         const magic = try r.readInt(u32, .little);
         const version = try r.readInt(u16, .little);
@@ -532,7 +532,7 @@ pub const Wal = struct {
             var hdr: [HEADER_SIZE]u8 = undefined;
             const ok = try readExactAt(&self.file, 0, &hdr);
             if (ok) {
-                var rbs = std.io.fixedBufferStream(&hdr);
+                var rbs = std.Io.fixedBufferStream(&hdr);
                 const r = rbs.reader();
                 const magic = try r.readInt(u32, .little);
                 const version = try r.readInt(u16, .little);
@@ -553,7 +553,7 @@ pub const Wal = struct {
                     break;
                 }
                 const crc_calc = std.hash.crc.Crc32.hash(buffer[0 .. 8 + 1 + pool.constants.data.node_props_size]);
-                var fbs = std.io.fixedBufferStream(&buffer);
+                var fbs = std.Io.fixedBufferStream(&buffer);
                 const r = fbs.reader();
                 _ = try r.readInt(u64, .little);
                 _ = try r.readByte();
@@ -721,7 +721,7 @@ pub const Wal = struct {
             var hdr: [HEADER_SIZE]u8 = undefined;
             const ok = try readExactAt(file, 0, &hdr);
             if (ok) {
-                var rbs = std.io.fixedBufferStream(&hdr);
+                var rbs = std.Io.fixedBufferStream(&hdr);
                 const r = rbs.reader();
                 const magic = try r.readInt(u32, .little);
                 const version = try r.readInt(u16, .little);
@@ -739,7 +739,7 @@ pub const Wal = struct {
                 const ok = try readExactAt(file, off, &self.entry_buf);
                 if (!ok) break;
                 const crc_calc = std.hash.crc.Crc32.hash(self.entry_buf[0 .. 8 + 1 + pool.constants.data.node_props_size]);
-                var fbs = std.io.fixedBufferStream(&self.entry_buf);
+                var fbs = std.Io.fixedBufferStream(&self.entry_buf);
                 var r = fbs.reader();
                 const id = try r.readInt(u64, .little);
                 const kind = try r.readByte();
@@ -937,7 +937,7 @@ pub const Wal = struct {
                     const ok = try readExactAt(&seg_file, off, &buffer);
                     if (!ok) break;
                     const crc_calc = std.hash.crc.Crc32.hash(buffer[0 .. 8 + 1 + pool.constants.data.node_props_size]);
-                    var fbs = std.io.fixedBufferStream(&buffer);
+                    var fbs = std.Io.fixedBufferStream(&buffer);
                     var r = fbs.reader();
                     const id = try r.readInt(u64, .little);
                     const kind = try r.readByte();
@@ -959,7 +959,7 @@ pub const Wal = struct {
             var hdr: [HEADER_SIZE]u8 = undefined;
             const ok = try readExactAt(&self.file, 0, &hdr);
             if (ok) {
-                var rbs = std.io.fixedBufferStream(&hdr);
+                var rbs = std.Io.fixedBufferStream(&hdr);
                 const r = rbs.reader();
                 const magic = try r.readInt(u32, .little);
                 const version = try r.readInt(u16, .little);
@@ -979,7 +979,7 @@ pub const Wal = struct {
             const ok = try readExactAt(&self.file, off, &self.entry_buf);
             if (!ok) break;
             const crc_calc = std.hash.crc.Crc32.hash(self.entry_buf[0 .. 8 + 1 + pool.constants.data.node_props_size]);
-            var fbs = std.io.fixedBufferStream(&self.entry_buf);
+            var fbs = std.Io.fixedBufferStream(&self.entry_buf);
             var r = fbs.reader();
             const id = try r.readInt(u64, .little);
             const kind = try r.readByte();
@@ -1051,7 +1051,7 @@ fn computeTail(self: *Wal) !u64 {
     var hdr: [HEADER_SIZE]u8 = undefined;
     const have = try readExactAt(&self.file, 0, &hdr);
     if (!have) return HEADER_SIZE;
-    var rbs = std.io.fixedBufferStream(&hdr);
+    var rbs = std.Io.fixedBufferStream(&hdr);
     const r = rbs.reader();
     const magic = try r.readInt(u32, .little);
     const version = try r.readInt(u16, .little);
@@ -1062,7 +1062,7 @@ fn computeTail(self: *Wal) !u64 {
         const ok = try readExactAt(&self.file, off, &buffer);
         if (!ok) break;
         const crc_calc = std.hash.crc.Crc32.hash(buffer[0 .. 8 + 1 + pool.constants.data.node_props_size]);
-        var fbs = std.io.fixedBufferStream(&buffer);
+        var fbs = std.Io.fixedBufferStream(&buffer);
         var rr = fbs.reader();
         _ = try rr.readInt(u64, .little);
         _ = try rr.readByte();

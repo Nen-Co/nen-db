@@ -92,7 +92,7 @@ pub const Client = struct {
 
         // Format: GRAPH:INSERT_NODE:id:labels:properties
         var request_buf: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("GRAPH:INSERT_NODE:{s}:", .{id});
@@ -117,7 +117,7 @@ pub const Client = struct {
 
         // Format: GRAPH:INSERT_EDGE:from_id:to_id:type:properties
         var request_buf: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("GRAPH:INSERT_EDGE:{s}:{s}:{s}:properties:{d}", .{ from_id, to_id, relationship_type, properties.count() });
@@ -131,7 +131,7 @@ pub const Client = struct {
 
         // Format: GRAPH:QUERY:cypher:parameters
         var request_buf: [2048]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("GRAPH:QUERY:{s}:params:{d}", .{ cypher, parameters.count() });
@@ -146,7 +146,7 @@ pub const Client = struct {
 
         // Format: DOC:INSERT:collection:document
         var request_buf: [4096]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("DOC:INSERT:{s}:{s}", .{ collection, document });
@@ -160,7 +160,7 @@ pub const Client = struct {
 
         // Format: DOC:FIND:collection:query
         var request_buf: [4096]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("DOC:FIND:{s}:{s}", .{ collection, query_string });
@@ -174,7 +174,7 @@ pub const Client = struct {
 
         // Format: DOC:UPDATE:collection:id:updates
         var request_buf: [4096]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("DOC:UPDATE:{s}:{s}:{s}", .{ collection, id, updates });
@@ -188,7 +188,7 @@ pub const Client = struct {
 
         // Format: DOC:DELETE:collection:id
         var request_buf: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("DOC:DELETE:{s}:{s}", .{ collection, id });
@@ -203,7 +203,7 @@ pub const Client = struct {
 
         // Format: KV:SET:key:value:ttl
         var request_buf: [4096]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         if (ttl) |ttl_value| {
@@ -221,7 +221,7 @@ pub const Client = struct {
 
         // Format: KV:GET:key
         var request_buf: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("KV:GET:{s}", .{key});
@@ -235,7 +235,7 @@ pub const Client = struct {
 
         // Format: KV:DELETE:key
         var request_buf: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&request_buf);
+        var stream = std.Io.fixedBufferStream(&request_buf);
         var writer = stream.writer();
 
         try writer.print("KV:DELETE:{s}", .{key});

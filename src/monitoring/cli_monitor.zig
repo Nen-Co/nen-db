@@ -64,7 +64,7 @@ pub const MonitorCommand = struct {
     }
 
     fn outputHuman(self: *MonitorCommand, stats: ResourceStats) !void {
-        const stdout = std.io.getStdOut().writer();
+        const stdout = std.Io.getStdOut().writer();
 
         // Clear screen (ANSI escape code)
         try stdout.writeAll("\x1B[2J\x1B[H");
@@ -108,17 +108,17 @@ pub const MonitorCommand = struct {
     }
 
     fn outputJson(self: *MonitorCommand, stats: ResourceStats) !void {
-        const stdout = std.io.getStdOut().writer();
+        const stdout = std.Io.getStdOut().writer();
         try self.monitor.exportStatsJson(stdout);
     }
 
     fn outputPrometheus(self: *MonitorCommand, stats: ResourceStats) !void {
-        const stdout = std.io.getStdOut().writer();
+        const stdout = std.Io.getStdOut().writer();
         try self.monitor.exportStatsPrometheus(stdout);
     }
 
     fn outputCsv(self: *MonitorCommand, stats: ResourceStats) !void {
-        const stdout = std.io.getStdOut().writer();
+        const stdout = std.Io.getStdOut().writer();
 
         // CSV header (only on first iteration)
         if (!self.header_printed) {
@@ -191,7 +191,7 @@ pub fn runResourceMonitor(allocator: std.mem.Allocator, args: []const []const u8
 }
 
 fn printUsage() void {
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.Io.getStdOut().writer();
     stdout.writeAll("NenDB Resource Monitor\n" ++
         "Usage: nen monitor [options] [database_path]\n\n" ++
         "Options:\n" ++
