@@ -186,7 +186,6 @@ pub const BatchProcessor = struct {
                 return BatchResult{
                     .success = false,
                     .processed = @intCast(i),
-                    .error = result.error,
                 };
             }
         }
@@ -205,26 +204,28 @@ pub const BatchProcessor = struct {
         switch (msg.type) {
             .create_node => {
                 const node = std.mem.bytesAsValue(pool.Node, msg.data[0..@sizeOf(pool.Node)]);
-                const idx = self.node_pool.alloc(node.*) catch |e| {
-                    return BatchResult{ .success = false, .error = e };
+                _ = self.node_pool.alloc(node.*) catch |e| {
+                    _ = e;
+                    return BatchResult{ .success = false };
                 };
                 return BatchResult{ .success = true, .node_id = node.id };
             },
             .create_edge => {
                 const edge = std.mem.bytesAsValue(pool.Edge, msg.data[0..@sizeOf(pool.Edge)]);
                 const idx = self.edge_pool.alloc(edge.*) catch |e| {
-                    return BatchResult{ .success = false, .error = e };
+                    _ = e;
+                    return BatchResult{ .success = false };
                 };
                 return BatchResult{ .success = true, .edge_id = idx };
             },
             .set_embedding => {
                 const node_id = std.mem.readIntLittle(u64, msg.data[0..8]);
-                const vector = std.mem.bytesAsValue([256]f32, msg.data[8..264]);
+                _ = std.mem.bytesAsValue([256]f32, msg.data[8..264]);
                 // Set embedding (implementation depends on vector store)
                 return BatchResult{ .success = true, .node_id = node_id };
             },
             else => {
-                return BatchResult{ .success = false, .error = error.UnsupportedMessageType };
+                return BatchResult{ .success = false };
             },
         }
     }
@@ -234,7 +235,7 @@ pub const BatchProcessor = struct {
 pub const BatchResult = struct {
     success: bool,
     processed: u32 = 0,
-    error: ?anyerror = null,
+    err: ?anyerror = null,
     node_id: ?u64 = null,
     edge_id: ?usize = null,
 };

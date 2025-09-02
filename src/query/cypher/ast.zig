@@ -120,6 +120,20 @@ pub const PropertySelector = struct {
     keys: [][]const u8,
 };
 
+// Common struct types for operators to avoid type incompatibility
+pub const BinaryOperator = struct { left: *Expression, right: *Expression };
+pub const UnaryOperator = struct { expr: *Expression };
+pub const SubstringOperator = struct { expr: *Expression, start: *Expression, length: *Expression };
+pub const CountOperator = struct { expr: *Expression, distinct: bool };
+
+// Forward declarations needed for Expression union
+pub const MapLiteral = struct {
+    entries: []MapEntry,
+};
+
+pub const MapEntry = struct { key: []const u8, value: Expression };
+pub const ListLiteral = struct { items: []Expression };
+
 pub const Expression = union(enum) {
     // Primary
     variable: []const u8,
@@ -133,52 +147,45 @@ pub const Expression = union(enum) {
     list: ListLiteral,
     
     // Comparison Operators
-    eq: struct { left: *Expression, right: *Expression },      // =
-    ne: struct { left: *Expression, right: *Expression },      // <>
-    lt: struct { left: *Expression, right: *Expression },      // <
-    lte: struct { left: *Expression, right: *Expression },     // <=
-    gt: struct { left: *Expression, right: *Expression },      // >
-    gte: struct { left: *Expression, right: *Expression },     // >=
+    eq: BinaryOperator,      // =
+    ne: BinaryOperator,      // <>
+    lt: BinaryOperator,      // <
+    lte: BinaryOperator,     // <=
+    gt: BinaryOperator,      // >
+    gte: BinaryOperator,     // >=
     
     // Arithmetic Operators
-    add: struct { left: *Expression, right: *Expression },     // +
-    sub: struct { left: *Expression, right: *Expression },     // -
-    mul: struct { left: *Expression, right: *Expression },     // *
-    div: struct { left: *Expression, right: *Expression },     // /
-    mod: struct { left: *Expression, right: *Expression },     // %
+    add: BinaryOperator,     // +
+    sub: BinaryOperator,     // -
+    mul: BinaryOperator,     // *
+    div: BinaryOperator,     // /
+    mod: BinaryOperator,     // %
     
     // Logical Operators
-    logical_and: struct { left: *Expression, right: *Expression },     // AND
-    logical_or: struct { left: *Expression, right: *Expression },      // OR
-    logical_not: struct { expr: *Expression },                         // NOT
+    logical_and: BinaryOperator,     // AND
+    logical_or: BinaryOperator,      // OR
+    logical_not: UnaryOperator,      // NOT
     
     // String Functions
-    toUpper: struct { expr: *Expression },
-    toLower: struct { expr: *Expression },
-    trim: struct { expr: *Expression },
-    substring: struct { expr: *Expression, start: *Expression, length: *Expression },
+    toUpper: UnaryOperator,
+    toLower: UnaryOperator,
+    trim: UnaryOperator,
+    substring: SubstringOperator,
     
     // Mathematical Functions
-    abs: struct { expr: *Expression },
-    round: struct { expr: *Expression },
-    ceil: struct { expr: *Expression },
-    floor: struct { expr: *Expression },
-    sqrt: struct { expr: *Expression },
+    abs: UnaryOperator,
+    round: UnaryOperator,
+    ceil: UnaryOperator,
+    floor: UnaryOperator,
+    sqrt: UnaryOperator,
     
     // Aggregation Functions
-    count: struct { expr: *Expression, distinct: bool },
-    sum: struct { expr: *Expression },
-    avg: struct { expr: *Expression },
-    min: struct { expr: *Expression },
-    max: struct { expr: *Expression },
+    count: CountOperator,
+    sum: UnaryOperator,
+    avg: UnaryOperator,
+    min: UnaryOperator,
+    max: UnaryOperator,
 };
-
-pub const MapLiteral = struct {
-    entries: []MapEntry,
-};
-
-pub const MapEntry = struct { key: []const u8, value: Expression };
-pub const ListLiteral = struct { items: []Expression };
 
 pub fn deinitStatement(allocator: std.mem.Allocator, stmt: *Statement) void {
     switch (stmt.*) {
@@ -331,7 +338,11 @@ fn deinitExpr(allocator: std.mem.Allocator, e: *Expression) void {
         },
         
         // Aggregation Functions
-        .count, .sum, .avg, .min, .max => |*agg| {
+        .count => |*agg| {
+            deinitExpr(allocator, agg.expr);
+            allocator.destroy(agg.expr);
+        },
+        .sum, .avg, .min, .max => |*agg| {
             deinitExpr(allocator, agg.expr);
             allocator.destroy(agg.expr);
         },

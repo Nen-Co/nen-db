@@ -110,7 +110,7 @@ pub const ServerBatcher = struct {
         if (client_batch.size() > self.config.max_batch_size) {
             return ServerBatchResult{
                 .success = false,
-                .error = error.BatchTooLarge,
+                .err = error.BatchTooLarge,
                 .processed = 0,
             };
         }
@@ -231,7 +231,7 @@ pub const ServerBatcher = struct {
         // Compact from highest level down
         var level: i32 = @intCast(self.lsm_levels.len - 1);
         while (level >= 0) : (level -= 1) {
-            const level_idx = @intCast(level);
+            const level_idx = @as(u8, @intCast(level));
             const current_level = &self.lsm_levels[level_idx];
             
             if (current_level.batches.items.len > 1) {
@@ -262,7 +262,7 @@ pub const ServerBatcher = struct {
         
         // Merge adjacent batches
         var i: usize = 0;
-        while (i < current_level.batches.items.len - 1) {
+        while (i < current_level.batches.items.len - 1) : (i += 1) {
             const batch1 = current_level.batches.items[i];
             const batch2 = current_level.batches.items[i + 1];
             
@@ -280,38 +280,38 @@ pub const ServerBatcher = struct {
     }
     
     // Merge two batches into a single batch
-    fn mergeBatches(self: *Self, batch1: batch.Batch, batch2: batch.Batch, merged: *batch.Batch) !void {
-        var i1: usize = 0;
-        var i2: usize = 0;
+    fn mergeBatches(_: *Self, batch1: batch.Batch, batch2: batch.Batch, merged: *batch.Batch) !void {
+        var idx1: usize = 0;
+        var idx2: usize = 0;
         
-        while (i1 < batch1.count and i2 < batch2.count and !merged.isFull()) {
-            const msg1 = batch1.messages[i1];
-            const msg2 = batch2.messages[i2];
+        while (idx1 < batch1.count and idx2 < batch2.count and !merged.isFull()) {
+            const msg1 = batch1.messages[idx1];
+            const msg2 = batch2.messages[idx2];
             
             // Choose message with earlier timestamp
             if (msg1.timestamp <= msg2.timestamp) {
                 merged.messages[merged.count] = msg1;
                 merged.count += 1;
-                i1 += 1;
+                idx1 += 1;
             } else {
                 merged.messages[merged.count] = msg2;
                 merged.count += 1;
-                i2 += 1;
+                idx2 += 1;
             }
         }
         
         // Add remaining messages from batch1
-        while (i1 < batch1.count and !merged.isFull()) {
-            merged.messages[merged.count] = batch1.messages[i1];
+        while (idx1 < batch1.count and !merged.isFull()) {
+            merged.messages[merged.count] = batch1.messages[idx1];
             merged.count += 1;
-            i1 += 1;
+            idx1 += 1;
         }
         
         // Add remaining messages from batch2
-        while (i2 < batch2.count and !merged.isFull()) {
-            merged.messages[merged.count] = batch2.messages[i2];
+        while (idx2 < batch2.count and !merged.isFull()) {
+            merged.messages[merged.count] = batch2.messages[idx2];
             merged.count += 1;
-            i2 += 1;
+            idx2 += 1;
         }
     }
     
@@ -338,7 +338,7 @@ pub const ServerBatchResult = struct {
     success: bool,
     processed: u32 = 0,
     processing_time: u64 = 0,
-    error: ?anyerror = null,
+    err: ?anyerror = null,
 };
 
 // Server batch statistics

@@ -6,7 +6,7 @@ const std = @import("std");
 pub const pool = @import("memory/pool_v2.zig");
 pub const constants = @import("constants.zig");
 const wal_mod = @import("wal.zig");
-const query = @import("query/query.zig");
+const query = @import("query");
 
 pub const GraphDB = struct {
     // Global DB state
@@ -512,19 +512,19 @@ pub const GraphDB = struct {
     }
 
     /// Execute a compiled Cypher query with vector similarity search
-    pub fn executeCompiledQuery(self: *GraphDB, query: []const u8, params: query.compiler.QueryParams) !query.compiler.QueryResult {
+    pub fn executeCompiledQuery(self: *GraphDB, query_text: []const u8, params: query.compiler.QueryParams) !query.compiler.QueryResult {
         var compiler = query.compiler.CypherCompiler.init(self.allocator);
         defer compiler.deinit();
         
-        const compiled_query = try compiler.compile(query);
+        const compiled_query = try compiler.compile(query_text);
         defer compiled_query.deinit();
         
         return compiled_query.function(self.allocator, params);
     }
     
     /// Find nodes similar to a query vector using cosine similarity
-    pub fn findSimilarNodes(self: *GraphDB, query_vector: [256]f32, threshold: f32, limit: ?usize) ![]Node {
-        var similar_nodes = std.ArrayList(Node).init(self.allocator);
+    pub fn findSimilarNodes(self: *GraphDB, query_vector: [256]f32, threshold: f32, limit: ?usize) ![]pool.Node {
+        var similar_nodes = std.ArrayList(pool.Node).init(self.allocator);
         defer similar_nodes.deinit();
         
         // Search through all nodes with embeddings
@@ -548,13 +548,13 @@ pub const GraphDB = struct {
         }
         
         // Sort by similarity (highest first)
-        std.mem.sort(Node, similar_nodes.items, query_vector, self.compareBySimilarity);
+        std.mem.sort(pool.Node, similar_nodes.items, query_vector, self.compareBySimilarity);
         
         return similar_nodes.toOwnedSlice();
     }
     
     /// Calculate cosine similarity between two vectors
-    pub fn calculateCosineSimilarity(self: *GraphDB, vec1: [256]f32, vec2: [256]f32) f32 {
+    pub fn calculateCosineSimilarity(_: *GraphDB, vec1: [256]f32, vec2: [256]f32) f32 {
         var dot_product: f32 = 0.0;
         var norm1: f32 = 0.0;
         var norm2: f32 = 0.0;
@@ -572,7 +572,7 @@ pub const GraphDB = struct {
     }
     
     /// Get node embedding by node ID
-    pub fn getNodeEmbedding(self: *GraphDB, node_id: u64) ?*const Embedding {
+    pub fn getNodeEmbedding(self: *GraphDB, node_id: u64) ?*const pool.Embedding {
         var embedding_iter = self.embedding_pool.iterator();
         while (embedding_iter.next()) |embedding_entry| {
             const embedding = embedding_entry.value_ptr;
@@ -591,7 +591,7 @@ pub const GraphDB = struct {
             @memcpy(existing_embedding.vector, vector);
         } else {
             // Create new embedding
-            const embedding = Embedding{
+            const embedding = pool.Embedding{
                 .node_id = node_id,
                 .vector = vector,
             };
@@ -603,7 +603,7 @@ pub const GraphDB = struct {
     }
     
     /// Hybrid query: Combine vector similarity with graph traversal
-    pub fn hybridQuery(self: *GraphDB, query_vector: [256]f32, graph_pattern: []const u8, threshold: f32, limit: usize) !query.compiler.QueryResult {
+    pub fn hybridQuery(self: *GraphDB, query_vector: [256]f32, _: []const u8, threshold: f32, limit: usize) !query.compiler.QueryResult {
         var result = query.compiler.QueryResult.init(self.allocator);
         errdefer result.deinit();
         
@@ -628,7 +628,7 @@ pub const GraphDB = struct {
     }
     
     /// Compare nodes by similarity to query vector (for sorting)
-    fn compareBySimilarity(self: *GraphDB, node1: Node, node2: Node, query_vector: [256]f32) bool {
+    fn compareBySimilarity(self: *GraphDB, node1: pool.Node, node2: pool.Node, query_vector: [256]f32) bool {
         const embedding1 = self.getNodeEmbedding(node1.id) orelse return false;
         const embedding2 = self.getNodeEmbedding(node2.id) orelse return true;
         

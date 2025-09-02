@@ -61,7 +61,6 @@ pub const batch = struct {
     pub const enable_atomic_commit: bool = true;
     pub const enable_batch_statistics: bool = true;
 };
-};
 
 // Data Structure Constraints
 pub const data = struct {

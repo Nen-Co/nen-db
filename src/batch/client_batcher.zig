@@ -175,19 +175,19 @@ pub const ClientBatcher = struct {
     
     // Flush node operations as homogeneous batch
     fn flushNodeOperations(self: *Self) !void {
-        var batch = batch.Batch.init();
+        var new_batch = batch.Batch.init();
         var flushed_count: u32 = 0;
         
         for (self.node_operations.items) |op| {
-            if (batch.isFull()) break;
+            if (new_batch.isFull()) break;
             
-            try batch.addCreateNode(std.mem.bytesAsValue(batch.pool.Node, op.data).*);
+            try new_batch.addCreateNode(std.mem.bytesAsValue(batch.pool.Node, op.data).*);
             flushed_count += 1;
         }
         
         // Execute batch
         // TODO: Send to server via network
-        _ = batch;
+        // new_batch will be sent to server
         
         // Remove flushed operations
         self.node_operations.shrinkRetainingCapacity(self.node_operations.items.len - flushed_count);
@@ -196,19 +196,19 @@ pub const ClientBatcher = struct {
     
     // Flush edge operations as homogeneous batch
     fn flushEdgeOperations(self: *Self) !void {
-        var batch = batch.Batch.init();
+        var new_batch = batch.Batch.init();
         var flushed_count: u32 = 0;
         
         for (self.edge_operations.items) |op| {
-            if (batch.isFull()) break;
+            if (new_batch.isFull()) break;
             
-            try batch.addCreateEdge(std.mem.bytesAsValue(batch.pool.Edge, op.data).*);
+            try new_batch.addCreateEdge(std.mem.bytesAsValue(batch.pool.Edge, op.data).*);
             flushed_count += 1;
         }
         
         // Execute batch
         // TODO: Send to server via network
-        _ = batch;
+        // new_batch will be sent to server
         
         // Remove flushed operations
         self.edge_operations.shrinkRetainingCapacity(self.edge_operations.items.len - flushed_count);
@@ -217,22 +217,22 @@ pub const ClientBatcher = struct {
     
     // Flush vector operations as homogeneous batch
     fn flushVectorOperations(self: *Self) !void {
-        var batch = batch.Batch.init();
+        var new_batch = batch.Batch.init();
         var flushed_count: u32 = 0;
         
         for (self.vector_operations.items) |op| {
-            if (batch.isFull()) break;
+            if (new_batch.isFull()) break;
             
             // Parse embedding data (node_id + vector)
             const node_id = std.mem.readIntLittle(u64, op.data[0..8]);
             const vector = std.mem.bytesAsValue([256]f32, op.data[8..264]);
-            try batch.addSetEmbedding(node_id, vector.*);
+            try new_batch.addSetEmbedding(node_id, vector.*);
             flushed_count += 1;
         }
         
         // Execute batch
         // TODO: Send to server via network
-        _ = batch;
+        // new_batch will be sent to server
         
         // Remove flushed operations
         self.vector_operations.shrinkRetainingCapacity(self.vector_operations.items.len - flushed_count);
@@ -258,7 +258,7 @@ pub const ClientBatcher = struct {
     
     // Adaptive batching: adjust batch size based on performance
     fn adjustBatchSize(self: *Self, flush_duration: u64) !void {
-        const avg_flush_time = self.stats.total_flush_time / @max(self.stats.flushes_performed, 1);
+        _ = self.stats.total_flush_time / @max(self.stats.flushes_performed, 1);
         const target_flush_time = 1_000_000; // 1ms target
         
         if (flush_duration > target_flush_time * 2) {

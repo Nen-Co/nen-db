@@ -194,13 +194,14 @@ pub fn build(b: *std.Build) void {
     const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
     test_step.dependOn(&run_monitoring_tests.step);
 
+
+
     // Cypher parser tests (query language subset)
     const query_tests = b.addTest(.{
         .root_source_file = b.path("tests/legacy/test_cypher_parser.zig"),
         .target = target,
         .optimize = optimize,
     });
-    // Expose the query module root path for direct import
     query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     const run_query_tests = b.addRunArtifact(query_tests);
     test_step.dependOn(&run_query_tests.step);
@@ -387,6 +388,23 @@ pub fn build(b: *std.Build) void {
     // Build-only step for CI (doesn't run the demo)
     const build_networking_demo_step = b.step("build-networking-demo", "Build networking demo executable");
     build_networking_demo_step.dependOn(&networking_demo.step);
+
+    // NenCache module for conversation storage demo
+    const nencache_mod = b.createModule(.{ .root_source_file = b.path("../nen-cache/src/main.zig"), .target = target, .optimize = optimize });
+
+    // Conversation Storage Demo
+    const conversation_demo = b.addExecutable(.{
+        .name = "conversation-storage-demo",
+        .root_source_file = b.path("examples/conversation_storage_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    conversation_demo.root_module.addImport("nendb", lib_mod);
+    conversation_demo.root_module.addImport("nencache", nencache_mod);
+
+    const run_conversation_demo = b.addRunArtifact(conversation_demo);
+    const conversation_demo_step = b.step("conversation-demo", "Run conversation storage demo");
+    conversation_demo_step.dependOn(&run_conversation_demo.step);
 
     // HTTP Server executable using nen-net
     const server_exe = b.addExecutable(.{

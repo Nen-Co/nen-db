@@ -51,7 +51,7 @@ fn run_demo() !void {
 
     // Initialize database
     var db: GraphDB = undefined;
-    try db.init_inplace();
+    try db.init_inplace(std.heap.page_allocator);
     defer db.deinit();
 
     try io.Terminal.infoln("✅ Database initialized", .{});
