@@ -24,7 +24,7 @@ pub const Client = struct {
         return Client{
             .config = config,
             .allocator = allocator,
-            .connections = std.ArrayList(ClientConnection){ .allocator = allocator, .items = &.{}, .capacity = 0 },
+            .connections = std.ArrayList(ClientConnection).init(allocator),
         };
     }
 

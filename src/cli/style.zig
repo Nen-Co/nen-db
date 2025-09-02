@@ -6,7 +6,7 @@ pub const Style = struct {
 
     pub fn detect() Style {
         const stdout = std.io.getStdOut();
-        const is_tty = stdout.isTty();
+        const is_tty = stdout.supportsAnsiEscapeCodes();
         return Style{ .use_color = is_tty };
     }
 
