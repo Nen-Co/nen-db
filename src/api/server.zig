@@ -130,7 +130,7 @@ pub const EnhancedServer = struct {
         return EnhancedServer{
             .config = config,
             .allocator = allocator,
-            .connections = std.ArrayList(Connection).init(allocator),
+            .connections = std.ArrayList(Connection){ .allocator = allocator, .items = &.{}, .capacity = 0 },
         };
     }
 

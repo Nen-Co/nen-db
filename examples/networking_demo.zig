@@ -14,7 +14,7 @@ pub fn main() !void {
     defer server_thread.join();
 
     // Give the server time to start
-    std.time.sleep(100 * std.time.ns_per_ms);
+    std.Thread.sleep(100 * std.time.ns_per_ms);
 
     // Create and test the client
     std.debug.print("🔌 Testing client connection...\n", .{});
