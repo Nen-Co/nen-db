@@ -126,9 +126,11 @@ pub fn build(b: *std.Build) void {
 
     // 1. UNIT TESTS (Fast, isolated, no external dependencies)
     const unit_tests = b.addTest(.{
-        .root_source_file = b.path("tests/unit/unit_tests.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/unit/unit_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     unit_tests.root_module.addImport("nendb", lib_mod);
 
@@ -138,9 +140,11 @@ pub fn build(b: *std.Build) void {
 
     // 2. INTEGRATION TESTS (Slower, real data, external dependencies)
     const integration_tests = b.addTest(.{
-        .root_source_file = b.path("tests/integration/integration_tests.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/integration/integration_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     integration_tests.root_module.addImport("nendb", lib_mod);
     integration_tests.root_module.addImport("monitoring", monitoring_mod);
@@ -151,9 +155,11 @@ pub fn build(b: *std.Build) void {
 
     // 3. PERFORMANCE TESTS (Benchmarking, performance assertions)
     const performance_tests = b.addTest(.{
-        .root_source_file = b.path("tests/performance/performance_tests.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/performance/performance_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     performance_tests.root_module.addImport("nendb", lib_mod);
 
@@ -163,9 +169,11 @@ pub fn build(b: *std.Build) void {
 
     // 4. STRESS TESTS (Long running, edge cases, memory pressure)
     const stress_tests = b.addTest(.{
-        .root_source_file = b.path("tests/stress/stress_tests.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/stress/stress_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     stress_tests.root_module.addImport("nendb", lib_mod);
 
@@ -177,9 +185,11 @@ pub fn build(b: *std.Build) void {
 
     // Tests for production version
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/lib.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/lib.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
@@ -188,18 +198,22 @@ pub fn build(b: *std.Build) void {
 
     // Also run GraphDB tests
     const graphdb_tests = b.addTest(.{
-        .root_source_file = b.path("src/graphdb.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/graphdb.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     const run_graphdb_tests = b.addRunArtifact(graphdb_tests);
     test_step.dependOn(&run_graphdb_tests.step);
 
     // Resource monitoring tests (legacy - moved to tests/legacy/)
     const monitoring_tests = b.addTest(.{
-        .root_source_file = b.path("tests/legacy/test_resource_monitor.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/legacy/test_resource_monitor.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     monitoring_tests.root_module.addImport("monitoring", monitoring_mod);
 
@@ -210,9 +224,11 @@ pub fn build(b: *std.Build) void {
 
     // Cypher parser tests (query language subset)
     const query_tests = b.addTest(.{
-        .root_source_file = b.path("tests/legacy/test_cypher_parser.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/legacy/test_cypher_parser.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     const run_query_tests = b.addRunArtifact(query_tests);
@@ -220,9 +236,11 @@ pub fn build(b: *std.Build) void {
 
     // New Cypher parser tests
     const query_tests_new = b.addTest(.{
-        .root_source_file = b.path("tests/legacy/test_cypher_parser_new.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/legacy/test_cypher_parser_new.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     query_tests_new.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     const run_query_tests_new = b.addRunArtifact(query_tests_new);
@@ -230,9 +248,11 @@ pub fn build(b: *std.Build) void {
 
     // Advanced Cypher features tests
     const query_tests_advanced = b.addTest(.{
-        .root_source_file = b.path("tests/legacy/test_cypher_advanced.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/legacy/test_cypher_advanced.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     query_tests_advanced.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     const run_query_tests_advanced = b.addRunArtifact(query_tests_advanced);
@@ -240,9 +260,11 @@ pub fn build(b: *std.Build) void {
 
     // Cypher integration tests
     const query_tests_integration = b.addTest(.{
-        .root_source_file = b.path("tests/legacy/test_cypher_integration.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/legacy/test_cypher_integration.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     query_tests_integration.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
     query_tests_integration.root_module.addImport("nendb", lib_mod);
@@ -441,9 +463,11 @@ pub fn build(b: *std.Build) void {
 
     // HTTP API tests using nen-net
     const http_tests = b.addTest(.{
-        .root_source_file = b.path("src/api/http_test.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/api/http_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     http_tests.root_module.addImport("nen-net", nen_net_mod);
 
