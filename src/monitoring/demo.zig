@@ -6,7 +6,7 @@ const ResourceMonitor = @import("resource_monitor.zig").ResourceMonitor;
 const ResourceStats = @import("resource_monitor.zig").ResourceStats;
 
 pub fn main() !void {
-    const stdout = std.Io.getStdOut().writer();
+    const stdout = std.io.getStdOut().writer();
 
     try stdout.writeAll("🚀 NenDB Resource Monitor Demo\n");
     try stdout.writeAll("==============================\n\n");

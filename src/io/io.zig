@@ -333,7 +333,7 @@ pub const Time = struct {
 // CLI utilities with static buffers
 pub const CLI = struct {
     pub inline fn promptStatic(comptime message: []const u8) !String.StaticBuffer {
-        const stdin = std.Io.getStdIn().reader();
+        const stdin = std.io.getStdIn().reader();
         const stderr = std.io.getStdErr().writer();
         try stderr.print("{s}: ", .{message});
 
@@ -354,7 +354,7 @@ pub const CLI = struct {
         const stderr = std.io.getStdErr().writer();
         try stderr.print("{s} (y/N): ", .{message});
 
-        const stdin = std.Io.getStdIn().reader();
+        const stdin = std.io.getStdIn().reader();
         var byte: [1]u8 = undefined;
         _ = stdin.read(&byte) catch return false;
 
@@ -362,7 +362,7 @@ pub const CLI = struct {
     }
 
     pub inline fn readLine() !String.StaticBuffer {
-        const stdin = std.Io.getStdIn().reader();
+        const stdin = std.io.getStdIn().reader();
         var buf = String.StaticBuffer.init();
         var byte: [1]u8 = undefined;
 

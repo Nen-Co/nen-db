@@ -869,7 +869,7 @@ pub const GraphDB = struct {
     pub inline fn import_nodes_csv(self: *GraphDB, file_path: []const u8) !void {
         var f = try std.fs.cwd().openFile(file_path, .{ .mode = .read_only });
         defer f.close();
-        var br = std.Io.bufferedReader(f.reader());
+        var br = std.io.bufferedReader(f.reader());
         var r = br.reader();
         // skip header line
         _ = try r.readUntilDelimiterAlloc(std.heap.page_allocator, '\n', 1024 * 1024);

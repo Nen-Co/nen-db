@@ -88,7 +88,7 @@ pub const Response = struct {
 
     pub fn json(self: Response) []const u8 {
         var buf: [1024]u8 = undefined;
-        var stream = std.Io.fixedBufferStream(&buf);
+        var stream = std.io.fixedBufferStream(&buf);
         var writer = stream.writer();
 
         writer.writeAll("{\"success\":") catch return "{}";
