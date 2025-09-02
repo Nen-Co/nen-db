@@ -5,12 +5,11 @@ const std = @import("std");
 const api = @import("nendb").api;
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.writeAll("🚀 NenDB Enhanced Networking Demo\n");
-    try stdout.writeAll("==================================\n\n");
+    std.debug.print("🚀 NenDB Enhanced Networking Demo\n", .{});
+    std.debug.print("==================================\n\n", .{});
 
     // Start the enhanced server in a separate thread
-    try stdout.writeAll("📡 Starting enhanced server...\n");
+    std.debug.print("📡 Starting enhanced server...\n", .{});
     const server_thread = try std.Thread.spawn(.{}, runServer, .{});
     defer server_thread.join();
 
@@ -18,10 +17,10 @@ pub fn main() !void {
     std.time.sleep(100 * std.time.ns_per_ms);
 
     // Create and test the client
-    try stdout.writeAll("🔌 Testing client connection...\n");
+    std.debug.print("🔌 Testing client connection...\n", .{});
     try testClient();
 
-    try stdout.writeAll("\n✅ Demo completed successfully!\n");
+    std.debug.print("\n✅ Demo completed successfully!\n", .{});
 }
 
 fn runServer() void {
