@@ -670,16 +670,20 @@ pub const GraphDB = struct {
 
         // Compute and write snapshot header (magic, version, lsn, used_count, payload_len, payload_crc), then full node array
         const lsn = try self.wal.total_entries();
-        var w = snap.writer();
-        try w.writeInt(u32, SNAP_MAGIC, .little);
-        try w.writeInt(u16, SNAP_VERSION, .little);
-        try w.writeInt(u64, lsn, .little);
-        try w.writeInt(u32, self.node_pool.used_count, .little);
+        
+        // Write header directly to file
+        var header: [30]u8 = undefined;
+        std.mem.writeInt(u32, header[0..4], SNAP_MAGIC, .little);
+        std.mem.writeInt(u16, header[4..6], SNAP_VERSION, .little);
+        std.mem.writeInt(u64, header[6..14], lsn, .little);
+        std.mem.writeInt(u32, header[14..18], self.node_pool.used_count, .little);
         const payload = std.mem.asBytes(&self.node_pool.nodes);
-        try w.writeInt(u64, @as(u64, payload.len), .little);
+        std.mem.writeInt(u64, header[18..26], @as(u64, payload.len), .little);
         const crc = std.hash.crc.Crc32.hash(payload);
-        try w.writeInt(u32, crc, .little);
-        // Persist all nodes array; static memory layout keeps it simple
+        std.mem.writeInt(u32, header[26..30], crc, .little);
+        
+        // Write header and payload
+        try snap.writeAll(&header);
         try snap.writeAll(payload);
         try snap.sync();
 
@@ -737,21 +741,26 @@ pub const GraphDB = struct {
         defer file.close();
 
         // Read header (new format) or fallback to legacy
-        var buffer: [1024]u8 = undefined;
-        var r = file.reader(&buffer);
+        var header_buffer: [32]u8 = undefined;
+        const bytes_read = file.readAll(&header_buffer) catch return;
+        if (bytes_read < 4) return;
+        
+        const maybe_magic = std.mem.readInt(u32, header_buffer[0..4], .little);
         var lsn: u64 = 0;
-        const maybe_magic = r.readInt(u32, .little) catch |e| switch (e) {
-            error.EndOfStream => return,
-            else => return,
-        };
+        
         if (maybe_magic == SNAP_MAGIC) {
-            const version = r.readInt(u16, .little) catch return;
+            if (bytes_read < 6) return;
+            const version = std.mem.readInt(u16, header_buffer[4..6], .little);
             if (version != SNAP_VERSION) return;
-            lsn = r.readInt(u64, .little) catch return;
-            const used = r.readInt(u32, .little) catch return;
+            
+            if (bytes_read < 14) return;
+            lsn = std.mem.readInt(u64, header_buffer[6..14], .little);
+            const used = std.mem.readInt(u32, header_buffer[14..18], .little);
             _ = used;
-            const payload_len = r.readInt(u64, .little) catch return;
-            const crc_stored = r.readInt(u32, .little) catch return;
+            
+            if (bytes_read < 26) return;
+            const payload_len = std.mem.readInt(u64, header_buffer[18..26], .little);
+            const crc_stored = std.mem.readInt(u32, header_buffer[26..30], .little);
             const buf = std.mem.asBytes(&self.node_pool.nodes);
             if (payload_len > buf.len) return;
             const read_n = file.readAll(buf[0..@intCast(payload_len)]) catch return;
@@ -762,15 +771,20 @@ pub const GraphDB = struct {
                 if (!std.mem.endsWith(u8, snap_path, ".bak")) {
                     file.close();
                     file = cwd.openFile(snap_bak_path, .{ .mode = .read_only }) catch return;
-                    var r2 = file.reader();
-                    _ = r2.readInt(u32, .little) catch return; // magic
-                    const version2 = r2.readInt(u16, .little) catch return;
+                    
+                    // Read header from backup file
+                    var header_buffer2: [32]u8 = undefined;
+                    const bytes_read2 = file.readAll(&header_buffer2) catch return;
+                    if (bytes_read2 < 30) return;
+                    
+                    _ = std.mem.readInt(u32, header_buffer2[0..4], .little); // magic
+                    const version2 = std.mem.readInt(u16, header_buffer2[4..6], .little);
                     if (version2 != SNAP_VERSION) return;
-                    lsn = r2.readInt(u64, .little) catch return;
-                    const used2 = r2.readInt(u32, .little) catch return;
+                    lsn = std.mem.readInt(u64, header_buffer2[6..14], .little);
+                    const used2 = std.mem.readInt(u32, header_buffer2[14..18], .little);
                     _ = used2;
-                    const payload_len2 = r2.readInt(u64, .little) catch return;
-                    const crc_stored2 = r2.readInt(u32, .little) catch return;
+                    const payload_len2 = std.mem.readInt(u64, header_buffer2[18..26], .little);
+                    const crc_stored2 = std.mem.readInt(u32, header_buffer2[26..30], .little);
                     const buf2 = std.mem.asBytes(&self.node_pool.nodes);
                     if (payload_len2 > buf2.len) return;
                     const read_n2 = file.readAll(buf2[0..@intCast(payload_len2)]) catch return;

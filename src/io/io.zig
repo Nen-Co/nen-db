@@ -153,7 +153,7 @@ pub const Terminal = struct {
     };
 
     pub inline fn printColor(color: []const u8, comptime fmt: []const u8, args: anytype) !void {
-        const stderr_file = std.fs.File{ .handle = 2 };
+        const stderr_file = std.fs.File{ .handle = @as(std.posix.fd_t, 2) };
 
         // Format the message first
         var msg_buffer: [1024]u8 = undefined;
