@@ -78,12 +78,12 @@ const ProfileSession = struct {
     total_cache_hits: u64,
     total_cache_misses: u64,
 
-    pub fn init(mode: ProfileConfig.mode) ProfileSession {
+    pub fn init(mode: ProfileConfig.mode) !ProfileSession {
         return .{
             .mode = mode,
             .start_time = std.time.milliTimestamp(),
             .end_time = 0,
-            .samples = std.ArrayList(ProfileData).init(std.heap.page_allocator),
+            .samples = try std.ArrayList(ProfileData).initCapacity(std.heap.page_allocator, 0),
             .total_operations = 0,
             .peak_memory = 0,
             .total_io = 0,
@@ -93,11 +93,11 @@ const ProfileSession = struct {
     }
 
     pub fn deinit(self: *ProfileSession) void {
-        self.samples.deinit();
+        self.samples.deinit(std.heap.page_allocator);
     }
 
     pub fn addSample(self: *ProfileSession, data: ProfileData) !void {
-        try self.samples.append(data);
+        try self.samples.append(std.heap.page_allocator, data);
 
         // Update totals
         self.total_operations = data.operation_count;

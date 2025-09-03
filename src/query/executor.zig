@@ -3,26 +3,37 @@
 
 const std = @import("std");
 const cypher = @import("cypher/ast.zig");
-const nendb = @import("../lib.zig");
-const algorithms = @import("../algorithms/algorithms.zig");
+
+// These will be imported via the build system when this module is used
+// For now, we'll use generic types that can be specialized by the build system
+const GraphDB = @TypeOf(@as(*anyopaque, undefined));
+const Node = @TypeOf(@as(*anyopaque, undefined));
+const Edge = @TypeOf(@as(*anyopaque, undefined));
+
+// Constants that will be imported via the build system
+const constants = struct {
+    pub const data = struct {
+        pub const edge_props_size = 128;
+    };
+};
 
 pub const QueryExecutor = struct {
-    db: *nendb.GraphDB,
+    db: *GraphDB,
     allocator: std.mem.Allocator,
     variables: std.StringHashMap(QueryValue),
     current_row: QueryRow,
     // Track matched nodes and relationships for variable lookup
-    matched_nodes: std.StringHashMap(*nendb.Node),
-    matched_relationships: std.StringHashMap(*nendb.Edge),
+    matched_nodes: std.StringHashMap(*Node),
+    matched_relationships: std.StringHashMap(*Edge),
 
-    pub fn init(db: *nendb.GraphDB, allocator: std.mem.Allocator) QueryExecutor {
+    pub fn init(db: *GraphDB, allocator: std.mem.Allocator) QueryExecutor {
         return QueryExecutor{
             .db = db,
             .allocator = allocator,
             .variables = std.StringHashMap(QueryValue).init(allocator),
             .current_row = QueryRow.init(allocator),
-            .matched_nodes = std.StringHashMap(*nendb.Node).init(allocator),
-            .matched_relationships = std.StringHashMap(*nendb.Edge).init(allocator),
+            .matched_nodes = std.StringHashMap(*Node).init(allocator),
+            .matched_relationships = std.StringHashMap(*Edge).init(allocator),
         };
     }
 
@@ -437,7 +448,7 @@ pub const QueryExecutor = struct {
 
         // Try to find a node in the database
         // For now, we'll create a simple node or find an existing one
-        var node: nendb.Node = undefined;
+        var node: Node = undefined;
 
         if (node_pattern.variable) |var_name| {
             // Check if we already have this variable
@@ -447,7 +458,7 @@ pub const QueryExecutor = struct {
                 // Create a new node or find one in the database
                 // For now, create a simple node with ID based on variable name
                 const node_id = std.hash.Wyhash.hash(0, var_name);
-                node = nendb.Node{
+                node = Node{
                     .id = node_id,
                     .kind = if (node_pattern.labels.len > 0) 1 else 0,
                     .props = [_]u8{0} ** 128,
@@ -463,7 +474,7 @@ pub const QueryExecutor = struct {
                 };
 
                 // Store the node for future reference
-                const node_ptr = try self.allocator.create(nendb.Node);
+                const node_ptr = try self.allocator.create(Node);
                 node_ptr.* = node;
                 try self.matched_nodes.put(var_name, node_ptr);
             }
@@ -478,7 +489,7 @@ pub const QueryExecutor = struct {
 
         // Try to find a relationship in the database
         // For now, we'll create a simple edge or find an existing one
-        var edge: nendb.Edge = undefined;
+        var edge: Edge = undefined;
 
         if (rel_pattern.variable) |var_name| {
             // Check if we already have this variable
@@ -488,11 +499,11 @@ pub const QueryExecutor = struct {
                 // Create a new edge or find one in the database
                 // For now, create a simple edge with IDs based on variable name
                 const edge_id = std.hash.Wyhash.hash(0, var_name);
-                edge = nendb.Edge{
+                edge = Edge{
                     .from = edge_id,
                     .to = edge_id + 1,
                     .label = if (rel_pattern.types.len > 0) 1 else 0,
-                    .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
+                    .props = [_]u8{0} ** constants.data.edge_props_size,
                 };
 
                 // Try to insert the edge (it might already exist)
@@ -505,7 +516,7 @@ pub const QueryExecutor = struct {
                 };
 
                 // Store the edge for future reference
-                const edge_ptr = try self.allocator.create(nendb.Edge);
+                const edge_ptr = try self.allocator.create(Edge);
                 edge_ptr.* = edge;
                 try self.matched_relationships.put(var_name, edge_ptr);
             }
@@ -523,7 +534,7 @@ pub const QueryExecutor = struct {
         // Generate a new node ID
         const node_id = std.hash.Wyhash.hash(0, var_name);
 
-        const node = nendb.Node{
+        const node = Node{
             .id = node_id,
             .kind = if (node_pattern.labels.len > 0) 1 else 0,
             .props = [_]u8{0} ** 128, // For now, empty properties
@@ -543,11 +554,11 @@ pub const QueryExecutor = struct {
         std.debug.print("Creating relationship: var={?s}, types={any}\n", .{ rel_pattern.variable, rel_pattern.types });
 
         // For now, create a simple edge
-        const edge = nendb.Edge{
+        const edge = Edge{
             .from = 1, // Would get from context
             .to = 2, // Would get from context
             .label = 1,
-            .props = [_]u8{0} ** nendb.constants.data.edge_props_size,
+            .props = [_]u8{0} ** constants.data.edge_props_size,
         };
 
         try self.db.insert_edge(edge);
@@ -851,7 +862,7 @@ pub const QueryExecutor = struct {
         return .null;
     }
 
-    fn get_node_property(_: *QueryExecutor, node: nendb.Node, key: []const u8) !QueryValue {
+    fn get_node_property(_: *QueryExecutor, node: Node, key: []const u8) !QueryValue {
         // For now, return a placeholder based on common node properties
         if (std.mem.eql(u8, key, "id")) {
             return .{ .integer = node.id };
@@ -871,7 +882,7 @@ pub const QueryExecutor = struct {
         return .null;
     }
 
-    fn get_edge_property(_: *QueryExecutor, edge: nendb.Edge, key: []const u8) !QueryValue {
+    fn get_edge_property(_: *QueryExecutor, edge: Edge, key: []const u8) !QueryValue {
         // For now, return a placeholder based on common edge properties
         if (std.mem.eql(u8, key, "from")) {
             return .{ .integer = edge.from };
@@ -1019,9 +1030,9 @@ pub const QueryResult = struct {
     rows: std.ArrayList(QueryRow),
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) QueryResult {
+    pub fn init(allocator: std.mem.Allocator) !QueryResult {
         return QueryResult{
-            .rows = std.ArrayList(QueryRow).init(allocator),
+            .rows = try std.ArrayList(QueryRow).initCapacity(allocator, 0),
             .allocator = allocator,
         };
     }
@@ -1030,13 +1041,13 @@ pub const QueryResult = struct {
         for (self.rows.items) |*row| {
             row.deinit();
         }
-        self.rows.deinit();
+        self.rows.deinit(self.allocator);
     }
 
     pub fn add_row(self: *QueryResult, row: QueryRow) !void {
         var new_row = QueryRow.init(self.allocator);
         try new_row.copy_from(&row);
-        try self.rows.append(new_row);
+        try self.rows.append(self.allocator, new_row);
     }
 
     pub fn count(self: *const QueryResult) usize {
@@ -1093,8 +1104,8 @@ pub const QueryRow = struct {
 };
 
 pub const QueryValue = union(enum) {
-    node: nendb.Node,
-    edge: nendb.Edge,
+    node: Node,
+    edge: Edge,
     integer: i64,
     float: f64,
     string: []const u8,

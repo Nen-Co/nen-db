@@ -24,18 +24,20 @@ pub const LSMLevel = struct {
     max_size: u32,
     current_size: u32,
     batches: std.ArrayList(batch.Batch),
+    allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator, level: u8, max_size: u32) Self {
+    pub fn init(allocator: std.mem.Allocator, level: u8, max_size: u32) !Self {
         return Self{
             .level_id = level,
             .max_size = max_size,
             .current_size = 0,
-            .batches = std.ArrayList(batch.Batch).init(allocator),
+            .batches = try std.ArrayList(batch.Batch).initCapacity(allocator, 0),
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.batches.deinit();
+        self.batches.deinit(self.allocator);
     }
 
     pub fn addBatch(self: *Self, new_batch: batch.Batch) !bool {
@@ -43,7 +45,7 @@ pub const LSMLevel = struct {
             return false; // Level is full
         }
 
-        try self.batches.append(new_batch);
+        try self.batches.append(self.allocator, new_batch);
         self.current_size += new_batch.size();
         return true;
     }

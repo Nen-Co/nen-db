@@ -81,12 +81,12 @@ const MemoryAnalysis = struct {
     peak_memory_usage: usize,
     memory_leak_suspected: bool,
 
-    pub fn init(mode: MemoryConfig.mode) MemoryAnalysis {
+    pub fn init(mode: MemoryConfig.mode) !MemoryAnalysis {
         return .{
             .mode = mode,
             .start_time = std.time.milliTimestamp(),
             .end_time = 0,
-            .snapshots = std.ArrayList(MemorySnapshot).init(std.heap.page_allocator),
+            .snapshots = try std.ArrayList(MemorySnapshot).initCapacity(std.heap.page_allocator, 0),
             .total_allocations = 0,
             .total_deallocations = 0,
             .peak_memory_usage = 0,
@@ -95,11 +95,11 @@ const MemoryAnalysis = struct {
     }
 
     pub fn deinit(self: *MemoryAnalysis) void {
-        self.snapshots.deinit();
+        self.snapshots.deinit(std.heap.page_allocator);
     }
 
     pub fn addSnapshot(self: *MemoryAnalysis, snapshot: MemorySnapshot) !void {
-        try self.snapshots.append(snapshot);
+        try self.snapshots.append(std.heap.page_allocator, snapshot);
 
         // Update totals
         self.total_allocations = snapshot.allocation_count;

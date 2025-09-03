@@ -1155,8 +1155,7 @@ inline fn acquireLock(self: *Wal) !void {
     defer f.close();
 
     // Write marker for diagnostics
-    var w = f.writer();
-    _ = w.writeAll("locked\n") catch {};
+    _ = f.writeAll("locked\n") catch {};
     _ = f.sync() catch {};
     self.has_lock = true;
 }

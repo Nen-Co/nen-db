@@ -120,8 +120,8 @@ pub const CypherCompiler = struct {
     }
 
     fn generate_zig_code(self: *CypherCompiler, optimized: OptimizedQuery, query_id: u64) ![]const u8 {
-        var code = std.ArrayList(u8).init(self.allocator);
-        defer code.deinit();
+        var code = std.ArrayList(u8).initCapacity(self.allocator, 0);
+        defer code.deinit(self.allocator);
 
         // Generate optimized Zig function
         try code.writer().print(
@@ -206,9 +206,9 @@ const QueryPlan = struct {
 const QueryResult = struct {
     rows: std.ArrayList(QueryRow),
 
-    pub fn init(allocator: std.mem.Allocator) QueryResult {
+    pub fn init(allocator: std.mem.Allocator) !QueryResult {
         return QueryResult{
-            .rows = std.ArrayList(QueryRow).init(allocator),
+            .rows = try std.ArrayList(QueryRow).initCapacity(allocator, 0),
         };
     }
 
@@ -216,11 +216,11 @@ const QueryResult = struct {
         for (self.rows.items) |*row| {
             row.deinit();
         }
-        self.rows.deinit();
+        self.rows.deinit(self.allocator);
     }
 
     pub fn add_row(self: *QueryResult, row: QueryRow) !void {
-        try self.rows.append(row);
+        try self.rows.append(self.allocator, row);
     }
 };
 

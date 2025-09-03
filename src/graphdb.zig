@@ -263,13 +263,13 @@ pub const GraphDB = struct {
         var iter = self.get_edges_from(node_id);
         while (iter.next()) |edge| {
             const idx = @as(u32, @intCast(@intFromPtr(edge) - @intFromPtr(&self.edge_pool.edges[0])));
-            edges_to_delete.append(idx) catch break;
+            edges_to_delete.append(self.allocator, idx) catch break;
         }
 
         // Find incoming edges
         for (self.edge_pool.edges, 0..) |edge, i| {
             if (edge.to == node_id and edge.from != 0) { // Check if edge is actually used
-                edges_to_delete.append(@intCast(i)) catch break;
+                edges_to_delete.append(self.allocator, @intCast(i)) catch break;
             }
         }
 
@@ -524,8 +524,8 @@ pub const GraphDB = struct {
 
     /// Find nodes similar to a query vector using cosine similarity
     pub fn findSimilarNodes(self: *GraphDB, query_vector: [256]f32, threshold: f32, limit: ?usize) ![]pool.Node {
-        var similar_nodes = std.ArrayList(pool.Node).init(self.allocator);
-        defer similar_nodes.deinit();
+        var similar_nodes = std.ArrayList(pool.Node).initCapacity(self.allocator, 0);
+        defer similar_nodes.deinit(self.allocator);
 
         // Search through all nodes with embeddings
         var node_iter = self.node_pool.iterator();
@@ -537,7 +537,7 @@ pub const GraphDB = struct {
                 const similarity = self.calculateCosineSimilarity(query_vector, embedding.vector);
 
                 if (similarity >= threshold) {
-                    try similar_nodes.append(node.*);
+                    try similar_nodes.append(self.allocator, node.*);
 
                     // Apply limit if specified
                     if (limit) |max_nodes| {
@@ -737,7 +737,8 @@ pub const GraphDB = struct {
         defer file.close();
 
         // Read header (new format) or fallback to legacy
-        var r = file.reader();
+        var buffer: [1024]u8 = undefined;
+        var r = file.reader(&buffer);
         var lsn: u64 = 0;
         const maybe_magic = r.readInt(u32, .little) catch |e| switch (e) {
             error.EndOfStream => return,

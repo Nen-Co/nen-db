@@ -104,10 +104,10 @@ pub const ResourceMonitor = struct {
     last_operation_time: i64,
     current_stats: ResourceStats, // Store current stats
 
-    pub fn init(allocator: mem.Allocator, max_history: usize) ResourceMonitor {
+    pub fn init(allocator: mem.Allocator, max_history: usize) !ResourceMonitor {
         return ResourceMonitor{
             .allocator = allocator,
-            .stats_history = std.ArrayList(ResourceStats).init(allocator),
+            .stats_history = try std.ArrayList(ResourceStats).initCapacity(allocator, 0),
             .max_history_size = max_history,
             .start_time = @as(i64, @intCast(time.nanoTimestamp())),
             .operation_count = 0,
@@ -117,7 +117,7 @@ pub const ResourceMonitor = struct {
     }
 
     pub fn deinit(self: *ResourceMonitor) void {
-        self.stats_history.deinit();
+        self.stats_history.deinit(self.allocator);
     }
 
     pub fn recordOperation(self: *ResourceMonitor) void {
@@ -177,7 +177,7 @@ pub const ResourceMonitor = struct {
     }
 
     pub fn addToHistory(self: *ResourceMonitor, stats: ResourceStats) void {
-        self.stats_history.append(stats) catch return;
+        self.stats_history.append(self.allocator, stats) catch return;
 
         // Keep history size manageable
         if (self.stats_history.items.len > self.max_history_size) {

@@ -130,13 +130,13 @@ pub const EnhancedServer = struct {
         return EnhancedServer{
             .config = config,
             .allocator = allocator,
-            .connections = std.ArrayList(Connection).init(allocator),
+            .connections = try std.ArrayList(Connection).initCapacity(allocator, 0),
         };
     }
 
     pub fn deinit(self: *EnhancedServer) void {
         self.stop();
-        self.connections.deinit();
+        self.connections.deinit(self.allocator);
     }
 
     pub fn setDatabaseHandler(self: *EnhancedServer, handler: *const fn ([]const u8, []const u8) Response) void {
@@ -197,7 +197,7 @@ pub const EnhancedServer = struct {
             const connection = try Connection.init(self.allocator, connfd, client_addr, self.config.buffer_size);
 
             // Add to connection pool
-            try self.connections.append(connection);
+            try self.connections.append(self.allocator, connection);
 
             // Handle connection in a separate thread
             const thread = try std.Thread.spawn(.{}, handleConnection, .{ self, &self.connections.items[self.connections.items.len - 1] });

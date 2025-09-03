@@ -5,7 +5,7 @@ pub const Style = struct {
     use_color: bool,
 
     pub fn detect() Style {
-        const stdout = std.io.getStdOut();
+        const stdout = std.fs.File{ .handle = 1 };
         const is_tty = stdout.supportsAnsiEscapeCodes();
         return Style{ .use_color = is_tty };
     }

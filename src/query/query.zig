@@ -215,13 +215,13 @@ fn parse_create_query(it: *std.mem.TokenIterator(u8, std.mem.DelimiterType.any),
     // Coalesce tokens until we reach a token ending with ')'
     const first_tok = it.next() orelse return error.InvalidCreate;
     if (first_tok.len == 0 or first_tok[0] != '(') return error.InvalidPattern;
-    var buf = std.ArrayList(u8).init(allocator);
-    defer buf.deinit();
+    var buf = std.ArrayList(u8).initCapacity(allocator, 0);
+    defer buf.deinit(allocator);
     try buf.appendSlice(first_tok);
     var token = first_tok;
     while (token[token.len - 1] != ')') {
         token = it.next() orelse return error.InvalidCreate;
-        try buf.append(' ');
+        try buf.append(allocator, ' ');
         try buf.appendSlice(token);
     }
     const pattern_token = buf.items;

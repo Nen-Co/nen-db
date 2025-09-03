@@ -698,12 +698,12 @@ pub const ProcessorRegistry = struct {
     }
 
     pub fn listSupportedFormats(self: *const ProcessorRegistry) [][]const u8 {
-        var formats = std.ArrayList([]const u8).init(self.processors.allocator);
+        var formats = std.ArrayList([]const u8).initCapacity(self.processors.allocator, 0);
         var it = self.processors.iterator();
         while (it.next()) |entry| {
             const processor = entry.value_ptr;
             for (processor.supported_formats) |format| {
-                formats.append(format) catch continue;
+                formats.append(self.processors.allocator, format) catch continue;
             }
         }
         return formats.toOwnedSlice() catch &[_][]const u8{};

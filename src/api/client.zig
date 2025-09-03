@@ -24,13 +24,13 @@ pub const Client = struct {
         return Client{
             .config = config,
             .allocator = allocator,
-            .connections = std.ArrayList(ClientConnection).init(allocator),
+            .connections = try std.ArrayList(ClientConnection).initCapacity(allocator, 0),
         };
     }
 
     pub fn deinit(self: *Client) void {
         self.disconnect();
-        self.connections.deinit();
+        self.connections.deinit(self.allocator);
     }
 
     pub fn connect(self: *Client) !void {
@@ -41,7 +41,7 @@ pub const Client = struct {
         // Initialize connection pool
         for (0..self.config.connection_pool_size) |_| {
             const conn = try ClientConnection.init(self.allocator, self.config);
-            try self.connections.append(conn);
+            try self.connections.append(self.allocator, conn);
         }
 
         // Test connection with first connection

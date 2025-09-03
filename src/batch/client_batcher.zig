@@ -63,26 +63,26 @@ pub const ClientBatcher = struct {
     pub fn init(allocator: std.mem.Allocator, config: ClientBatchConfig) !Self {
         return Self{
             .config = config,
-            .node_operations = std.ArrayList(QueuedOperation).init(allocator),
-            .edge_operations = std.ArrayList(QueuedOperation).init(allocator),
-            .vector_operations = std.ArrayList(QueuedOperation).init(allocator),
-            .query_operations = std.ArrayList(QueuedOperation).init(allocator),
+            .node_operations = try std.ArrayList(QueuedOperation).initCapacity(allocator, 0),
+            .edge_operations = try std.ArrayList(QueuedOperation).initCapacity(allocator, 0),
+            .vector_operations = try std.ArrayList(QueuedOperation).initCapacity(allocator, 0),
+            .query_operations = try std.ArrayList(QueuedOperation).initCapacity(allocator, 0),
             .stats = ClientBatchStats.init(),
             .last_flush_time = @as(u64, @intCast(std.time.nanoTimestamp())),
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.node_operations.deinit();
-        self.edge_operations.deinit();
-        self.vector_operations.deinit();
-        self.query_operations.deinit();
+        self.node_operations.deinit(self.allocator);
+        self.edge_operations.deinit(self.allocator);
+        self.vector_operations.deinit(self.allocator);
+        self.query_operations.deinit(self.allocator);
     }
 
     // Add node creation operation to batch
     pub fn addCreateNode(self: *Self, node_data: []const u8, priority: u8) !void {
         const op = QueuedOperation.init(.create_node, node_data, priority);
-        try self.node_operations.append(op);
+        try self.node_operations.append(self.allocator, op);
         self.stats.operations_queued += 1;
 
         // Check if we should auto-flush
@@ -92,7 +92,7 @@ pub const ClientBatcher = struct {
     // Add edge creation operation to batch
     pub fn addCreateEdge(self: *Self, edge_data: []const u8, priority: u8) !void {
         const op = QueuedOperation.init(.create_edge, edge_data, priority);
-        try self.edge_operations.append(op);
+        try self.edge_operations.append(self.allocator, op);
         self.stats.operations_queued += 1;
 
         try self.checkAutoFlush();
@@ -101,7 +101,7 @@ pub const ClientBatcher = struct {
     // Add vector embedding operation to batch
     pub fn addSetEmbedding(self: *Self, embedding_data: []const u8, priority: u8) !void {
         const op = QueuedOperation.init(.set_embedding, embedding_data, priority);
-        try self.vector_operations.append(op);
+        try self.vector_operations.append(self.allocator, op);
         self.stats.operations_queued += 1;
 
         try self.checkAutoFlush();
@@ -110,7 +110,7 @@ pub const ClientBatcher = struct {
     // Add query operation to batch
     pub fn addQuery(self: *Self, query_data: []const u8, priority: u8) !void {
         const op = QueuedOperation.init(.query, query_data, priority);
-        try self.query_operations.append(op);
+        try self.query_operations.append(self.allocator, op);
         self.stats.operations_queued += 1;
 
         try self.checkAutoFlush();

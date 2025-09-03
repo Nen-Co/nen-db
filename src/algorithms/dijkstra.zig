@@ -281,12 +281,12 @@ pub const Dijkstra = struct {
         }
 
         // Filter nodes within max_distance
-        var nodes_within_distance = std.ArrayList(u32).init(allocator);
-        defer nodes_within_distance.deinit();
+        var nodes_within_distance = std.ArrayList(u32).initCapacity(allocator, 0);
+        defer nodes_within_distance.deinit(allocator);
 
         for (result.visited_nodes) |node_id| {
             if (result.distances[node_id] <= max_distance) {
-                try nodes_within_distance.append(node_id);
+                try nodes_within_distance.append(allocator, node_id);
             }
         }
 

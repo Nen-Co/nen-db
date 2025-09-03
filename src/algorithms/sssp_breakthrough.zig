@@ -147,12 +147,12 @@ pub const DependencyGraph = struct {
     /// Add dependency relationship
     pub fn addDependency(self: *DependencyGraph, vertex: u64, depends_on: u64) !void {
         var list = self.dependencies.get(depends_on) orelse {
-            const new_list = std.ArrayList(u64).init(self.allocator);
+            const new_list = std.ArrayList(u64).initCapacity(self.allocator, 0);
             try self.dependencies.put(depends_on, new_list);
             return try self.addDependency(vertex, depends_on);
         };
 
-        try list.append(vertex);
+        try list.append(self.allocator, vertex);
         try self.dependencies.put(depends_on, list);
     }
 
@@ -298,14 +298,14 @@ pub const BreakthroughSSSP = struct {
 
         // Get edges from current vertex
         var edge_iter = self.graph.edge_pool.iterFromNode(current_vertex);
-        var neighbors = std.ArrayList(Neighbor).init(self.allocator);
-        defer neighbors.deinit();
+        var neighbors = std.ArrayList(Neighbor).initCapacity(self.allocator, 0);
+        defer neighbors.deinit(self.allocator);
 
         // Collect all neighbors and their weights
         while (edge_iter.next()) |edge| {
             const neighbor_id = if (edge.from == current_vertex) edge.to else edge.from;
             const edge_weight = self.weight_fn(edge);
-            try neighbors.append(Neighbor{ .vertex = neighbor_id, .weight = edge_weight });
+            try neighbors.append(self.allocator, Neighbor{ .vertex = neighbor_id, .weight = edge_weight });
         }
 
         // Use recursive partitioning for neighbor processing

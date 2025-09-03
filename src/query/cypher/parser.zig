@@ -31,61 +31,61 @@ pub const Parser = struct {
 
     pub fn parseQuery(self: *Parser) !ast.Statement {
         // Very minimal sequence: (MATCH ...)* (WITH ...)* (RETURN ...)? etc.
-        var parts = std.ArrayList(ast.Part).init(self.allocator);
-        defer parts.deinit();
+        var parts = std.ArrayList(ast.Part).initCapacity(self.allocator, 0);
+        defer parts.deinit(self.allocator);
 
-        var clauses = std.ArrayList(ast.Clause).init(self.allocator);
-        defer clauses.deinit();
+        var clauses = std.ArrayList(ast.Clause).initCapacity(self.allocator, 0);
+        defer clauses.deinit(self.allocator);
 
         while (true) {
             // OPTIONAL MATCH
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "OPTIONAL")) {
                 self.advance();
                 const m = try self.parseMatch(true);
-                try clauses.append(ast.Clause{ .OptionalMatch = m });
+                try clauses.append(self.allocator, ast.Clause{ .OptionalMatch = m });
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "MATCH")) {
                 const m = try self.parseMatch(false);
-                try clauses.append(ast.Clause{ .Match = m });
+                try clauses.append(self.allocator, ast.Clause{ .Match = m });
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "UNWIND")) {
                 const u = try self.parseUnwind();
-                try clauses.append(ast.Clause{ .Unwind = u });
+                try clauses.append(self.allocator, ast.Clause{ .Unwind = u });
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "SET")) {
                 const s = try self.parseSet();
-                try clauses.append(ast.Clause{ .Set = s });
+                try clauses.append(self.allocator, ast.Clause{ .Set = s });
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "DELETE")) {
                 const d = try self.parseDelete(false);
-                try clauses.append(ast.Clause{ .Delete = d });
+                try clauses.append(self.allocator, ast.Clause{ .Delete = d });
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "DETACH")) {
                 self.advance();
                 try self.expectKeyword("DELETE");
                 const d = try self.parseDelete(true);
-                try clauses.append(ast.Clause{ .DetachDelete = d });
+                try clauses.append(self.allocator, ast.Clause{ .DetachDelete = d });
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "WITH")) {
                 const w = try self.parseWith();
-                try clauses.append(ast.Clause{ .With = w });
+                try clauses.append(self.allocator, ast.Clause{ .With = w });
                 // Start a new part after WITH
-                try parts.append(.{ .clauses = try clauses.toOwnedSlice() });
-                clauses = std.ArrayList(ast.Clause).init(self.allocator);
+                try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice() });
+                clauses = std.ArrayList(ast.Clause).initCapacity(self.allocator, 0);
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "RETURN")) {
                 const r = try self.parseReturn();
-                try clauses.append(ast.Clause{ .Return = r });
+                try clauses.append(self.allocator, ast.Clause{ .Return = r });
                 // finalize last part
-                try parts.append(.{ .clauses = try clauses.toOwnedSlice() });
-                clauses = std.ArrayList(ast.Clause).init(self.allocator);
+                try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice() });
+                clauses = std.ArrayList(ast.Clause).initCapacity(self.allocator, 0);
                 break;
             }
             if (self.current.kind == .eof) break;
@@ -94,7 +94,7 @@ pub const Parser = struct {
         }
 
         if (clauses.items.len > 0) {
-            try parts.append(.{ .clauses = try clauses.toOwnedSlice() });
+            try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice() });
         }
 
         return .{ .query = .{ .parts = try parts.toOwnedSlice() } };
@@ -274,12 +274,12 @@ pub const Parser = struct {
             variable = self.current.lexeme;
             self.advance();
         }
-        var labels = std.ArrayList([]const u8).init(self.allocator);
-        defer labels.deinit();
+        var labels = std.ArrayList([]const u8).initCapacity(self.allocator, 0);
+        defer labels.deinit(self.allocator);
         while (self.current.kind == .colon) {
             self.advance();
             if (self.current.kind != .identifier) return error.ExpectedLabel;
-            try labels.append(self.current.lexeme);
+            try labels.append(self.allocator, self.current.lexeme);
             self.advance();
         }
         var props: ?ast.MapLiteral = null;
@@ -302,12 +302,12 @@ pub const Parser = struct {
             variable = self.current.lexeme;
             self.advance();
         }
-        var types = std.ArrayList([]const u8).init(self.allocator);
-        defer types.deinit();
+        var types = std.ArrayList([]const u8).initCapacity(self.allocator, 0);
+        defer types.deinit(self.allocator);
         if (self.current.kind == .colon) {
             self.advance();
             if (self.current.kind != .identifier) return error.ExpectedType;
-            try types.append(self.current.lexeme);
+            try types.append(self.allocator, self.current.lexeme);
             self.advance();
         }
         var props: ?ast.MapLiteral = null;
@@ -330,8 +330,8 @@ pub const Parser = struct {
     fn parseMapLiteral(self: *Parser) !ast.MapLiteral {
         if (self.current.kind != .l_brace) return error.ExpectedLBrace;
         self.advance();
-        var entries = std.ArrayList(ast.MapEntry).init(self.allocator);
-        defer entries.deinit();
+        var entries = std.ArrayList(ast.MapEntry).initCapacity(self.allocator, 0);
+        defer entries.deinit(self.allocator);
         var first = true;
         while (self.current.kind != .r_brace) {
             if (!first) {
@@ -368,7 +368,7 @@ pub const Parser = struct {
                 },
                 else => return error.UnexpectedExpr,
             };
-            try entries.append(.{ .key = key, .value = value });
+            try entries.append(self.allocator, .{ .key = key, .value = value });
         }
         self.advance(); // r_brace
         return .{ .entries = try entries.toOwnedSlice() };

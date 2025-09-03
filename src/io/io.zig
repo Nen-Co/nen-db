@@ -153,10 +153,15 @@ pub const Terminal = struct {
     };
 
     pub inline fn printColor(color: []const u8, comptime fmt: []const u8, args: anytype) !void {
-        const stderr = std.io.getStdErr().writer();
-        try stderr.print("{s}", .{color});
-        try stderr.print(fmt, args);
-        try stderr.print("{s}", .{Colors.reset});
+        const stderr_file = std.fs.File{ .handle = 2 };
+
+        // Format the message first
+        var msg_buffer: [1024]u8 = undefined;
+        const formatted = try std.fmt.bufPrint(&msg_buffer, fmt, args);
+
+        try stderr_file.writeAll(color);
+        try stderr_file.writeAll(formatted);
+        try stderr_file.writeAll(Colors.reset);
     }
 
     pub inline fn successln(comptime fmt: []const u8, args: anytype) !void {
@@ -233,7 +238,7 @@ pub const Terminal = struct {
             const percentage = @as(f32, @floatFromInt(self.current)) / @as(f32, @floatFromInt(self.total));
             const filled = @as(u32, @intFromFloat(percentage * @as(f32, @floatFromInt(self.width))));
 
-            const stderr = std.io.getStdErr().writer();
+            const stderr = std.fs.File.openHandle(2).writer();
             try stderr.print("\r[", .{});
             var i: u32 = 0;
             while (i < self.width) : (i += 1) {
@@ -250,7 +255,7 @@ pub const Terminal = struct {
 
         pub inline fn finish(self: *ProgressBar) !void {
             _ = self;
-            const stderr = std.io.getStdErr().writer();
+            const stderr = std.fs.File.openHandle(2).writer();
             try stderr.print("\n", .{});
         }
     };
@@ -334,7 +339,7 @@ pub const Time = struct {
 pub const CLI = struct {
     pub inline fn promptStatic(comptime message: []const u8) !String.StaticBuffer {
         const stdin = std.io.getStdIn().reader();
-        const stderr = std.io.getStdErr().writer();
+        const stderr = std.fs.File.openHandle(2).writer();
         try stderr.print("{s}: ", .{message});
 
         var buf = String.StaticBuffer.init();
@@ -351,7 +356,7 @@ pub const CLI = struct {
     }
 
     pub inline fn confirm(comptime message: []const u8) !bool {
-        const stderr = std.io.getStdErr().writer();
+        const stderr = std.fs.File.openHandle(2).writer();
         try stderr.print("{s} (y/N): ", .{message});
 
         const stdin = std.io.getStdIn().reader();
@@ -451,7 +456,7 @@ pub const Log = struct {
     };
 
     pub inline fn log(level: Level, comptime fmt: []const u8, args: anytype) !void {
-        const stderr = std.io.getStdErr().writer();
+        const stderr = std.fs.File.openHandle(2).writer();
         const timestamp = try Time.formatStatic(Time.now(), "YYYY-MM-DD HH:mm:ss");
 
         switch (level) {
