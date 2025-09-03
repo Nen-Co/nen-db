@@ -1,11 +1,15 @@
 // CLI styling utilities (ANSI only if tty)
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const Style = struct {
     use_color: bool,
 
     pub fn detect() Style {
-        const stdout = std.fs.File{ .handle = @as(std.posix.fd_t, 1) };
+        const stdout = if (builtin.os.tag == .windows)
+            std.fs.File{ .handle = @as(std.os.windows.HANDLE, @ptrFromInt(1)) }
+        else
+            std.fs.File{ .handle = @as(std.posix.fd_t, 1) };
         const is_tty = stdout.supportsAnsiEscapeCodes();
         return Style{ .use_color = is_tty };
     }

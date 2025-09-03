@@ -3,6 +3,7 @@
 // Inspired by Super-ZIG/io but completely self-contained
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 // ASCII utilities
 pub const ASCII = struct {
@@ -153,7 +154,10 @@ pub const Terminal = struct {
     };
 
     pub inline fn printColor(color: []const u8, comptime fmt: []const u8, args: anytype) !void {
-        const stderr_file = std.fs.File{ .handle = @as(std.posix.fd_t, 2) };
+        const stderr_file = if (builtin.os.tag == .windows)
+            std.fs.File{ .handle = @as(std.os.windows.HANDLE, @ptrFromInt(2)) }
+        else
+            std.fs.File{ .handle = @as(std.posix.fd_t, 2) };
 
         // Format the message first
         var msg_buffer: [1024]u8 = undefined;
