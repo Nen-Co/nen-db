@@ -14,6 +14,7 @@ pub const graphdb = @import("graphdb.zig");
 // Data-Oriented Design (DOD) modules
 pub const dod = @import("memory/dod_layout.zig");
 pub const simd = @import("memory/simd_operations.zig");
+pub const prefetch = @import("memory/prefetch_system.zig");
 
 // Batch processing system (TigerBeetle-style)
 pub const batch = @import("batch/batch_processor.zig");

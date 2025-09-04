@@ -1,9 +1,11 @@
 // NenDB Dijkstra's Shortest Path Algorithm
-// Optimized for static memory pools and efficient path finding
+// Optimized for static memory pools, DOD layout, and prefetching
 
 const std = @import("std");
 const nendb = @import("nendb");
 const pool = nendb.memory;
+const dod = nendb.dod;
+const prefetch = nendb.prefetch;
 
 pub const DijkstraResult = struct {
     distances: []u32,
@@ -23,6 +25,10 @@ pub const DijkstraOptions = struct {
     include_predecessors: bool = true,
     include_visited: bool = true,
     max_nodes: ?usize = null,
+    // DOD and prefetching options
+    enable_dod: bool = true,
+    enable_prefetch: bool = true,
+    prefetch_config: ?prefetch.PrefetchConfig = null,
 };
 
 /// Edge weight function type - returns weight for a given edge
