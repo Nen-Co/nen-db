@@ -139,41 +139,44 @@ pub const SIMDBatchProcessor = struct {
         return dot_product / (@sqrt(norm1) * @sqrt(norm2));
     }
     
-    // SIMD-optimized graph traversal
+    // SIMD-optimized graph traversal (static allocation)
     pub fn traverseBFS_SIMD(
         graph_data: *const dod_layout.DODGraphData,
         start_node: u64,
         max_depth: u32,
         visitor: *TraversalVisitor
     ) void {
-        // SIMD-optimized BFS implementation
-        var current_level: std.ArrayList(u64) = std.ArrayList(u64).initCapacity(std.heap.page_allocator, 1024) catch return;
-        defer current_level.deinit(std.heap.page_allocator);
-        var next_level: std.ArrayList(u64) = std.ArrayList(u64).initCapacity(std.heap.page_allocator, 1024) catch return;
-        defer next_level.deinit(std.heap.page_allocator);
+        // SIMD-optimized BFS implementation with static allocation
+        var current_level: [1024]u64 = [_]u64{0} ** 1024;
+        var next_level: [1024]u64 = [_]u64{0} ** 1024;
+        var current_count: u32 = 0;
+        var next_count: u32 = 0;
         
-        try current_level.append(std.heap.page_allocator, start_node);
+        current_level[0] = start_node;
+        current_count = 1;
         
         var depth: u32 = 0;
-        while (depth < max_depth and current_level.items.len > 0) {
+        while (depth < max_depth and current_count > 0) {
             // Process current level with SIMD
-            for (current_level.items) |node_id| {
+            for (current_level[0..current_count]) |node_id| {
                 visitor.visitNode(node_id, depth);
                 
                 // Find all outgoing edges for this node
-                const edge_indices = try findEdgesFromNodeSIMD(graph_data, node_id);
+                const edge_indices = findEdgesFromNodeSIMD(graph_data, node_id);
                 
                 // Add destination nodes to next level
                 for (edge_indices) |edge_idx| {
-                    if (edge_idx < graph_data.edge_count) {
-                        try next_level.append(std.heap.page_allocator, graph_data.edge_to[edge_idx]);
+                    if (edge_idx < graph_data.edge_count and next_count < 1024) {
+                        next_level[next_count] = graph_data.edge_to[edge_idx];
+                        next_count += 1;
                     }
                 }
             }
             
             // Swap levels
-            std.mem.swap(std.ArrayList(u64), &current_level, &next_level);
-            current_level.clearRetainingCapacity();
+            std.mem.swap([1024]u64, &current_level, &next_level);
+            std.mem.swap(u32, &current_count, &next_count);
+            next_count = 0;
             depth += 1;
         }
     }
@@ -274,26 +277,28 @@ fn filterEdgesSIMDBatch(
 fn findEdgesFromNodeSIMD(
     graph_data: *const dod_layout.DODGraphData,
     node_id: u64
-) ![]u32 {
-    var edge_indices = std.ArrayList(u32).initCapacity(std.heap.page_allocator, 64);
+) [64]u32 {
+    var edge_indices: [64]u32 = [_]u32{0} ** 64;
+    var count: u32 = 0;
     
     // SIMD-optimized edge search
     const simd_batch_size = constants.data.simd_edge_batch_size;
     var i: u32 = 0;
     
-    while (i < graph_data.edge_count) {
+    while (i < graph_data.edge_count and count < 64) {
         const remaining = @min(simd_batch_size, graph_data.edge_count - i);
         
         for (i..i + remaining) |j| {
-            if (graph_data.edge_from[j] == node_id and graph_data.edge_active[j]) {
-                try edge_indices.append(std.heap.page_allocator, @intCast(j));
+            if (graph_data.edge_from[j] == node_id and graph_data.edge_active[j] and count < 64) {
+                edge_indices[count] = @intCast(j);
+                count += 1;
             }
         }
         
         i += remaining;
     }
     
-    return edge_indices.toOwnedSlice(std.heap.page_allocator);
+    return edge_indices;
 }
 
 // Memory prefetching utilities

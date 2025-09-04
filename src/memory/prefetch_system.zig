@@ -373,16 +373,18 @@ pub const PrefetchSystem = struct {
         return null;
     }
     
-    fn findEdgesFromNode(self: *const PrefetchSystem, graph_data: *const dod_layout.DODGraphData, node_id: u64) []u32 {
-        var edge_indices = std.ArrayList(u32).initCapacity(std.heap.page_allocator, 64);
+    fn findEdgesFromNode(self: *const PrefetchSystem, graph_data: *const dod_layout.DODGraphData, node_id: u64) [64]u32 {
+        var edge_indices: [64]u32 = [_]u32{0} ** 64;
+        var count: u32 = 0;
         
         for (0..graph_data.edge_count) |i| {
-            if (graph_data.edge_from[i] == node_id) {
-                edge_indices.append(std.heap.page_allocator, @intCast(i)) catch break;
+            if (graph_data.edge_from[i] == node_id and count < 64) {
+                edge_indices[count] = @intCast(i);
+                count += 1;
             }
         }
         
-        return edge_indices.toOwnedSlice(std.heap.page_allocator);
+        return edge_indices;
     }
     
     // Get prefetch statistics

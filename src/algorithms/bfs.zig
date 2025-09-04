@@ -52,11 +52,11 @@ pub const BFS = struct {
         if (options.enable_dod) {
             return Self.executeDOD(node_pool, edge_pool, source_node_id, options, allocator);
         }
-        
+
         // Fall back to original implementation
         return Self.executeOriginal(node_pool, edge_pool, source_node_id, options, allocator);
     }
-    
+
     /// DOD-optimized BFS implementation with prefetching
     pub fn executeDOD(
         node_pool: *const pool.NodePool,
@@ -71,48 +71,67 @@ pub const BFS = struct {
         const prefetch_config = options.prefetch_config orelse prefetch.PrefetchConfig{};
         var prefetch_system = prefetch.PrefetchSystem.init(prefetch_config);
         
-        // Initialize result arrays
-        var visited_nodes = try allocator.alloc(u64, max_nodes);
+        // Static result arrays (using stack allocation for small graphs)
+        const MAX_STATIC_NODES = 1024;
+        var visited_nodes_static: [MAX_STATIC_NODES]u64 = [_]u64{0} ** MAX_STATIC_NODES;
+        var distances_static: [MAX_STATIC_NODES]u32 = [_]u32{0} ** MAX_STATIC_NODES;
+        var predecessors_static: [MAX_STATIC_NODES]u64 = [_]u64{0} ** MAX_STATIC_NODES;
+        var levels_static: [MAX_STATIC_NODES]u32 = [_]u32{0} ** MAX_STATIC_NODES;
+        
+        // Use static arrays if possible, otherwise fall back to dynamic
+        var visited_nodes: []u64 = if (max_nodes <= MAX_STATIC_NODES)
+            visited_nodes_static[0..max_nodes]
+        else
+            try allocator.alloc(u64, max_nodes);
         var distances: []u32 = if (options.include_distances)
-            try allocator.alloc(u32, max_nodes)
+            if (max_nodes <= MAX_STATIC_NODES)
+                distances_static[0..max_nodes]
+            else
+                try allocator.alloc(u32, max_nodes)
         else
             &[_]u32{};
         var predecessors: []u64 = if (options.include_predecessors)
-            try allocator.alloc(u64, max_nodes)
+            if (max_nodes <= MAX_STATIC_NODES)
+                predecessors_static[0..max_nodes]
+            else
+                try allocator.alloc(u64, max_nodes)
         else
             &[_]u64{};
         var levels: []u32 = if (options.include_levels)
-            try allocator.alloc(u32, max_nodes)
+            if (max_nodes <= MAX_STATIC_NODES)
+                levels_static[0..max_nodes]
+            else
+                try allocator.alloc(u32, max_nodes)
         else
             &[_]u32{};
-        
+
         // Initialize arrays
         @memset(visited_nodes, 0);
         if (options.include_distances) @memset(distances, std.math.maxInt(u32));
         if (options.include_predecessors) @memset(predecessors, 0);
         if (options.include_levels) @memset(levels, 0);
-        
+
         // BFS queue using DOD layout
         var current_level = std.ArrayList(u64).initCapacity(allocator, 1024);
         defer current_level.deinit();
         var next_level = std.ArrayList(u64).initCapacity(allocator, 1024);
         defer next_level.deinit();
-        
+
         var visited_count: usize = 0;
         var current_depth: u32 = 0;
-        
+
         // Start BFS from source node
         try current_level.append(source_node_id);
         if (options.include_distances) distances[visited_count] = 0;
         if (options.include_levels) levels[visited_count] = 0;
         visited_nodes[visited_count] = source_node_id;
         visited_count += 1;
-        
+
         // Prefetch initial data
         if (options.enable_prefetch) {
             prefetch_system.prefetchBFS(node_pool, &current_level.items, &next_level.items);
         }
-        
+
         // BFS traversal with DOD optimization
         while (current_level.items.len > 0 and (options.max_depth == null or current_depth < options.max_depth.?)) {
             // Process current level with prefetching
@@ -121,15 +140,15 @@ pub const BFS = struct {
                 if (options.enable_prefetch) {
                     prefetch_system.prefetchNodeData(node_pool, node_id, 1, .temporal);
                 }
-                
+
                 // Find edges from this node using DOD layout
                 const edge_indices = Self.findEdgesFromNodeDOD(edge_pool, node_id);
-                
+
                 // Process edges with SIMD optimization
                 for (edge_indices) |edge_idx| {
                     if (edge_idx < edge_pool.getStats().total_allocated) {
                         const dest_node_id = edge_pool.getEdge(edge_idx).?.to;
-                        
+
                         // Check if already visited
                         var already_visited = false;
                         for (visited_nodes[0..visited_count]) |visited_id| {
@@ -138,11 +157,11 @@ pub const BFS = struct {
                                 break;
                             }
                         }
-                        
+
                         if (!already_visited) {
                             // Add to next level
                             try next_level.append(dest_node_id);
-                            
+
                             // Update result arrays
                             if (visited_count < max_nodes) {
                                 visited_nodes[visited_count] = dest_node_id;
@@ -155,18 +174,18 @@ pub const BFS = struct {
                     }
                 }
             }
-            
+
             // Prefetch next level data
             if (options.enable_prefetch and next_level.items.len > 0) {
                 prefetch_system.prefetchGraphTraversal(node_pool, &next_level.items, .graph_traversal);
             }
-            
+
             // Swap levels
             std.mem.swap(std.ArrayList(u64), &current_level, &next_level);
             current_level.clearRetainingCapacity();
             current_depth += 1;
         }
-        
+
         return BFSResult{
             .visited_nodes = visited_nodes[0..visited_count],
             .distances = if (options.include_distances) distances[0..visited_count] else &[_]u32{},
@@ -175,23 +194,25 @@ pub const BFS = struct {
             .allocator = allocator,
         };
     }
-    
-    /// DOD-optimized edge finding using SoA layout
-    fn findEdgesFromNodeDOD(edge_pool: *const pool.EdgePool, node_id: u64) []u32 {
-        var edge_indices = std.ArrayList(u32).initCapacity(std.heap.page_allocator, 64);
+
+    /// DOD-optimized edge finding using SoA layout (static allocation)
+    fn findEdgesFromNodeDOD(edge_pool: *const pool.EdgePool, node_id: u64) [64]u32 {
+        var edge_indices: [64]u32 = [_]u32{0} ** 64;
+        var count: u32 = 0;
         
         // Use DOD layout for efficient edge traversal
         const stats = edge_pool.getStats();
         for (0..stats.total_allocated) |i| {
             const edge = edge_pool.getEdge(@intCast(i));
-            if (edge != null and edge.?.from == node_id) {
-                edge_indices.append(std.heap.page_allocator, @intCast(i)) catch break;
+            if (edge != null and edge.?.from == node_id and count < 64) {
+                edge_indices[count] = @intCast(i);
+                count += 1;
             }
         }
         
-        return edge_indices.toOwnedSlice(std.heap.page_allocator);
+        return edge_indices;
     }
-    
+
     /// Original BFS implementation (fallback)
     pub fn executeOriginal(
         node_pool: *const pool.NodePool,
