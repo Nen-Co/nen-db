@@ -1,20 +1,27 @@
-# NenDB Architecture (Draft)
+# NenDB Architecture - Data-Oriented Design (DOD)
+
+## Design Philosophy
+NenDB implements **Data-Oriented Design (DOD)** as its core architectural paradigm, prioritizing data layout and memory access patterns over traditional object-oriented abstractions. This approach maximizes performance, cache efficiency, and scalability for graph database operations.
 
 ## High-Level Components
-- CLI (`nen`): entrypoint for admin + ops commands.
-- WAL: append-only log with segment rotation and CRC validation.
-- Snapshot: atomic point-in-time state image (LSN + CRC + bak fallback).
-- Recovery: snapshot restore + WAL replay from stored LSN.
-- Memory Pools: fixed arrays for nodes, edges, embeddings (predictable footprint, lock-free reads).
-- Locking: single writer mutex; per-writer lock file to prevent multi-process writers.
-- Monitoring: resource monitor (CPU, RSS, IO counters) + `status --json`.
+- **CLI (`nen`)**: entrypoint for admin + ops commands.
+- **WAL**: append-only log with segment rotation and CRC validation.
+- **Snapshot**: atomic point-in-time state image (LSN + CRC + bak fallback).
+- **Recovery**: snapshot restore + WAL replay from stored LSN.
+- **DOD Memory Pools**: Struct of Arrays (SoA) layout for nodes, edges, embeddings with hot/cold data separation.
+- **Component System**: Entity-Component architecture for flexible graph modeling.
+- **SIMD-Optimized Operations**: Vectorized processing for maximum performance.
+- **Locking**: single writer mutex; per-writer lock file to prevent multi-process writers.
+- **Monitoring**: resource monitor (CPU, RSS, IO counters) + `status --json`.
 
-## Write Path
+## Write Path (DOD-Optimized)
 1. Acquire writer lock.
-2. Serialize entry to in-memory buffer.
-3. Append to WAL segment (CRC, length).
-4. Fsync policy (immediate or batched via env `NENDB_SYNC_EVERY`).
-5. Apply mutation to in-memory pools.
+2. **Batch operations** for better throughput.
+3. Serialize entry to pre-allocated buffer (zero-copy).
+4. Append to WAL segment (CRC, length).
+5. Fsync policy (immediate or batched via env `NENDB_SYNC_EVERY`).
+6. **Apply mutations to SoA pools** using vectorized operations.
+7. Update component indices atomically.
 
 ## Snapshot Lifecycle
 1. Quiesce writes (or coordinate point-in-time).
@@ -54,21 +61,34 @@
 - `-Drelease-safe` / `-Drelease-fast` for optimization.
 - `-Dbench` to enable benchmark executables (disabled by default).
 
-## Diagram (simplified)
+## DOD Architecture Diagram
 ```
 +-----------+      +-----------+      +-------------+
 |  Client   | ---> |  CLI/IPC  | ---> |  Write Path |
 +-----------+      +-----------+      +------+------+ 
                                            |  Apply
                                            v
-                                      +----+-----+
-                                      |  Memory  |
-                                      |  Pools   |
-                                      +----+-----+
+                    +----------------------+----------------------+
+                    |              DOD Memory Pools               |
+                    |  +--------+  +--------+  +--------+         |
+                    |  | Nodes  |  | Edges  |  |Embeddgs|         |
+                    |  | (SoA)  |  | (SoA)  |  | (SoA)  |         |
+                    |  +--------+  +--------+  +--------+         |
+                    |  +--------+  +--------+  +--------+         |
+                    |  |Hot Data|  |Cold Data| |Components|       |
+                    |  +--------+  +--------+  +--------+         |
+                    +----------------------+----------------------+
                                            | Snapshot
                                            v
 +-----------+    Replay    +-----------+   +--------------+
 |  WAL Segs | -----------> |  Recovery |-->|  Snapshot(s) |
 +-----------+              +-----------+   +--------------+
 ```
+
+## DOD Benefits
+- **Cache Locality**: SoA layout keeps related data together
+- **SIMD Optimization**: Vectorized operations on arrays
+- **Memory Efficiency**: Hot/cold data separation reduces cache misses
+- **Scalability**: Component-based architecture scales with data size
+- **Performance**: Predictable memory access patterns
 

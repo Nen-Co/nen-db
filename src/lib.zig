@@ -11,6 +11,10 @@ pub const io = @import("io/io.zig");
 // Legacy nendb.zig removed; GraphDB is primary engine now (graphdb.zig)
 pub const graphdb = @import("graphdb.zig");
 
+// Data-Oriented Design (DOD) modules
+pub const dod = @import("memory/dod_layout.zig");
+pub const simd = @import("memory/simd_operations.zig");
+
 // Batch processing system (TigerBeetle-style)
 pub const batch = @import("batch/batch_processor.zig");
 pub const client_batcher = @import("batch/client_batcher.zig");

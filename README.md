@@ -1,25 +1,30 @@
 # 🚀 NenDB - AI-Native Graph Database
 
-> **Lightning-fast graph database built with Zig for AI workloads** ⚡
+> **Lightning-fast graph database built with Data-Oriented Design (DOD) for AI workloads** ⚡
 
-[![Zig](https://img.shields.io/badge/Zig-0.14.1-F7A41D)](https://ziglang.org/)
+[![Zig](https://img.shields.io/badge/Zig-0.15.1-F7A41D)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-v0.1.0--beta-green.svg)](https://github.com/Nen-Co/nen-db/releases)
 [![Docker](https://img.shields.io/badge/Docker-GHCR-blue.svg)](https://ghcr.io/nen-co/nendb)
+[![DOD](https://img.shields.io/badge/Architecture-Data--Oriented--Design-FF6B6B)](docs/DATA_ORIENTED_DESIGN.md)
 
 ## 🎯 What is NenDB?
 
-NenDB is a **static memory graph database** designed specifically for AI applications. Built with Zig for maximum performance and predictable memory usage, it provides:
+NenDB is a **Data-Oriented Design (DOD) graph database** built specifically for AI applications. Using Struct of Arrays (SoA) layout, component-based architecture, and SIMD optimization, it delivers:
 
 - 🧠 **AI-Native Design**: Optimized for graph reasoning and AI workloads
-- ⚡ **Static Memory**: Zero garbage collection overhead
-- 🚀 **Lightning Fast**: Built with Zig for maximum performance
+- ⚡ **Data-Oriented Design**: SoA layout for maximum cache efficiency
+- 🚀 **SIMD Optimization**: Vectorized operations for peak performance
+- 🧩 **Component System**: Flexible entity-component architecture
 - 🛡️ **Crash Safe**: WAL-based durability with point-in-time recovery
 - 🔧 **Zero Dependencies**: Self-contained with minimal external requirements
 
 ## ✨ Key Features
 
 ### 🎨 **Core Capabilities**
+- **Data-Oriented Design**: Struct of Arrays (SoA) layout for maximum performance
+- **Component System**: Entity-component architecture for flexible data modeling
+- **SIMD Operations**: Vectorized processing for peak throughput
 - **Static Memory Pools**: Predictable performance with configurable memory limits
 - **Write-Ahead Logging**: Crash-safe persistence with point-in-time recovery
 - **Graph Algorithms**: BFS, Dijkstra, PageRank, and Community Detection
@@ -27,9 +32,12 @@ NenDB is a **static memory graph database** designed specifically for AI applica
 - **CLI Interface**: Command-line tool for database management
 
 ### 🚀 **Performance Features**
+- **Cache Locality**: SoA layout optimizes memory access patterns
+- **SIMD Optimization**: Vectorized operations on aligned data structures
+- **Hot/Cold Separation**: Frequently accessed data separated from cold data
 - **Memory Pools**: Static allocation for zero GC overhead
 - **Predictable Latency**: Consistent response times under load
-- **Efficient Storage**: Optimized data structures for graph operations
+- **Efficient Storage**: DOD-optimized data structures for graph operations
 - **Cross-Platform**: Linux, macOS, and Windows support
 
 ### 🔌 **API Endpoints**
@@ -41,6 +49,20 @@ NenDB is a **static memory graph database** designed specifically for AI applica
 - `POST /graph/algorithms/community` - Community detection
 
 ## 🚀 Quick Start
+
+### 🎯 **DOD Demo**
+Experience the power of Data-Oriented Design:
+
+```bash
+# Run the DOD performance demo
+zig build dod-demo
+```
+
+This demo showcases:
+- **SoA Performance**: Struct of Arrays vs Array of Structs
+- **SIMD Filtering**: Vectorized node and edge filtering
+- **Component System**: Entity-component architecture
+- **Memory Statistics**: Cache efficiency and utilization
 
 ### 📦 **Installation**
 

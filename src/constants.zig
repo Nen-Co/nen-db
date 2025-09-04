@@ -16,7 +16,7 @@ pub const VERSION_STRING = "v0.1.0-beta";
 pub const VERSION_FULL = "NenDB v0.1.0-beta";
 pub const VERSION_SHORT = "0.1.0";
 
-// Memory Configuration - Static allocation for predictable performance
+// Memory Configuration - DOD-optimized static allocation
 pub const memory = struct {
     // Pool sizes - can be configured at compile time
     pub const node_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_NODE_POOL_SIZE"))
@@ -34,14 +34,21 @@ pub const memory = struct {
     else
         1024;
 
-    // Memory alignment (following TigerBeetle's patterns)
+    // DOD-specific pool sizes
+    pub const component_pool_size: u32 = 8192; // For component-based entities
+    pub const property_pool_size: u32 = 16384; // For property storage
+    pub const index_pool_size: u32 = 2048; // For index structures
+
+    // Memory alignment (DOD-optimized)
     pub const cache_line_size = 64;
+    pub const simd_alignment = 32; // For SIMD operations
     pub const sector_size = 512;
     pub const page_size = 4096;
 
-    // Buffer sizes for batch operations
+    // Buffer sizes for batch operations (DOD-optimized)
     pub const batch_max = 8192;
     pub const message_size_max = 2048;
+    pub const simd_batch_size = 8; // Process 8 elements at once with SIMD
 };
 
 // Batch Processing Configuration (TigerBeetle-style)
@@ -62,7 +69,7 @@ pub const batch = struct {
     pub const enable_batch_statistics: bool = true;
 };
 
-// Data Structure Constraints
+// Data Structure Constraints - DOD-optimized
 pub const data = struct {
     pub const node_id_max = std.math.maxInt(u64);
     pub const node_kind_max = std.math.maxInt(u8);
@@ -73,6 +80,16 @@ pub const data = struct {
 
     pub const embedding_dimensions = 256; // TigerBeetle-style: start small, scale up after testing
     pub const embedding_id_max = std.math.maxInt(u64);
+
+    // DOD-specific constraints
+    pub const max_components_per_entity = 16; // Maximum components per entity
+    pub const max_property_types = 32; // Maximum property types
+    pub const max_relationship_types = 64; // Maximum relationship types
+    
+    // SIMD-optimized sizes (power of 2)
+    pub const simd_node_batch_size = 8; // Process 8 nodes at once
+    pub const simd_edge_batch_size = 8; // Process 8 edges at once
+    pub const simd_embedding_batch_size = 8; // Process 8 embeddings at once
 };
 
 // Storage Configuration
@@ -101,12 +118,19 @@ pub const query = struct {
     pub const timeout_ms = 5000;
 };
 
-// Performance Tuning
+// Performance Tuning - DOD-optimized
 pub const performance = struct {
     pub const prefetch_distance = 16;
     pub const hash_table_load_factor = 0.75;
     pub const bloom_filter_bits = 8;
     pub const compression_level = 1; // Fast compression
+    
+    // DOD-specific performance tuning
+    pub const enable_simd = true; // Enable SIMD operations
+    pub const enable_prefetch = true; // Enable data prefetching
+    pub const enable_vectorization = true; // Enable vectorized operations
+    pub const cache_line_prefetch = 2; // Prefetch 2 cache lines ahead
+    pub const simd_prefetch_distance = 4; // Prefetch distance for SIMD operations
 };
 
 // Development & Testing
@@ -124,6 +148,34 @@ pub const features = struct {
     pub const enable_replication = false; // TODO: Implement
     pub const enable_metrics = true;
     pub const enable_query_cache = true;
+};
+
+// DOD Configuration
+pub const dod = struct {
+    // Data layout configuration
+    pub const use_soa_layout = true; // Use Struct of Arrays layout
+    pub const separate_hot_cold = true; // Separate hot and cold data
+    pub const enable_component_system = true; // Enable component-based architecture
+    
+    // Memory optimization
+    pub const align_for_simd = true; // Align data for SIMD operations
+    pub const use_memory_pools = true; // Use static memory pools
+    pub const enable_memory_prefetch = true; // Enable memory prefetching
+    
+    // Performance optimization
+    pub const enable_vectorization = true; // Enable vectorized operations
+    pub const enable_batch_processing = true; // Enable batch processing
+    pub const enable_parallel_components = true; // Enable parallel component processing
+    
+    // Cache optimization
+    pub const optimize_cache_locality = true; // Optimize for cache locality
+    pub const use_cache_friendly_layouts = true; // Use cache-friendly data layouts
+    pub const enable_prefetch_hints = true; // Enable prefetch hints
+    
+    // SIMD configuration
+    pub const simd_width = 8; // SIMD width (8 for AVX2, 16 for AVX-512)
+    pub const enable_simd_operations = true; // Enable SIMD operations
+    pub const simd_alignment = 32; // SIMD alignment requirement
 };
 
 // Error codes (following TigerBeetle's pattern)

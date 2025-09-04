@@ -70,6 +70,21 @@ pub fn build(b: *std.Build) void {
     const algorithms_demo_step = b.step("demo", "Run algorithms demo");
     algorithms_demo_step.dependOn(&run_algorithms_demo.step);
 
+    // DOD (Data-Oriented Design) demo executable
+    const dod_demo = b.addExecutable(.{
+        .name = "dod-demo",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/dod_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    dod_demo.root_module.addImport("nendb", lib_mod);
+
+    const run_dod_demo = b.addRunArtifact(dod_demo);
+    const dod_demo_step = b.step("dod-demo", "Run Data-Oriented Design demo");
+    dod_demo_step.dependOn(&run_dod_demo.step);
+
     // Compiled Cypher + Vector demo executable
     const compiled_cypher_demo = b.addExecutable(.{
         .name = "compiled-cypher-demo",
