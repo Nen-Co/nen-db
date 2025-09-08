@@ -66,18 +66,18 @@ pub const BFS = struct {
         allocator: std.mem.Allocator,
     ) !BFSResult {
         const max_nodes = options.max_nodes orelse node_pool.getStats().total_allocated;
-        
+
         // Initialize prefetch system
         const prefetch_config = options.prefetch_config orelse prefetch.PrefetchConfig{};
         var prefetch_system = prefetch.PrefetchSystem.init(prefetch_config);
-        
+
         // Static result arrays (using stack allocation for small graphs)
         const MAX_STATIC_NODES = 1024;
         var visited_nodes_static: [MAX_STATIC_NODES]u64 = [_]u64{0} ** MAX_STATIC_NODES;
         var distances_static: [MAX_STATIC_NODES]u32 = [_]u32{0} ** MAX_STATIC_NODES;
         var predecessors_static: [MAX_STATIC_NODES]u64 = [_]u64{0} ** MAX_STATIC_NODES;
         var levels_static: [MAX_STATIC_NODES]u32 = [_]u32{0} ** MAX_STATIC_NODES;
-        
+
         // Use static arrays if possible, otherwise fall back to dynamic
         var visited_nodes: []u64 = if (max_nodes <= MAX_STATIC_NODES)
             visited_nodes_static[0..max_nodes]
@@ -199,7 +199,7 @@ pub const BFS = struct {
     fn findEdgesFromNodeDOD(edge_pool: *const pool.EdgePool, node_id: u64) [64]u32 {
         var edge_indices: [64]u32 = [_]u32{0} ** 64;
         var count: u32 = 0;
-        
+
         // Use DOD layout for efficient edge traversal
         const stats = edge_pool.getStats();
         for (0..stats.total_allocated) |i| {
@@ -209,7 +209,7 @@ pub const BFS = struct {
                 count += 1;
             }
         }
-        
+
         return edge_indices;
     }
 
