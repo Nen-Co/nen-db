@@ -7,7 +7,11 @@ const std = @import("std");
 pub const memory = @import("memory/pool_v2.zig");
 // pub const query = @import("query/query.zig");
 pub const constants = @import("constants.zig");
-pub const io = @import("io/io.zig");
+
+// Use nen-io and nen-json from the ecosystem instead of local implementations
+pub const io = @import("nen-io");
+pub const json = @import("nen-json");
+
 // Legacy nendb.zig removed; GraphDB is primary engine now (graphdb.zig)
 pub const graphdb = @import("graphdb.zig");
 
@@ -21,8 +25,8 @@ pub const batch = @import("batch/batch_processor.zig");
 pub const client_batcher = @import("batch/client_batcher.zig");
 pub const server_batcher = @import("batch/server_batcher.zig");
 
-// JSON library with static memory pools
-pub const json = @import("json/lib.zig");
+// Algorithms module
+pub const algorithms = @import("algorithms/algorithms.zig");
 
 // Networking APIs using nen-net
 pub const api = struct {

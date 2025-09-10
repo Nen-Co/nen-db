@@ -2,10 +2,12 @@
 // Optimized for static memory pools, DOD layout, and prefetching
 
 const std = @import("std");
-const nendb = @import("nendb");
-const pool = nendb.memory;
-const dod = nendb.dod;
-const prefetch = nendb.prefetch;
+// Import directly from relative paths to avoid recursive module inclusion issues when
+// this file is used as part of the main 'nendb' root module.
+const pool = @import("../memory/pool_v2.zig");
+const prefetch = @import("../memory/prefetch_system.zig");
+// DOD layout optional; only include if needed.
+const dod = @import("../memory/dod_layout.zig");
 
 pub const DijkstraResult = struct {
     distances: []u32,

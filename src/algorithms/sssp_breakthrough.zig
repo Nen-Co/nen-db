@@ -19,6 +19,9 @@ pub const BreakthroughSSSPResult = struct {
     visited_nodes: []u64,
     frontier_size: usize,
     iterations: usize,
+    memory_bytes: usize,
+    neighbor_overflow_events: u32,
+    max_observed_out_degree: u32,
     allocator: std.mem.Allocator,
 
     pub fn deinit(self: *BreakthroughSSSPResult) void {
@@ -126,40 +129,53 @@ pub const Frontier = struct {
 
 /// Dependency tracking for vertices
 pub const DependencyGraph = struct {
-    dependencies: std.AutoHashMap(u64, std.ArrayList(u64)),
+    /// Fixed-size small vector to keep dependencies without dynamic allocs.
+    const FixedList = struct {
+        const CAPACITY = 32; // Tunable. If exceeded we drop further deps (rare path) or could log.
+        data: [CAPACITY]u64 = [_]u64{0} ** CAPACITY,
+        len: u8 = 0,
+
+        inline fn add(self: *FixedList, v: u64) void {
+            if (self.len < CAPACITY) {
+                self.data[self.len] = v;
+                self.len += 1;
+            } else {
+                // Capacity exhausted; deterministic ignore to keep bounded memory.
+            }
+        }
+
+        inline fn slice(self: *const FixedList) []const u64 {
+            return self.data[0..self.len];
+        }
+    };
+
+    dependencies: std.AutoHashMap(u64, FixedList),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) DependencyGraph {
         return DependencyGraph{
-            .dependencies = std.AutoHashMap(u64, std.ArrayList(u64)).init(allocator),
+            .dependencies = std.AutoHashMap(u64, FixedList).init(allocator),
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *DependencyGraph) void {
-        var iter = self.dependencies.iterator();
-        while (iter.next()) |entry| {
-            entry.value_ptr.deinit();
-        }
         self.dependencies.deinit();
     }
 
     /// Add dependency relationship
     pub fn addDependency(self: *DependencyGraph, vertex: u64, depends_on: u64) !void {
-        var list = self.dependencies.get(depends_on) orelse {
-            const new_list = std.ArrayList(u64).initCapacity(self.allocator, 0);
-            try self.dependencies.put(depends_on, new_list);
-            return try self.addDependency(vertex, depends_on);
-        };
-
-        try list.append(self.allocator, vertex);
-        try self.dependencies.put(depends_on, list);
+        var entry = try self.dependencies.getOrPut(depends_on);
+        if (!entry.found_existing) {
+            entry.value_ptr.* = FixedList{};
+        }
+        entry.value_ptr.add(vertex);
     }
 
     /// Get vertices that depend on this vertex
-    pub fn getDependencies(self: *DependencyGraph, vertex: u64) ?[]u64 {
+    pub fn getDependencies(self: *DependencyGraph, vertex: u64) ?[]const u64 {
         const list = self.dependencies.get(vertex) orelse return null;
-        return list.items;
+        return list.slice();
     }
 };
 
@@ -182,6 +198,8 @@ pub const BreakthroughSSSP = struct {
     visited: []bool,
     frontier: Frontier,
     dependencies: DependencyGraph,
+    max_observed_out_degree: u32 = 0,
+    neighbor_overflow_events: u32 = 0,
 
     pub fn init(
         node_pool: *const pool.NodePool,
@@ -288,6 +306,12 @@ pub const BreakthroughSSSP = struct {
             .visited_nodes = visited_nodes,
             .frontier_size = self.frontier.getSize(),
             .iterations = iterations,
+            .memory_bytes = (result_distances.len * @sizeOf(f64)) +
+                (result_predecessors.len * @sizeOf(u64)) +
+                (visited_nodes.len * @sizeOf(u64)) +
+                (self.frontier.capacity * (@sizeOf(u64) + @sizeOf(f64))),
+            .neighbor_overflow_events = self.neighbor_overflow_events,
+            .max_observed_out_degree = self.max_observed_out_degree,
             .allocator = self.allocator,
         };
     }
@@ -296,20 +320,34 @@ pub const BreakthroughSSSP = struct {
     fn processNeighbors(self: *Self, current_vertex: u64) !void {
         const current_distance = self.distances[current_vertex];
 
-        // Get edges from current vertex
-        var edge_iter = self.graph.edge_pool.iterFromNode(current_vertex);
-        var neighbors = std.ArrayList(Neighbor).initCapacity(self.allocator, 0);
-        defer neighbors.deinit(self.allocator);
+        // Adaptive fixed-size stack buffer strategy with tiered capacities.
+        const BASE: usize = 256;
+        const TIER1: usize = 512;
+        const TIER2: usize = 1024; // Hard ceiling to bound stack usage.
+        var capacity: usize = BASE;
+        if (self.max_observed_out_degree > BASE and self.max_observed_out_degree <= TIER1) capacity = TIER1;
+        if (self.max_observed_out_degree > TIER1) capacity = TIER2;
+        var storage: [TIER2]Neighbor = undefined;
+        var neighbor_slice = storage[0..capacity];
+        var count: usize = 0;
 
-        // Collect all neighbors and their weights
+        var edge_iter = self.graph.edge_pool.iterFromNode(current_vertex);
         while (edge_iter.next()) |edge| {
             const neighbor_id = if (edge.from == current_vertex) edge.to else edge.from;
             const edge_weight = self.weight_fn(edge);
-            try neighbors.append(self.allocator, Neighbor{ .vertex = neighbor_id, .weight = edge_weight });
-        }
 
-        // Use recursive partitioning for neighbor processing
-        try self.recursivePartitioning(neighbors.items, current_distance, current_vertex);
+            if (count < neighbor_slice.len) {
+                neighbor_slice[count] = .{ .vertex = neighbor_id, .weight = edge_weight };
+                count += 1;
+            } else {
+                // Overflow path: count and process immediately.
+                self.neighbor_overflow_events += 1;
+                try self.relaxEdge(current_vertex, neighbor_id, edge_weight, current_distance);
+            }
+        }
+        if (count > self.max_observed_out_degree) self.max_observed_out_degree = @intCast(count);
+        if (count == 0) return;
+        try self.recursivePartitioning(neighbor_slice[0..count], current_distance, current_vertex);
     }
 
     /// Recursive partitioning technique - the breakthrough part of the algorithm
@@ -455,6 +493,8 @@ pub const PerformanceComparison = struct {
     memory_usage_breakthrough: usize,
     memory_usage_dijkstra: usize,
     memory_savings: f64,
+    max_observed_out_degree: u32,
+    neighbor_overflow_events: u32,
 
     pub fn print(self: *const PerformanceComparison) void {
         std.debug.print("\n=== SSSP Algorithm Performance Comparison ===\n", .{});
@@ -464,6 +504,8 @@ pub const PerformanceComparison = struct {
         std.debug.print("Memory Usage (Breakthrough): {} bytes\n", .{self.memory_usage_breakthrough});
         std.debug.print("Memory Usage (Dijkstra):     {} bytes\n", .{self.memory_usage_dijkstra});
         std.debug.print("Memory Savings:              {d:.1}%\n", .{self.memory_savings});
+        std.debug.print("Breakthrough Max Out-Degree Observed: {}\n", .{self.max_observed_out_degree});
+        std.debug.print("Breakthrough Neighbor Overflow Events: {}\n", .{self.neighbor_overflow_events});
         std.debug.print("==============================================\n", .{});
     }
 };
@@ -476,18 +518,16 @@ pub fn benchmarkAlgorithms(
     weight_fn: EdgeWeightFn,
     allocator: std.mem.Allocator,
 ) !PerformanceComparison {
-    const timer = std.time.Timer;
-
     // Benchmark breakthrough algorithm
-    const breakthrough_start = try timer.start();
-    const breakthrough_result = try BreakthroughSSSP.executeSimple(node_pool, edge_pool, source_node_id, weight_fn, allocator);
-    const breakthrough_time = breakthrough_start.read();
+    var breakthrough_timer = try std.time.Timer.start();
+    var breakthrough_result = try BreakthroughSSSP.executeSimple(node_pool, edge_pool, source_node_id, weight_fn, allocator);
+    const breakthrough_time = breakthrough_timer.read();
     defer breakthrough_result.deinit();
 
     // Benchmark Dijkstra's algorithm (import from dijkstra.zig)
-    const dijkstra_start = try timer.start();
-    const dijkstra_result = try @import("dijkstra.zig").Dijkstra.execute(node_pool, edge_pool, source_node_id, @import("dijkstra.zig").DijkstraOptions{}, @import("dijkstra.zig").defaultEdgeWeight, allocator);
-    const dijkstra_time = dijkstra_start.read();
+    var dijkstra_timer = try std.time.Timer.start();
+    var dijkstra_result = try @import("dijkstra.zig").Dijkstra.execute(node_pool, edge_pool, source_node_id, @import("dijkstra.zig").DijkstraOptions{}, @import("dijkstra.zig").defaultEdgeWeight, allocator);
+    const dijkstra_time = dijkstra_timer.read();
     defer dijkstra_result.deinit();
 
     const speedup = @as(f64, @floatFromInt(dijkstra_time)) / @as(f64, @floatFromInt(breakthrough_time));
@@ -498,8 +538,10 @@ pub fn benchmarkAlgorithms(
         .breakthrough_time = breakthrough_time,
         .dijkstra_time = dijkstra_time,
         .speedup = speedup,
-        .memory_usage_breakthrough = breakthrough_result.frontier_size * @sizeOf(u64),
-        .memory_usage_dijkstra = dijkstra_result.visited_nodes.len * @sizeOf(u64),
+        .memory_usage_breakthrough = breakthrough_result.memory_bytes,
+        .memory_usage_dijkstra = dijkstra_result.visited_nodes.len * @sizeOf(u64) + dijkstra_result.distances.len * @sizeOf(u32),
         .memory_savings = memory_savings,
+        .max_observed_out_degree = breakthrough_result.max_observed_out_degree,
+        .neighbor_overflow_events = breakthrough_result.neighbor_overflow_events,
     };
 }

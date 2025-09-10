@@ -196,6 +196,20 @@ pub fn build(b: *std.Build) void {
     const stress_test_step = b.step("test-stress", "Run stress tests (long running)");
     stress_test_step.dependOn(&run_stress_tests.step);
 
+    // 5. ALGORITHM TESTS (Correctness and benchmarking of graph algorithms)
+    const algorithm_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/algorithms/algorithms_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    algorithm_tests.root_module.addImport("nendb", lib_mod);
+
+    const run_algorithm_tests = b.addRunArtifact(algorithm_tests);
+    const algorithm_test_step = b.step("test-algorithms", "Run algorithm correctness and benchmark tests");
+    algorithm_test_step.dependOn(&run_algorithm_tests.step);
+
     // ===== LEGACY TEST SUPPORT (Maintained for compatibility) =====
 
     // Tests for production version
@@ -244,6 +258,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
+    query_tests.root_module.addImport("nendb", lib_mod);
     const run_query_tests = b.addRunArtifact(query_tests);
     test_step.dependOn(&run_query_tests.step);
 
@@ -256,6 +271,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     query_tests_new.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
+    query_tests_new.root_module.addImport("nendb", lib_mod);
     const run_query_tests_new = b.addRunArtifact(query_tests_new);
     test_step.dependOn(&run_query_tests_new.step);
 
@@ -268,6 +284,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     query_tests_advanced.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
+    query_tests_advanced.root_module.addImport("nendb", lib_mod);
     const run_query_tests_advanced = b.addRunArtifact(query_tests_advanced);
     test_step.dependOn(&run_query_tests_advanced.step);
 
@@ -400,18 +417,25 @@ pub fn build(b: *std.Build) void {
     // Note: nen-cli is a separate repository and should not be included in nen-db
     // The umbrella CLI functionality should be implemented in the nen-cli repository
 
-    // Custom I/O module (our own implementation, no external dependencies)
-    const custom_io_mod = b.createModule(.{ .root_source_file = b.path("src/io/io.zig"), .target = target, .optimize = optimize });
+    // Nen-IO module for high-performance I/O operations
+    const nen_io_mod = b.createModule(.{ .root_source_file = b.path("../nen-io/src/lib.zig"), .target = target, .optimize = optimize });
+
+    // Nen-JSON module for high-performance JSON operations
+    const nen_json_mod = b.createModule(.{ .root_source_file = b.path("../nen-json/src/lib.zig"), .target = target, .optimize = optimize });
 
     // Nen-Net module for high-performance networking APIs
-    const nen_net_mod = b.createModule(.{ .root_source_file = b.path("nen-net/src/lib.zig"), .target = target, .optimize = optimize });
+    const nen_net_mod = b.createModule(.{ .root_source_file = b.path("../nen-net/src/lib.zig"), .target = target, .optimize = optimize });
 
-    lib_mod.addImport("io", custom_io_mod);
+    // Use nen-io and nen-json instead of local implementations
+    lib_mod.addImport("nen-io", nen_io_mod);
+    lib_mod.addImport("nen-json", nen_json_mod);
     // Note: nen-net is only imported by executables that need networking, not by the core library
-    monitoring_mod.addImport("io", custom_io_mod);
-    exe.root_module.addImport("io", custom_io_mod);
+    monitoring_mod.addImport("nen-io", nen_io_mod);
+    exe.root_module.addImport("nen-io", nen_io_mod);
+    exe.root_module.addImport("nen-json", nen_json_mod);
     exe.root_module.addImport("nen-net", nen_net_mod);
-    nen_cli.root_module.addImport("io", custom_io_mod);
+    nen_cli.root_module.addImport("nen-io", nen_io_mod);
+    nen_cli.root_module.addImport("nen-json", nen_json_mod);
     nen_cli.root_module.addImport("nen-net", nen_net_mod);
 
     // Networking Demo
@@ -453,9 +477,9 @@ pub fn build(b: *std.Build) void {
     const conversation_demo_step = b.step("conversation-demo", "Run conversation storage demo");
     conversation_demo_step.dependOn(&run_conversation_demo.step);
 
-    // HTTP Server executable using nen-net
+    // HTTP Server executable using nen-net (legacy)
     const server_exe = b.addExecutable(.{
-        .name = "nendb-server",
+        .name = "nendb-http-server",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/server_main.zig"),
             .target = target,
@@ -466,9 +490,90 @@ pub fn build(b: *std.Build) void {
     server_exe.root_module.addImport("algorithms", algorithms_mod);
     b.installArtifact(server_exe);
 
+    // NEW: High-Performance TCP Server using enhanced nen-net
+    const tcp_server_exe = b.addExecutable(.{
+        .name = "nendb-tcp-server",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tcp_server_main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    tcp_server_exe.root_module.addImport("nen-net", nen_net_mod);
+    tcp_server_exe.root_module.addImport("nendb", lib_mod);
+    tcp_server_exe.root_module.addImport("nen-io", nen_io_mod);
+    b.installArtifact(tcp_server_exe);
+
     const run_server = b.addRunArtifact(server_exe);
     const server_step = b.step("run-server", "Run NenDB HTTP Server");
     server_step.dependOn(&run_server.step);
+
+    const run_tcp_server = b.addRunArtifact(tcp_server_exe);
+    const tcp_server_step = b.step("run-tcp-server", "Run NenDB High-Performance TCP Server");
+    tcp_server_step.dependOn(&run_tcp_server.step);
+
+    // Debug TCP executable for testing
+    const tcp_debug_exe = b.addExecutable(.{
+        .name = "tcp-debug",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/tcp/tcp_debug.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    tcp_debug_exe.root_module.addImport("nen-net", nen_net_mod);
+    tcp_debug_exe.root_module.addImport("nendb", lib_mod);
+    b.installArtifact(tcp_debug_exe);
+
+    const run_tcp_debug = b.addRunArtifact(tcp_debug_exe);
+    const tcp_debug_step = b.step("tcp-debug", "Run TCP Debug Test");
+    tcp_debug_step.dependOn(&run_tcp_debug.step);
+
+    // Simple TCP test to isolate segfault
+    const simple_tcp_test = b.addExecutable(.{
+        .name = "simple-tcp-test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/tcp/simple_tcp_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(simple_tcp_test);
+
+    const run_simple_tcp = b.addRunArtifact(simple_tcp_test);
+    const simple_tcp_step = b.step("simple-tcp", "Run Simple TCP Test");
+    simple_tcp_step.dependOn(&run_simple_tcp.step);
+
+    // Minimal TCP server to test basic functionality
+    const minimal_tcp_server = b.addExecutable(.{
+        .name = "minimal-tcp-server",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/tcp/minimal_tcp_server.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(minimal_tcp_server);
+
+    const run_minimal_tcp = b.addRunArtifact(minimal_tcp_server);
+    const minimal_tcp_step = b.step("minimal-tcp", "Run Minimal TCP Server");
+    minimal_tcp_step.dependOn(&run_minimal_tcp.step);
+
+    // Comprehensive TCP server test
+    const comprehensive_test = b.addExecutable(.{
+        .name = "tcp-comprehensive-test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/tcp/comprehensive_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    comprehensive_test.root_module.addImport("nen-io", nen_io_mod);
+    b.installArtifact(comprehensive_test);
+
+    const run_comprehensive = b.addRunArtifact(comprehensive_test);
+    const comprehensive_step = b.step("test-tcp", "Run Comprehensive TCP Test");
+    comprehensive_step.dependOn(&run_comprehensive.step);
 
     // HTTP API tests using nen-net
     const http_tests = b.addTest(.{

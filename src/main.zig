@@ -2,7 +2,8 @@
 // Simple CLI for interacting with NenDB
 
 const std = @import("std");
-const io = @import("io/io.zig");
+const nendb = @import("lib.zig");
+const io = nendb.io; // Use nen-io from the ecosystem
 const GraphDB = @import("graphdb.zig").GraphDB;
 const pool = @import("memory/pool_v2.zig");
 const constants = @import("constants.zig");

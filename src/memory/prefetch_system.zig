@@ -187,46 +187,51 @@ pub const PrefetchSystem = struct {
     pub fn prefetchPageRank(self: *PrefetchSystem, graph_data: *const dod_layout.DODGraphData, node_indices: []const u32, iteration: u32) void {
         if (!self.config.enable_software_prefetch) return;
 
-        // Prefetch nodes for PageRank computation
-        for (node_indices) |node_idx| {
-            self.prefetchNodeData(graph_data, node_idx, 1, .temporal);
-        }
+        // Simple heuristic: every 4th iteration treat as non-temporal since rank vector may be rewritten.
+        const node_hint: PrefetchHint = if ((iteration & 3) == 0) .non_temporal else .temporal;
 
-        // Prefetch edges for PageRank computation
+        // Prefetch nodes for PageRank computation with adaptive hint.
         for (node_indices) |node_idx| {
             if (node_idx < graph_data.node_count) {
+                self.prefetchNodeData(graph_data, node_idx, 1, node_hint);
+            }
+        }
+
+        // Prefetch edges for PageRank computation; on odd iterations prefetch only half to reduce pressure.
+        const throttle = (iteration & 1) == 1;
+        var processed: u32 = 0;
+        for (node_indices) |node_idx| {
+            if (node_idx < graph_data.node_count) {
+                if (throttle and (processed & 1) == 1) {
+                    processed += 1;
+                    continue; // Skip every second to lower bandwidth usage.
+                }
                 const node_id = graph_data.node_ids[node_idx];
                 const edge_indices = self.findEdgesFromNode(graph_data, node_id);
                 for (edge_indices) |edge_idx| {
+                    if (edge_idx == 0) break; // stop when placeholder zero remainder reached.
                     self.prefetchEdgeData(graph_data, edge_idx, 1, .temporal);
                 }
+                processed += 1;
             }
         }
     }
 
     // Hardware prefetch implementation
-    fn hardwarePrefetch(self: *PrefetchSystem, ptr: *const anyopaque, size: u32, hint: PrefetchHint) void {
-        // Use platform-specific prefetch instructions
-        switch (hint) {
-            .temporal => {
-                // Prefetch for temporal locality
-                std.mem.prefetch(ptr, .read);
-            },
-            .non_temporal => {
-                // Prefetch for non-temporal access
-                std.mem.prefetch(ptr, .read);
-            },
-            .write => {
-                // Prefetch for write access
-                std.mem.prefetch(ptr, .write);
-            },
-            .read => {
-                // Prefetch for read access
-                std.mem.prefetch(ptr, .read);
-            },
-            .none => {
-                // No prefetch
-            },
+    fn hardwarePrefetch(self: *PrefetchSystem, memory_ptr: *const anyopaque, element_count: u32, access_hint: PrefetchHint) void {
+        // Issue one prefetch per cache line-sized chunk up to element_count (bounded by config).
+        const max_requests = @min(element_count, self.config.max_prefetch_requests);
+        var issued: u32 = 0;
+        while (issued < max_requests) : (issued += 1) {
+            switch (access_hint) {
+                .temporal, .non_temporal, .read => std.mem.prefetch(memory_ptr, .read),
+                .write => std.mem.prefetch(memory_ptr, .write),
+                .none => {},
+            }
+        }
+        // Account as hardware prefetches (adds to stats already elsewhere would double count so only adjust when analysis on).
+        if (self.config.enable_prefetch_analysis) {
+            self.stats.hardware_prefetches += issued;
         }
     }
 
@@ -307,6 +312,12 @@ pub const PrefetchSystem = struct {
 
     // Helper functions
     fn findNodeIndex(self: *const PrefetchSystem, graph_data: *const dod_layout.DODGraphData, node_id: u64) ?u32 {
+        // Update stats to reflect lookup attempts when analysis enabled.
+        if (self.config.enable_prefetch_analysis) {
+            // Treat each lookup as a software prefetch opportunity evaluation.
+            // Lightweight increment only; no branching side-effects.
+            @atomicRmw(u64, &@constCast(&self.stats).software_prefetches, .Add, 1, .monotonic);
+        }
         for (0..graph_data.node_count) |i| {
             if (graph_data.node_ids[i] == node_id) {
                 return @intCast(i);
@@ -316,6 +327,9 @@ pub const PrefetchSystem = struct {
     }
 
     fn findEdgesFromNode(self: *const PrefetchSystem, graph_data: *const dod_layout.DODGraphData, node_id: u64) [64]u32 {
+        if (self.config.enable_prefetch_analysis) {
+            @atomicRmw(u64, &@constCast(&self.stats).prefetch_misses, .Add, 1, .monotonic);
+        }
         var edge_indices: [64]u32 = [_]u32{0} ** 64;
         var count: u32 = 0;
 
