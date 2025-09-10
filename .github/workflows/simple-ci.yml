@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, feature/data-oriented-design ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        path: nen-db
+    
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: '0.15.1'
+    
+    - name: Clone dependencies
+      run: |
+        git clone --depth 1 https://github.com/Nen-Co/nen-io.git
+        git clone --depth 1 https://github.com/Nen-Co/nen-json.git
+        git clone --depth 1 https://github.com/Nen-Co/nen-net.git
+    
+    - name: Build and test
+      working-directory: nen-db
+      run: |
+        zig build
+        zig build test-unit
