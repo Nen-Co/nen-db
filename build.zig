@@ -47,6 +47,34 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // WASM build target for embedded/browser usage
+    const wasm_target = b.resolveTargetQuery(.{
+        .cpu_arch = .wasm32,
+        .os_tag = .freestanding,
+    });
+
+    const wasm_lib = b.addExecutable(.{
+        .name = "nendb-wasm",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/wasm_lib.zig"),
+            .target = wasm_target,
+            .optimize = optimize,
+        }),
+    });
+    wasm_lib.entry = .disabled; // No entry point needed for WASM library
+    b.installArtifact(wasm_lib);
+
+    // WASM build step
+    const wasm_step = b.step("wasm", "Build WASM version");
+    wasm_step.dependOn(&b.addInstallArtifact(wasm_lib, .{}).step);
+
+    // WASM module for library usage
+    _ = b.addModule("nendb-wasm", .{
+        .root_source_file = b.path("src/wasm_lib.zig"),
+        .target = wasm_target,
+        .optimize = optimize,
+    });
+
     // Algorithms demo executable
     const algorithms_demo = b.addExecutable(.{
         .name = "algorithms-demo",

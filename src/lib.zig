@@ -63,6 +63,23 @@ pub fn create_graph(allocator: std.mem.Allocator, config: Config) !GraphDB {
     return db; // return by value (copy); caller should deinit()
 }
 
+// Simplified embedded API - no configuration needed
+pub fn open(data_dir: []const u8) !GraphDB {
+    var db: GraphDB = undefined;
+    try GraphDB.open_inplace(&db, data_dir);
+    return db;
+}
+
+// In-memory only database (no persistence)
+pub fn open_memory() !GraphDB {
+    return open(":memory:");
+}
+
+// Quick start with default configuration
+pub fn init() !GraphDB {
+    return open("./nendb_data");
+}
+
 // Version information
 pub const VERSION = constants.VERSION_SHORT;
 pub const VERSION_STRING = constants.VERSION_FULL;
