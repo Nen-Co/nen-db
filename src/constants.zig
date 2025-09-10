@@ -85,7 +85,7 @@ pub const data = struct {
     pub const max_components_per_entity = 16; // Maximum components per entity
     pub const max_property_types = 32; // Maximum property types
     pub const max_relationship_types = 64; // Maximum relationship types
-    
+
     // SIMD-optimized sizes (power of 2)
     pub const simd_node_batch_size = 8; // Process 8 nodes at once
     pub const simd_edge_batch_size = 8; // Process 8 edges at once
@@ -124,7 +124,7 @@ pub const performance = struct {
     pub const hash_table_load_factor = 0.75;
     pub const bloom_filter_bits = 8;
     pub const compression_level = 1; // Fast compression
-    
+
     // DOD-specific performance tuning
     pub const enable_simd = true; // Enable SIMD operations
     pub const enable_prefetch = true; // Enable data prefetching
@@ -156,22 +156,22 @@ pub const dod = struct {
     pub const use_soa_layout = true; // Use Struct of Arrays layout
     pub const separate_hot_cold = true; // Separate hot and cold data
     pub const enable_component_system = true; // Enable component-based architecture
-    
+
     // Memory optimization
     pub const align_for_simd = true; // Align data for SIMD operations
     pub const use_memory_pools = true; // Use static memory pools
     pub const enable_memory_prefetch = true; // Enable memory prefetching
-    
+
     // Performance optimization
     pub const enable_vectorization = true; // Enable vectorized operations
     pub const enable_batch_processing = true; // Enable batch processing
     pub const enable_parallel_components = true; // Enable parallel component processing
-    
+
     // Cache optimization
     pub const optimize_cache_locality = true; // Optimize for cache locality
     pub const use_cache_friendly_layouts = true; // Use cache-friendly data layouts
     pub const enable_prefetch_hints = true; // Enable prefetch hints
-    
+
     // SIMD configuration
     pub const simd_width = 8; // SIMD width (8 for AVX2, 16 for AVX-512)
     pub const enable_simd_operations = true; // Enable SIMD operations

@@ -12,7 +12,9 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-    
+      with:
+        path: nen-db
+        
     - name: Setup Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
@@ -20,10 +22,17 @@ jobs:
     
     - name: Clone Nen Dependencies
       run: |
-        cd ..
-        git clone https://github.com/Nen-Co/nen-io.git
-        git clone https://github.com/Nen-Co/nen-json.git  
-        git clone https://github.com/Nen-Co/nen-net.git
+        git clone --branch main https://github.com/Nen-Co/nen-io.git
+        git clone --branch main https://github.com/Nen-Co/nen-json.git  
+        git clone --branch main https://github.com/Nen-Co/nen-net.git
+    
+    - name: Verify Dependencies
+      run: |
+        ls -la
+        ls -la nen-*/
+        
+    - name: Change to project directory
+      run: cd nen-db
     
     - name: Verify Zig Cross-Compilation Capabilities
       run: |
@@ -32,6 +41,7 @@ jobs:
         zig version
     
     - name: Cross-Compile for All Platforms
+      working-directory: nen-db
       run: |
         # Zig makes this incredibly simple!
         mkdir -p dist
@@ -57,6 +67,7 @@ jobs:
         echo "✅ Cross-compilation completed!"
         
     - name: Test Native Build
+      working-directory: nen-db
       run: |
         # Test on Linux (native to runner)
         zig build -Dtarget=x86_64-linux-gnu --release=safe
@@ -64,6 +75,7 @@ jobs:
         zig build test-tcp
         
     - name: Verify All Binaries
+      working-directory: nen-db
       run: |
         echo "📦 Generated Binaries:"
         find dist/ -name "*" -type f -exec file {} \;
@@ -72,7 +84,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: nendb-cross-platform
-        path: dist/
+        path: nen-db/dist/
 
   # Optional: Test on actual target platforms
   test-platforms:
@@ -85,6 +97,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        path: nen-db
     
     - name: Setup Zig  
       uses: goto-bus-stop/setup-zig@v2
@@ -93,17 +107,18 @@ jobs:
         
     - name: Clone Nen Dependencies
       run: |
-        cd ..
-        git clone https://github.com/Nen-Co/nen-io.git
-        git clone https://github.com/Nen-Co/nen-json.git  
-        git clone https://github.com/Nen-Co/nen-net.git
+        git clone --branch main https://github.com/Nen-Co/nen-io.git
+        git clone --branch main https://github.com/Nen-Co/nen-json.git  
+        git clone --branch main https://github.com/Nen-Co/nen-net.git
         
     - name: Test Native Build & Run
+      working-directory: nen-db
       run: |
         zig build --release=safe
         zig build test-unit
         
     - name: Quick TCP Test
+      working-directory: nen-db
       if: matrix.os != 'windows-latest'  # Skip on Windows for now
       run: |
         zig build test-tcp
