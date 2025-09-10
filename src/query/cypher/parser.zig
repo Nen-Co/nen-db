@@ -31,10 +31,11 @@ pub const Parser = struct {
 
     pub fn parseQuery(self: *Parser) !ast.Statement {
         // Very minimal sequence: (MATCH ...)* (WITH ...)* (RETURN ...)? etc.
-        var parts = std.ArrayList(ast.Part).initCapacity(self.allocator, 0);
+        // Use unmanaged lists to align with Zig 0.15.1 container changes.
+        var parts: std.ArrayListUnmanaged(ast.Part) = .{};
         defer parts.deinit(self.allocator);
 
-        var clauses = std.ArrayList(ast.Clause).initCapacity(self.allocator, 0);
+        var clauses: std.ArrayListUnmanaged(ast.Clause) = .{};
         defer clauses.deinit(self.allocator);
 
         while (true) {
@@ -76,16 +77,17 @@ pub const Parser = struct {
                 const w = try self.parseWith();
                 try clauses.append(self.allocator, ast.Clause{ .With = w });
                 // Start a new part after WITH
-                try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice() });
-                clauses = std.ArrayList(ast.Clause).initCapacity(self.allocator, 0);
+                try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice(self.allocator) });
+                // Reset clauses list (previous buffer released by toOwnedSlice allocation copy).
+                clauses = .{};
                 continue;
             }
             if (self.current.kind == .keyword and std.ascii.eqlIgnoreCase(self.current.lexeme, "RETURN")) {
                 const r = try self.parseReturn();
                 try clauses.append(self.allocator, ast.Clause{ .Return = r });
                 // finalize last part
-                try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice() });
-                clauses = std.ArrayList(ast.Clause).initCapacity(self.allocator, 0);
+                try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice(self.allocator) });
+                clauses = .{};
                 break;
             }
             if (self.current.kind == .eof) break;
@@ -94,10 +96,10 @@ pub const Parser = struct {
         }
 
         if (clauses.items.len > 0) {
-            try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice() });
+            try parts.append(self.allocator, .{ .clauses = try clauses.toOwnedSlice(self.allocator) });
         }
 
-        return .{ .query = .{ .parts = try parts.toOwnedSlice() } };
+        return .{ .query = .{ .parts = try parts.toOwnedSlice(self.allocator) } };
     }
 
     fn parseMatch(self: *Parser, optional: bool) !ast.Match {
@@ -274,7 +276,7 @@ pub const Parser = struct {
             variable = self.current.lexeme;
             self.advance();
         }
-        var labels = std.ArrayList([]const u8).initCapacity(self.allocator, 0);
+        var labels: std.ArrayListUnmanaged([]const u8) = .{};
         defer labels.deinit(self.allocator);
         while (self.current.kind == .colon) {
             self.advance();
@@ -288,7 +290,7 @@ pub const Parser = struct {
         }
         if (self.current.kind != .r_paren) return error.ExpectedRParen;
         self.advance();
-        return .{ .variable = variable, .labels = try labels.toOwnedSlice(), .properties = props };
+        return .{ .variable = variable, .labels = try labels.toOwnedSlice(self.allocator), .properties = props };
     }
 
     fn parseRelationshipPattern(self: *Parser) !ast.RelationshipPattern {
@@ -302,7 +304,7 @@ pub const Parser = struct {
             variable = self.current.lexeme;
             self.advance();
         }
-        var types = std.ArrayList([]const u8).initCapacity(self.allocator, 0);
+        var types: std.ArrayListUnmanaged([]const u8) = .{};
         defer types.deinit(self.allocator);
         if (self.current.kind == .colon) {
             self.advance();
@@ -321,16 +323,16 @@ pub const Parser = struct {
             self.advance();
             if (self.current.kind == .gt) {
                 self.advance();
-                return .{ .variable = variable, .types = try types.toOwnedSlice(), .direction = .right, .min_hops = null, .max_hops = null, .properties = props };
+                return .{ .variable = variable, .types = try types.toOwnedSlice(self.allocator), .direction = .right, .min_hops = null, .max_hops = null, .properties = props };
             }
         }
-        return .{ .variable = variable, .types = try types.toOwnedSlice(), .direction = .undirected, .min_hops = null, .max_hops = null, .properties = props };
+        return .{ .variable = variable, .types = try types.toOwnedSlice(self.allocator), .direction = .undirected, .min_hops = null, .max_hops = null, .properties = props };
     }
 
     fn parseMapLiteral(self: *Parser) !ast.MapLiteral {
         if (self.current.kind != .l_brace) return error.ExpectedLBrace;
         self.advance();
-        var entries = std.ArrayList(ast.MapEntry).initCapacity(self.allocator, 0);
+        var entries: std.ArrayListUnmanaged(ast.MapEntry) = .{};
         defer entries.deinit(self.allocator);
         var first = true;
         while (self.current.kind != .r_brace) {
@@ -371,7 +373,7 @@ pub const Parser = struct {
             try entries.append(self.allocator, .{ .key = key, .value = value });
         }
         self.advance(); // r_brace
-        return .{ .entries = try entries.toOwnedSlice() };
+        return .{ .entries = try entries.toOwnedSlice(self.allocator) };
     }
 
     fn parsePrimaryExpr(self: *Parser) !ast.Expression {

@@ -9,6 +9,7 @@ const pool = nendb.memory;
 pub const bfs = @import("bfs.zig");
 pub const dijkstra = @import("dijkstra.zig");
 pub const pagerank = @import("pagerank.zig");
+pub const sssp_breakthrough = @import("sssp_breakthrough.zig");
 
 /// Algorithm types supported by NenDB
 pub const AlgorithmType = enum {
@@ -278,12 +279,12 @@ test "algorithms module integration" {
     var edge_pool = pool.EdgePool.init();
 
     // Create a simple graph: A -> B -> C
-    _ = try node_pool.alloc(.{ .id = 0, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    _ = try node_pool.alloc(.{ .id = 1, .labels = &[_]u32{}, .properties = &[_]u8{} });
-    _ = try node_pool.alloc(.{ .id = 2, .labels = &[_]u32{}, .properties = &[_]u8{} });
+    _ = try node_pool.alloc(.{ .id = 0, .kind = 0, .props = [_]u8{0} ** 128 });
+    _ = try node_pool.alloc(.{ .id = 1, .kind = 0, .props = [_]u8{0} ** 128 });
+    _ = try node_pool.alloc(.{ .id = 2, .kind = 0, .props = [_]u8{0} ** 128 });
 
-    _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .type = 0, .properties = &[_]u8{} });
-    _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .type = 0, .properties = &[_]u8{} });
+    _ = try edge_pool.alloc(.{ .from = 0, .to = 1, .label = 0, .props = [_]u8{0} ** 64 });
+    _ = try edge_pool.alloc(.{ .from = 1, .to = 2, .label = 0, .props = [_]u8{0} ** 64 });
 
     // Test BFS execution
     const bfs_result = try AlgorithmExecutor.executeDefault(.bfs, &node_pool, &edge_pool, 0, allocator);

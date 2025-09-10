@@ -968,7 +968,8 @@ test "GraphDB insert and lookup" {
     // Lookup the node
     const found = db.lookup_node(100);
     std.debug.assert(found != null);
-    std.debug.print("Test: Found node id={}, kind={}\n", .{ found.?.id, found.?.kind });
+    // Suppress verbose debug output to keep test output clean.
+    // std.debug.print("Test: Found node id={}, kind={}\n", .{ found.?.id, found.?.kind });
     _ = std.fs.cwd().deleteTree(tmp_dir_name) catch {};
 }
 

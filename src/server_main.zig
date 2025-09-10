@@ -21,14 +21,14 @@ pub fn main() !void {
     var server = try nen_net.createHttpServer(8080);
 
     // Add graph algorithm endpoints
-    try server.addRoute("POST", "/graph/algorithms/bfs", handleBFS);
-    try server.addRoute("POST", "/graph/algorithms/dijkstra", handleDijkstra);
-    try server.addRoute("POST", "/graph/algorithms/pagerank", handlePageRank);
+    try server.addRoute(.POST, "/graph/algorithms/bfs", handleBFS);
+    try server.addRoute(.POST, "/graph/algorithms/dijkstra", handleDijkstra);
+    try server.addRoute(.POST, "/graph/algorithms/pagerank", handlePageRank);
 
     // Add utility endpoints
-    try server.addRoute("GET", "/graph/stats", handleGraphStats);
-    try server.addRoute("GET", "/health", handleHealth);
-    try server.addRoute("GET", "/", handleRoot);
+    try server.addRoute(.GET, "/graph/stats", handleGraphStats);
+    try server.addRoute(.GET, "/health", handleHealth);
+    try server.addRoute(.GET, "/", handleRoot);
 
     std.debug.print("✅ Server configured with {d} routes\n", .{6});
     std.debug.print("🌐 Starting nen-net HTTP server...\n", .{});
@@ -38,56 +38,40 @@ pub fn main() !void {
 }
 
 // Route handlers following Nen way
-fn handleBFS(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
+fn handleBFS(request: *nen_net.http.HttpRequest, response: *nen_net.http.HttpResponse) void {
     _ = request;
-    return nen_net.http.HttpResponse{
-        .status_code = 200,
-        .body = "{\"algorithm\": \"bfs\", \"status\": \"queued\", \"message\": \"BFS algorithm queued for execution\"}",
-        .headers = &[_]nen_net.http.HttpResponse.Header{},
-    };
+    response.status_code = .OK;
+    response.setBody("{\"algorithm\": \"bfs\", \"status\": \"queued\", \"message\": \"BFS algorithm queued for execution\"}");
 }
 
-fn handleDijkstra(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
+fn handleDijkstra(request: *nen_net.http.HttpRequest, response: *nen_net.http.HttpResponse) void {
     _ = request;
-    return nen_net.http.HttpResponse{
-        .status_code = 200,
-        .body = "{\"algorithm\": \"dijkstra\", \"status\": \"queued\", \"message\": \"Dijkstra algorithm queued for execution\"}",
-        .headers = &[_]nen_net.http.HttpResponse.Header{},
-    };
+    response.status_code = .OK;
+    response.setBody("{\"algorithm\": \"dijkstra\", \"status\": \"queued\", \"message\": \"Dijkstra algorithm queued for execution\"}");
 }
 
-fn handlePageRank(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
+fn handlePageRank(request: *nen_net.http.HttpRequest, response: *nen_net.http.HttpResponse) void {
     _ = request;
-    return nen_net.http.HttpResponse{
-        .status_code = 200,
-        .body = "{\"algorithm\": \"pagerank\", \"status\": \"queued\", \"message\": \"PageRank algorithm queued for execution\"}",
-        .headers = &[_]nen_net.http.HttpResponse.Header{},
-    };
+    response.status_code = .OK;
+    response.setBody("{\"algorithm\": \"pagerank\", \"status\": \"queued\", \"message\": \"PageRank algorithm queued for execution\"}");
 }
 
-fn handleGraphStats(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
+fn handleGraphStats(request: *nen_net.http.HttpRequest, response: *nen_net.http.HttpResponse) void {
     _ = request;
-    return nen_net.http.HttpResponse{
-        .status_code = 200,
-        .body = "{\"nodes\": 0, \"edges\": 0, \"algorithms\": [\"bfs\", \"dijkstra\", \"pagerank\"], \"status\": \"operational\"}",
-        .headers = &[_]nen_net.http.HttpResponse.Header{},
-    };
+    response.status_code = .OK;
+    response.setBody("{\"nodes\": 0, \"edges\": 0, \"algorithms\": [\"bfs\", \"dijkstra\", \"pagerank\"], \"status\": \"operational\"}");
 }
 
-fn handleHealth(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
+fn handleHealth(request: *nen_net.http.HttpRequest, response: *nen_net.http.HttpResponse) void {
     _ = request;
-    return nen_net.http.HttpResponse{
-        .status_code = 200,
-        .body = try std.fmt.allocPrint(std.heap.page_allocator, "{{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"{s}\"}}", .{constants.VERSION_STRING}),
-        .headers = &[_]nen_net.http.HttpResponse.Header{},
-    };
+    response.status_code = .OK;
+    const body = std.fmt.allocPrint(std.heap.page_allocator, "{{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"{s}\"}}", .{constants.VERSION_STRING}) catch "{\"status\": \"healthy\", \"service\": \"nendb\", \"version\": \"unknown\"}";
+    response.setBody(body);
 }
 
-fn handleRoot(request: nen_net.http.HttpRequest) !nen_net.http.HttpResponse {
+fn handleRoot(request: *nen_net.http.HttpRequest, response: *nen_net.http.HttpResponse) void {
     _ = request;
-    return nen_net.http.HttpResponse{
-        .status_code = 200,
-        .body = try std.fmt.allocPrint(std.heap.page_allocator, "{{\"service\": \"NenDB\", \"version\": \"{s}\", \"endpoints\": {{\"health\": \"/health\", \"graph_stats\": \"/graph/stats\", \"algorithms\": \"/graph/algorithms/{{bfs|dijkstra|pagerank}}\"}}}}", .{constants.VERSION_STRING}),
-        .headers = &[_]nen_net.http.HttpResponse.Header{},
-    };
+    response.status_code = .OK;
+    const body = std.fmt.allocPrint(std.heap.page_allocator, "{{\"service\": \"NenDB\", \"version\": \"{s}\", \"endpoints\": {{\"health\": \"/health\", \"graph_stats\": \"/graph/stats\", \"algorithms\": \"/graph/algorithms/{{bfs|dijkstra|pagerank}}\"}}}}", .{constants.VERSION_STRING}) catch "{\"service\": \"NenDB\", \"version\": \"unknown\", \"endpoints\": {\"health\": \"/health\", \"graph_stats\": \"/graph/stats\", \"algorithms\": \"/graph/algorithms/{bfs|dijkstra|pagerank}\"}}";
+    response.setBody(body);
 }

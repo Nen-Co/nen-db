@@ -21,10 +21,15 @@ test_*.zig
 *_test.zig
 *.tmp
 
-# Build artifacts
+# Build artifacts and executables in root
 dist/
 *.tar.gz
 *.zip
+/test
+/test_*
+/batch_processor
+/nendb
+/nendb-*
 
 # Log files
 *.log

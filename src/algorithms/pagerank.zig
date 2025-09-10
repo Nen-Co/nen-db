@@ -1,9 +1,11 @@
 // NenDB PageRank Algorithm
-// Optimized for static memory pools and efficient graph centrality analysis
+// Optimized for static memory pools, DOD layout, and prefetching
 
 const std = @import("std");
 const nendb = @import("nendb");
 const pool = nendb.memory;
+const dod = nendb.dod;
+const prefetch = nendb.prefetch;
 
 pub const PageRankResult = struct {
     scores: []f64,
@@ -24,6 +26,10 @@ pub const PageRankOptions = struct {
     initial_score: f64 = 1.0, // Initial PageRank score for all nodes
     personalization: ?[]f64 = null, // Personalization vector (teleportation)
     teleport_nodes: ?[]u32 = null, // Specific nodes to teleport to
+    // DOD and prefetching options
+    enable_dod: bool = true,
+    enable_prefetch: bool = true,
+    prefetch_config: ?prefetch.PrefetchConfig = null,
 };
 
 /// PageRank algorithm for graph centrality analysis
