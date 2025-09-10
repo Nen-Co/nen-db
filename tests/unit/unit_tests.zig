@@ -80,7 +80,7 @@ test "error_codes" {
 test "version_info" {
     // Test version information
     try testing.expect(constants.version.major == 0);
-    try testing.expect(constants.version.minor == 1);
+    try testing.expect(constants.version.minor == 2);
     try testing.expect(constants.version.patch == 0);
     try testing.expect(std.mem.eql(u8, constants.version.pre orelse "beta", "beta"));
 }
