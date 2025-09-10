@@ -135,7 +135,45 @@ curl http://localhost:8080/health
 curl http://localhost:8080/graph/stats
 ```
 
-## 🏗️ Building from Source
+## � WebAssembly (WASM) Build
+
+NenDB compiles to a lightweight **37KB WASM module** for embedded usage in browsers and JavaScript environments:
+
+### 📦 **Quick Start**
+```html
+<script type="module">
+    import NenDB from 'https://github.com/Nen-Co/nen-db/releases/latest/download/nendb-wasm.js';
+    
+    const db = await NenDB.loadFromURL('https://github.com/Nen-Co/nen-db/releases/latest/download/nendb-wasm.wasm');
+    
+    // Add graph data
+    const node1 = db.addNode(100);
+    const node2 = db.addNode(200);
+    const edge = db.addEdge(100, 200, 1.5);
+    
+    console.log('Memory usage:', db.getMemoryUsage(), 'bytes');
+    db.destroy();
+</script>
+```
+
+### 🏗️ **Build WASM**
+```bash
+# Build WASM module
+zig build wasm
+
+# Output: zig-out/bin/nendb-wasm.wasm (~37KB)
+```
+
+### ✨ **Features**
+- **🪶 Lightweight**: Only ~37KB WASM file
+- **⚡ Embedded**: SQLite-like simplicity for graph data
+- **🔧 Zero Dependencies**: Pure Zig compiled to clean WASM
+- **🌐 Universal**: Browser, Node.js, Deno, Bun support
+- **🛡️ Static Memory**: Predictable performance in constrained environments
+
+For detailed usage examples, see [wasm/README.md](wasm/README.md).
+
+## �🏗️ Building from Source
 
 ### 📋 **Prerequisites**
 - [Zig 0.14.1](https://ziglang.org/download/) or later
@@ -155,6 +193,9 @@ zig build test
 
 # Build optimized release
 zig build -Doptimize=ReleaseSafe
+
+# Build WASM module (~37KB)
+zig build wasm
 
 # Build for all target platforms (Linux, macOS Intel/ARM, Windows)
 zig build cross-compile

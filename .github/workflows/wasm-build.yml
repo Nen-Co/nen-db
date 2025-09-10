@@ -1,0 +1,120 @@
+name: Build and Release WASM
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.15.1
+        
+    - name: Build WASM
+      run: zig build wasm
+      
+    - name: Check WASM output
+      run: |
+        ls -la zig-out/bin/
+        file zig-out/bin/nendb-wasm.wasm
+        du -h zig-out/bin/nendb-wasm.wasm
+        
+    - name: Upload WASM artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nendb-wasm
+        path: |
+          zig-out/bin/nendb-wasm.wasm
+          wasm/nendb-wasm.js
+          wasm/example.html
+        retention-days: 30
+        
+    - name: Create Release (on tags)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          zig-out/bin/nendb-wasm.wasm
+          wasm/nendb-wasm.js
+          wasm/example.html
+        body: |
+          ## NenDB WASM Release
+          
+          **Embedded Graph Database for Browser/WASM environments**
+          
+          ### 📦 Downloads:
+          - `nendb-wasm.wasm` - The core WASM module (~37KB)
+          - `nendb-wasm.js` - JavaScript wrapper for easy integration
+          - `example.html` - Complete working example
+          
+          ### ✨ Features:
+          - **Static memory allocation** - predictable performance in WASM
+          - **Zero dependencies** - pure Zig compiled to minimal WASM
+          - **Graph database operations** - nodes, edges, properties
+          - **JavaScript interop** - C-style exports for easy integration
+          
+          ### 🚀 Quick Start:
+          ```javascript
+          import NenDB from './nendb-wasm.js';
+          const db = await NenDB.loadFromURL('./nendb-wasm.wasm');
+          const nodeId = db.addNode(123);
+          console.log('Nodes:', db.getNodeCount());
+          ```
+          
+          Perfect for browser-based graph applications, data visualization, and embedded use cases where you need SQLite-like simplicity but for graph data.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-wasm:
+    runs-on: ubuntu-latest
+    needs: build-wasm
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download WASM artifact  
+      uses: actions/download-artifact@v4
+      with:
+        name: nendb-wasm
+        path: ./built-wasm/
+        
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Test WASM loading
+      run: |
+        cd built-wasm
+        echo "Testing WASM file integrity..."
+        file nendb-wasm.wasm || true
+        
+        # Simple Node.js test to verify WASM can be loaded
+        cat > test.js << 'EOF'
+        const fs = require('fs');
+        async function test() {
+          try {
+            const wasmBytes = fs.readFileSync('nendb-wasm.wasm');
+            console.log('✅ WASM file loaded, size:', wasmBytes.length, 'bytes');
+            
+            const wasmModule = await WebAssembly.instantiate(wasmBytes, {
+              env: {}
+            });
+            console.log('✅ WASM module instantiated successfully');
+            console.log('Exports:', Object.keys(wasmModule.instance.exports).slice(0, 10), '...');
+          } catch (error) {
+            console.error('❌ WASM test failed:', error);
+            process.exit(1);
+          }
+        }
+        test();
+        EOF
+        
+        node test.js
