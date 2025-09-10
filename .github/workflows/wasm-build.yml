@@ -93,15 +93,30 @@ jobs:
     - name: Test WASM loading
       run: |
         cd built-wasm
+        echo "Checking downloaded artifact structure..."
+        find . -name "*.wasm" -type f
+        ls -la
+        
         echo "Testing WASM file integrity..."
-        file nendb-wasm.wasm || true
+        WASM_FILE=$(find . -name "nendb-wasm.wasm" -type f | head -1)
+        if [ -z "$WASM_FILE" ]; then
+          echo "❌ WASM file not found!"
+          exit 1
+        fi
+        
+        file "$WASM_FILE" || true
         
         # Simple Node.js test to verify WASM can be loaded
         cat > test.js << 'EOF'
         const fs = require('fs');
         async function test() {
           try {
-            const wasmBytes = fs.readFileSync('nendb-wasm.wasm');
+            const wasmFile = require('fs').readdirSync('.', {recursive: true}).find(f => f.endsWith('nendb-wasm.wasm'));
+            if (!wasmFile) {
+              throw new Error('WASM file not found in artifact');
+            }
+            
+            const wasmBytes = fs.readFileSync(wasmFile);
             console.log('✅ WASM file loaded, size:', wasmBytes.length, 'bytes');
             
             const wasmModule = await WebAssembly.instantiate(wasmBytes, {
