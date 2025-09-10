@@ -1,0 +1,158 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build-cross-platform:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-linux-gnu
+          - x86_64-macos-none
+          - aarch64-macos-none  
+          - x86_64-windows-gnu
+        include:
+          - target: x86_64-linux-gnu
+            os: linux
+            arch: x86_64
+            ext: ""
+          - target: x86_64-macos-none
+            os: macos
+            arch: x86_64
+            ext: ""
+          - target: aarch64-macos-none
+            os: macos
+            arch: aarch64
+            ext: ""
+          - target: x86_64-windows-gnu
+            os: windows
+            arch: x86_64
+            ext: ".exe"
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.15.1
+        
+    - name: Clone dependencies
+      run: |
+        git clone --depth 1 --branch feature/data-oriented-design https://github.com/Nen-Co/nen-io.git
+        git clone --depth 1 https://github.com/Nen-Co/nen-json.git
+        git clone --depth 1 https://github.com/Nen-Co/nen-net.git
+        
+    - name: Build for ${{ matrix.target }}
+      run: |
+        zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast
+        
+    - name: Package binary
+      run: |
+        mkdir -p releases/${{ matrix.os }}-${{ matrix.arch }}
+        
+        # Copy main binaries
+        cp zig-out/bin/nendb${{ matrix.ext }} releases/${{ matrix.os }}-${{ matrix.arch }}/
+        cp zig-out/bin/nendb-server${{ matrix.ext }} releases/${{ matrix.os }}-${{ matrix.arch }}/
+        
+        # Copy additional files
+        cp README.md releases/${{ matrix.os }}-${{ matrix.arch }}/
+        cp LICENSE releases/${{ matrix.os }}-${{ matrix.arch }}/
+        
+        # Create archive
+        cd releases
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          zip -r nen-${{ matrix.os }}-${{ matrix.arch }}.zip ${{ matrix.os }}-${{ matrix.arch }}/
+        else
+          tar -czf nen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ matrix.os }}-${{ matrix.arch }}/
+        fi
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nen-${{ matrix.os }}-${{ matrix.arch }}
+        path: releases/nen-${{ matrix.os }}-${{ matrix.arch }}.*
+        retention-days: 30
+
+  create-release:
+    needs: [build-cross-platform]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+        
+    - name: List artifacts
+      run: |
+        echo "Downloaded artifacts:"
+        find ./artifacts -name "nen-*" -type f
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./artifacts/**/nen-*
+        body: |
+          ## NenDB Release ${{ github.ref_name }}
+          
+          **High-performance graph database built with Data-Oriented Design (DOD)**
+          
+          ### 📦 Downloads:
+          
+          **Linux (x86_64)**
+          ```bash
+          curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/${{ github.ref_name }}/nen-linux-x86_64.tar.gz | tar -xz
+          ```
+          
+          **macOS (Intel)**
+          ```bash
+          curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/${{ github.ref_name }}/nen-macos-x86_64.tar.gz | tar -xz
+          ```
+          
+          **macOS (Apple Silicon)**
+          ```bash
+          curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/${{ github.ref_name }}/nen-macos-aarch64.tar.gz | tar -xz
+          ```
+          
+          **Windows (x86_64)**
+          ```powershell
+          Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/download/${{ github.ref_name }}/nen-windows-x86_64.zip" -OutFile "nen-windows.zip"
+          Expand-Archive -Path "nen-windows.zip" -DestinationPath "."
+          ```
+          
+          ### ✨ Features:
+          - **Data-Oriented Design (DOD)** - Struct of Arrays layout for maximum performance
+          - **Static memory pools** - Predictable memory usage and zero GC pauses
+          - **SIMD optimization** - Vectorized operations on aligned data structures
+          - **High-performance TCP server** - Built with nen-net framework
+          - **Write-Ahead Logging (WAL)** - Crash-safe persistence
+          - **Graph algorithms** - BFS, Dijkstra, PageRank, Community Detection
+          
+          ### 🚀 Quick Start:
+          ```bash
+          # Start HTTP server (all platforms)
+          ./nendb-server
+          
+          # CLI usage
+          ./nendb --help
+          ```
+          
+          ### 🌐 WASM Support:
+          For browser and JavaScript environments, see our [37KB WASM module](https://github.com/Nen-Co/nen-db/releases/download/${{ github.ref_name }}/nendb-wasm.wasm).
+          
+          ### 📚 Documentation:
+          - [Getting Started](https://nen-co.github.io/docs/nendb/)
+          - [API Reference](https://nen-co.github.io/docs/nendb/api/)  
+          - [WASM Guide](https://nen-co.github.io/docs/reference/wasm/)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
