@@ -6,15 +6,15 @@ const std = @import("std");
 // Version info - Update these values for each release
 pub const version = std.SemanticVersion{
     .major = 0,
-    .minor = 1,
+    .minor = 2,
     .patch = 0,
     .pre = "beta",
 };
 
 // Formatted version strings for CLI and API
-pub const VERSION_STRING = "v0.1.0-beta";
-pub const VERSION_FULL = "NenDB v0.1.0-beta";
-pub const VERSION_SHORT = "0.1.0";
+pub const VERSION_STRING = "v0.2.0-beta";
+pub const VERSION_FULL = "NenDB v0.2.0-beta";
+pub const VERSION_SHORT = "0.2.0";
 
 // Memory Configuration - DOD-optimized static allocation
 pub const memory = struct {

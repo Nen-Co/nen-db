@@ -4,7 +4,7 @@
 
 [![Zig](https://img.shields.io/badge/Zig-0.15.1-F7A41D)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v0.1.0--beta-green.svg)](https://github.com/Nen-Co/nen-db/releases)
+[![Version](https://img.shields.io/badge/Version-v0.2.0--beta-green.svg)](https://github.com/Nen-Co/nen-db/releases)
 [![Docker](https://img.shields.io/badge/Docker-GHCR-blue.svg)](https://ghcr.io/nen-co/nendb)
 [![DOD](https://img.shields.io/badge/Architecture-Data--Oriented--Design-FF6B6B)](docs/DATA_ORIENTED_DESIGN.md)
 
