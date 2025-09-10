@@ -92,3 +92,47 @@ NenDB implements **Data-Oriented Design (DOD)** as its core architectural paradi
 - **Scalability**: Component-based architecture scales with data size
 - **Performance**: Predictable memory access patterns
 
+## WebAssembly (WASM) Architecture
+
+NenDB provides a **37KB WASM module** for embedded usage in browsers and JavaScript environments. The WASM build leverages the same DOD architecture but with additional constraints and optimizations for constrained environments.
+
+### WASM-Specific Design
+- **Static Memory Pools**: Fixed-size allocation pools defined at compile time
+- **Freestanding Target**: No operating system dependencies (`wasm32-freestanding`)
+- **C Export Interface**: Simple C-style functions for JavaScript interop
+- **Zero Dependencies**: Pure Zig implementation with no external libraries
+- **Memory Safety**: Bounds checking and safe memory operations
+
+### WASM Memory Layout
+```
++------------------+------------------+------------------+
+|   Node Pool      |   Edge Pool      | Component Pool   |
+| (SoA Layout)     | (SoA Layout)     | (SoA Layout)     |
++------------------+------------------+------------------+
+| Static size      | Static size      | Static size      |
+| Cache-friendly   | Vectorized ops   | Hot/cold split   |
++------------------+------------------+------------------+
+```
+
+### JavaScript Integration
+The WASM module exports C-style functions wrapped by a JavaScript class:
+- `nendb_wasm_create()` - Initialize database with static pools
+- `nendb_wasm_add_node(id)` - Add node, return index  
+- `nendb_wasm_add_edge(from, to, weight)` - Add weighted edge
+- `nendb_wasm_destroy()` - Cleanup resources
+
+### Build Process
+```bash
+# WASM compilation with Zig
+zig build-lib src/wasm_lib.zig -target wasm32-freestanding -dynamic -rdynamic
+```
+
+### Use Cases
+- **Browser Applications**: Client-side graph databases
+- **Progressive Web Apps**: Offline graph data storage
+- **Edge Computing**: Lightweight graph processing
+- **Embedded Systems**: Resource-constrained environments
+- **JavaScript Libraries**: Graph utilities for Node.js/Deno/Bun
+
+The WASM architecture maintains NenDB's core DOD principles while adapting to the constraints and opportunities of the WebAssembly runtime environment.
+
