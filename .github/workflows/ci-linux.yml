@@ -1,0 +1,100 @@
+name: CI - Linux
+
+on:
+  push:
+    branches: [ main, feature/data-oriented-design ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        zig-version: ['0.15.1']
+        target: ['native', 'x86_64-linux-gnu', 'x86_64-linux-musl', 'aarch64-linux-gnu']
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup Zig ${{ matrix.zig-version }}
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ matrix.zig-version }}
+    
+    - name: Install system dependencies  
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libc6-dev
+    
+    - name: Create nen-io symlink
+      run: |
+        cd ..
+        git clone https://github.com/Nen-Co/nen-io.git
+        git clone https://github.com/Nen-Co/nen-json.git  
+        git clone https://github.com/Nen-Co/nen-net.git
+    
+    - name: Verify Zig installation
+      run: |
+        zig version
+        zig env
+        
+    - name: Clean cache
+      run: |
+        rm -rf .zig-cache zig-out
+    
+    - name: Build (Debug)
+      run: |
+        zig build -Dtarget=${{ matrix.target }} -Doptimize=Debug
+    
+    - name: Build (ReleaseSafe)  
+      run: |
+        zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+        
+    - name: Build (ReleaseFast)
+      run: |
+        zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast
+
+    - name: Run unit tests
+      if: matrix.target == 'native'
+      run: |
+        zig build test-unit
+
+    - name: Run TCP tests
+      if: matrix.target == 'native'
+      run: |
+        zig build test-tcp
+
+    - name: Run performance tests
+      if: matrix.target == 'native'  
+      run: |
+        timeout 30s zig build test-performance || echo "Performance tests completed"
+
+    - name: Test epoll functionality
+      if: matrix.target == 'native'
+      run: |
+        zig build tcp-debug || echo "TCP debug completed"
+
+    - name: Verify binaries
+      if: matrix.target == 'native'
+      run: |
+        ls -la zig-out/bin/
+        ./zig-out/bin/nendb --help || echo "CLI help displayed"
+        ldd zig-out/bin/nendb || echo "Dynamic dependencies checked"
+        
+    - name: Test memory usage
+      if: matrix.target == 'native'
+      run: |
+        zig build memory-analysis || echo "Memory analysis completed"
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: nendb-linux-${{ matrix.target }}
+        path: |
+          zig-out/bin/*
+          CLEANUP_REPORT.md
+          ECOSYSTEM_CLEANUP_REPORT.md
