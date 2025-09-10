@@ -1,0 +1,168 @@
+name: Publish NPM Packages
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v0.2.0
+  workflow_dispatch:
+    inputs:
+      publish_npm:
+        description: 'Publish to NPM'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.15.1
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build WASM module
+      run: zig build wasm --release=small
+      
+    - name: Build JavaScript packages
+      run: npm run build:js
+      
+    - name: Test package structure
+      run: node test-npm.js
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nendb-packages
+        path: |
+          dist/
+          package.json
+          README.npm.md
+          LICENSE
+        retention-days: 30
+
+  publish-npm:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_npm == 'true')
+    
+    strategy:
+      matrix:
+        package:
+          - name: nendb
+            path: .
+          - name: nendb-wasm  
+            path: packages/nendb-wasm
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nendb-packages
+        path: dist-artifacts/
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+        
+    - name: Setup Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.15.1
+        
+    - name: Rebuild packages
+      run: |
+        zig build wasm --release=small
+        npm run build:js
+        
+    - name: Copy README for publishing
+      run: cp README.npm.md README.md
+      
+    - name: Publish ${{ matrix.package.name }}
+      working-directory: ${{ matrix.package.path }}
+      run: |
+        # Extract version from git tag
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "Publishing version: $VERSION"
+        
+        # Update package.json version
+        npm version $VERSION --no-git-tag-version
+        
+        # Publish to NPM
+        npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  create-release:
+    needs: [build-and-test, publish-npm]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nendb-packages
+        path: release-assets/
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: "NenDB ${{ github.ref_name }}"
+        body: |
+          ## 🚀 NenDB ${{ github.ref_name }}
+          
+          High-performance graph database with WebAssembly support.
+          
+          ### 📦 NPM Packages
+          
+          ```bash
+          # Main Node.js package
+          npm install nendb@${{ github.ref_name }}
+          
+          # Browser WASM package  
+          npm install nendb-wasm@${{ github.ref_name }}
+          ```
+          
+          ### 📊 Package Sizes
+          - **nendb.wasm**: ~37KB (WebAssembly module)
+          - **nendb**: ~6KB (JavaScript wrapper)
+          - **nendb-wasm**: ~4KB (Browser wrapper)
+          
+          ### ✨ What's New
+          - Static memory allocation for predictable performance
+          - Cypher-like query language support
+          - Cross-platform WASM deployment
+          - TypeScript definitions included
+          
+          ### 📚 Documentation
+          - [Getting Started](https://nen.co/docs/nendb)
+          - [API Reference](https://nen.co/docs/nendb/api)  
+          - [Examples](./EXAMPLES.md)
+        files: |
+          release-assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

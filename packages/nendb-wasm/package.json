@@ -1,0 +1,54 @@
+{
+  "name": "nendb-wasm",
+  "version": "0.2.0-beta",
+  "description": "Browser-optimized WebAssembly graph database with zero-allocation performance",
+  "main": "dist/nendb-wasm.js",
+  "module": "dist/nendb-wasm.mjs",
+  "types": "dist/nendb-wasm.d.ts",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ../scripts/build-wasm.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "database",
+    "graph-database",
+    "wasm",
+    "browser",
+    "client-side",
+    "webassembly",
+    "zig",
+    "performance",
+    "nendb"
+  ],
+  "author": "Nen.Co",
+  "license": "MIT",
+  "homepage": "https://nen.co",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nen-Co/nen-db.git",
+    "directory": "packages/nendb-wasm"
+  },
+  "bugs": {
+    "url": "https://github.com/Nen-Co/nen-db/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browserslist": [
+    "defaults",
+    "supports wasm"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/nendb-wasm.mjs",
+      "require": "./dist/nendb-wasm.js",
+      "types": "./dist/nendb-wasm.d.ts"
+    },
+    "./wasm": "./dist/nendb.wasm"
+  }
+}

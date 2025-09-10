@@ -1,0 +1,68 @@
+{
+  "name": "nendb",
+  "version": "0.2.0-beta",
+  "description": "High-performance graph database with static memory allocation and WASM support",
+  "main": "dist/nendb.js",
+  "types": "dist/nendb.d.ts",
+  "bin": {
+    "nendb-create": "./bin/nendb-create.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "zig build -Drelease=fast",
+    "build:wasm": "zig build wasm --release=small",
+    "build:js": "node scripts/build-js.js",
+    "build:all": "npm run build && npm run build:wasm && npm run build:js",
+    "test": "zig build test",
+    "test:npm": "node test-npm.js",
+    "create": "node bin/nendb-create.js",
+    "prepublishOnly": "npm run build:all"
+  },
+  "keywords": [
+    "database",
+    "graph-database",
+    "wasm",
+    "zig",
+    "static-memory",
+    "crash-safe",
+    "performance",
+    "nendb"
+  ],
+  "author": "Nen.Co",
+  "license": "MIT",
+  "homepage": "https://nen.co",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nen-Co/nen-db.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Nen-Co/nen-db/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@types/node": ">=16.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/nendb.mjs",
+      "require": "./dist/nendb.js",
+      "types": "./dist/nendb.d.ts"
+    },
+    "./wasm": {
+      "import": "./dist/nendb-wasm.mjs",
+      "require": "./dist/nendb-wasm.js",
+      "types": "./dist/nendb-wasm.d.ts"
+    }
+  }
+}
