@@ -21,6 +21,12 @@ fs.copyFileSync(path.join(jsDir, 'nendb.js'), path.join(distDir, 'nendb.js'));
 fs.copyFileSync(path.join(jsDir, 'nendb.mjs'), path.join(distDir, 'nendb.mjs'));
 fs.copyFileSync(path.join(jsDir, 'nendb.d.ts'), path.join(distDir, 'nendb.d.ts'));
 
+// Copy Bun-optimized version
+if (fs.existsSync(path.join(jsDir, 'nendb.bun.mjs'))) {
+  console.log('Copying Bun-optimized files...');
+  fs.copyFileSync(path.join(jsDir, 'nendb.bun.mjs'), path.join(distDir, 'nendb.bun.mjs'));
+}
+
 // Copy WASM files if they exist
 const wasmFile = path.join(rootDir, 'zig-out/bin/nendb-wasm.wasm');
 if (fs.existsSync(wasmFile)) {

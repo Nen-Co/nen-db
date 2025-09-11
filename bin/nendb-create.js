@@ -30,6 +30,33 @@ async function main() {
 
 main().catch(console.error);`,
 
+  'basic-bun': `import { NenDB } from 'nendb/bun';
+
+const db = new NenDB({
+  useFFI: true,      // Enable Bun FFI optimizations
+  fastJSON: true     // Enable Bun's fast JSON
+});
+
+await db.init();
+
+try {
+  // Create your first node (Bun optimized)
+  const nodeId = await db.createNode({ 
+    name: 'My First Bun Node', 
+    created: new Date().toISOString(),
+    runtime: 'Bun'
+  });
+  
+  console.log('Created node with ID:', nodeId);
+  
+  // Query it back with Bun's fast JSON parsing
+  const node = await db.getNode(nodeId);
+  console.log('Retrieved node:', node);
+  
+} finally {
+  await db.close();
+}`,
+
   'social': `const { NenDB } = require('nendb');
 
 async function buildSocialNetwork() {
@@ -58,6 +85,41 @@ async function buildSocialNetwork() {
 }
 
 buildSocialNetwork().catch(console.error);`,
+
+  'social-bun': `import { NenDB } from 'nendb/bun';
+
+const db = new NenDB({
+  useFFI: true,
+  fastJSON: true
+});
+
+await db.init();
+
+try {
+  // Batch create people (Bun optimized)
+  const people = await db.createNodesBatch([
+    { name: 'Alice', age: 28, labels: ['Person'] },
+    { name: 'Bob', age: 32, labels: ['Person'] },
+    { name: 'Charlie', age: 25, labels: ['Person'] }
+  ]);
+  
+  // Batch create friendships
+  await db.createEdgesBatch([
+    { from: people[0], to: people[1], type: 'FRIENDS', properties: { since: '2023' } },
+    { from: people[1], to: people[2], type: 'FRIENDS', properties: { since: '2024' } }
+  ]);
+  
+  // Query with Bun's fast JSON parsing
+  const network = await db.query(\`
+    MATCH (a:Person)-[:FRIENDS]-(b:Person)
+    RETURN a.name, b.name, a.age, b.age
+  \`);
+  
+  console.log('Social network:', network);
+  
+} finally {
+  await db.close();
+}`,
 
   'recommendation': `const { NenDB } = require('nendb');
 
@@ -89,7 +151,54 @@ async function buildRecommendationEngine() {
   }
 }
 
-buildRecommendationEngine().catch(console.error);`
+buildRecommendationEngine().catch(console.error);`,
+
+  'recommendation-bun': `import { NenDB } from 'nendb/bun';
+
+const db = new NenDB({
+  useFFI: true,
+  fastJSON: true,
+  memorySize: 64 * 1024 * 1024 // 64MB for larger datasets
+});
+
+await db.init();
+
+try {
+  // Create users and products in batch (Bun optimized)
+  const users = await db.createNodesBatch([
+    { name: 'John', age: 30, labels: ['User'] },
+    { name: 'Jane', age: 28, labels: ['User'] }
+  ]);
+  
+  const products = await db.createNodesBatch([
+    { title: 'Laptop Pro', category: 'Electronics', price: 1299, labels: ['Product'] },
+    { title: 'Wireless Mouse', category: 'Electronics', price: 79, labels: ['Product'] },
+    { title: 'Monitor 4K', category: 'Electronics', price: 399, labels: ['Product'] }
+  ]);
+  
+  // Create interactions
+  await db.createEdgesBatch([
+    { from: users[0], to: products[0], type: 'PURCHASED', properties: { rating: 5, date: new Date().toISOString() } },
+    { from: users[0], to: products[1], type: 'VIEWED', properties: { duration: 45 } },
+    { from: users[1], to: products[0], type: 'VIEWED', properties: { duration: 120 } },
+    { from: users[1], to: products[2], type: 'PURCHASED', properties: { rating: 4, date: new Date().toISOString() } }
+  ]);
+  
+  // Advanced recommendation query
+  const recommendations = await db.query(\`
+    MATCH (user:User)-[:PURCHASED]->(purchased:Product)
+    MATCH (other:User)-[:PURCHASED]->(purchased)
+    MATCH (other)-[:PURCHASED]->(recommended:Product)
+    WHERE user.name = 'John' AND NOT (user)-[:PURCHASED]->(recommended)
+    RETURN recommended.title, recommended.category, recommended.price
+    ORDER BY recommended.price
+  \`);
+  
+  console.log('Recommendations for John:', recommendations);
+  
+} finally {
+  await db.close();
+}`
 };
 
 function showUsage() {
@@ -98,19 +207,32 @@ function showUsage() {
 
 Usage: npx nendb-create [template] [project-name]
 
-Templates:
+Node.js Templates:
   basic          - Simple node creation and query example
   social         - Social network with friends and relationships  
   recommendation - Product recommendation engine pattern
 
+Bun-Optimized Templates:
+  basic-bun          - Bun-optimized basic example with FFI
+  social-bun         - Social network with Bun batch operations
+  recommendation-bun - Advanced recommendation engine with Bun optimizations
+
 Examples:
+  # Node.js
   npx nendb-create basic my-graph-app
   npx nendb-create social social-network
-  npx nendb-create recommendation rec-engine
+  
+  # Bun-optimized
+  npx nendb-create basic-bun my-bun-app
+  npx nendb-create social-bun bun-social-net
 
 Or install globally:
   npm install -g nendb
   nendb create social my-social-app
+  
+  # Or with Bun
+  bun add -g nendb
+  bun nendb-create social-bun my-bun-app
 `);
 }
 
@@ -132,21 +254,33 @@ function createProject(template, projectName) {
   fs.mkdirSync(projectDir, { recursive: true });
 
   // Create package.json
+  const isBunTemplate = template.includes('bun');
   const packageJson = {
     name: projectName,
     version: '1.0.0',
     description: `NenDB ${template} example`,
     main: 'index.js',
-    scripts: {
+    type: isBunTemplate ? 'module' : 'commonjs',
+    scripts: isBunTemplate ? {
+      start: 'bun index.js',
+      dev: 'bun --watch index.js',
+      'start:node': 'node index.js'
+    } : {
       start: 'node index.js',
-      dev: 'node --watch index.js'
+      dev: 'node --watch index.js',
+      'start:bun': 'bun index.js'
     },
     dependencies: {
       nendb: '^0.2.0'
     },
-    keywords: ['nendb', 'graph-database', template],
+    keywords: ['nendb', 'graph-database', template, ...(isBunTemplate ? ['bun', 'bunjs'] : ['nodejs'])],
     author: '',
-    license: 'MIT'
+    license: 'MIT',
+    ...(isBunTemplate && {
+      engines: {
+        bun: '^1.0.0'
+      }
+    })
   };
 
   fs.writeFileSync(
@@ -167,27 +301,44 @@ A NenDB ${template} example project.
 
 ## Setup
 
-\`\`\`bash
+${isBunTemplate ? `\`\`\`bash
+bun install
+\`\`\`` : `\`\`\`bash
 npm install
-\`\`\`
+\`\`\``}
 
 ## Run
 
-\`\`\`bash
-npm start
-\`\`\`
+${isBunTemplate ? `\`\`\`bash
+bun start      # Run with Bun (recommended)
+npm run start:node  # Run with Node.js
+\`\`\`` : `\`\`\`bash
+npm start      # Run with Node.js
+npm run start:bun   # Run with Bun (faster)
+\`\`\``}
 
 ## Development
 
-\`\`\`bash
-npm run dev  # Auto-restart on file changes
-\`\`\`
+${isBunTemplate ? `\`\`\`bash
+bun dev        # Auto-restart on file changes with Bun
+\`\`\`` : `\`\`\`bash
+npm run dev    # Auto-restart on file changes
+\`\`\``}
 
-## Learn More
+${isBunTemplate ? `## Bun-Specific Features
+
+This template uses Bun optimizations:
+- ⚡ Faster JSON parsing with \`Bun.parseJSON()\`
+- 🏃‍♂️ Optimized WebAssembly loading
+- 💾 Efficient memory management with \`Bun.gc()\`
+- 🕰️ High-precision timing with \`Bun.nanoseconds()\`
+
+` : ''}## Learn More
 
 - [NenDB Documentation](https://nen.co/docs/nendb)
 - [API Reference](https://nen.co/docs/nendb/api)
 - [Examples](https://github.com/Nen-Co/nen-db/blob/main/EXAMPLES.md)
+${isBunTemplate ? '- [Bun Documentation](https://bun.sh/docs)' : ''}
 `;
 
   fs.writeFileSync(path.join(projectDir, 'README.md'), readme);

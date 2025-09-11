@@ -17,10 +17,13 @@
     "build": "zig build -Drelease=fast",
     "build:wasm": "zig build wasm --release=small",
     "build:js": "node scripts/build-js.js",
+    "build:bun": "bun run scripts/build-js.js",
     "build:all": "npm run build && npm run build:wasm && npm run build:js",
     "test": "zig build test",
     "test:npm": "node test-npm.js",
+    "test:bun": "bun test-npm.js",
     "create": "node bin/nendb-create.js",
+    "create:bun": "bun bin/nendb-create.js",
     "prepublishOnly": "npm run build:all"
   },
   "keywords": [
@@ -31,7 +34,9 @@
     "static-memory",
     "crash-safe",
     "performance",
-    "nendb"
+    "nendb",
+    "bun",
+    "bunjs"
   ],
   "author": "Nen.Co",
   "license": "MIT",
@@ -44,7 +49,8 @@
     "url": "https://github.com/Nen-Co/nen-db/issues"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=16.0.0",
+    "bun": ">=1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -55,8 +61,13 @@
   },
   "exports": {
     ".": {
+      "bun": "./dist/nendb.bun.mjs",
       "import": "./dist/nendb.mjs",
       "require": "./dist/nendb.js",
+      "types": "./dist/nendb.d.ts"
+    },
+    "./bun": {
+      "import": "./dist/nendb.bun.mjs",
       "types": "./dist/nendb.d.ts"
     },
     "./wasm": {
