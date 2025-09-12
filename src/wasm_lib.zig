@@ -1,14 +1,14 @@
 // NenDB WASM Library - Browser/Embedded Compatible Version
-// Removes filesystem, networking, and threading dependencies
+// TODO: Update to use DOD layout (temporarily disabled during cleanup)
 
 const std = @import("std");
-const memory = @import("memory/pool_v2.zig");
+const layout = @import("memory/layout.zig");
 const constants = @import("constants.zig");
 
 // WASM-compatible GraphDB that operates entirely in-memory
 pub const WasmGraphDB = struct {
-    // Static memory pools - perfect for WASM's predictable memory model
-    node_pool: memory.NodePool align(64),
+    // TODO: Update to use DOD layout
+    graph_data: layout.GraphData align(64),
     edge_pool: memory.EdgePool align(64),
     embedding_pool: memory.EmbeddingPool align(64),
 

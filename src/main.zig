@@ -5,19 +5,13 @@ const std = @import("std");
 const nendb = @import("lib.zig");
 const io = nendb.io; // Use nen-io from the ecosystem
 const GraphDB = @import("graphdb.zig").GraphDB;
-const pool = @import("memory/pool_v2.zig");
+const layout = @import("memory/layout.zig");
 const constants = @import("constants.zig");
 
 pub fn main() !void {
-    const style = @import("cli/style.zig").Style.detect();
-
-    if (style.use_color) {
-        try io.Terminal.println("\x1b[1;38;5;81m┌──────────────────────────────────────────┐", .{});
-        try io.Terminal.println("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
-        try io.Terminal.println("└──────────────────────────────────────────┘", .{});
-    } else {
-        try io.Terminal.println("NenDB - Graph Engine Core", .{});
-    }
+    try io.Terminal.println("\x1b[1;38;5;81m┌──────────────────────────────────────────┐", .{});
+    try io.Terminal.println("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
+    try io.Terminal.println("└──────────────────────────────────────────┘", .{});
     try io.Terminal.println("Version: {s} | Zig: {s}", .{ constants.VERSION_STRING, @import("builtin").zig_version_string });
 
     // Simple argument parsing
@@ -60,41 +54,35 @@ fn run_demo() !void {
     // Insert nodes
     try io.Terminal.infoln("📝 Inserting nodes...", .{});
 
-    const node1 = pool.Node{ .id = 1, .kind = 1, .props = [_]u8{0} ** 128 };
-    const node2 = pool.Node{ .id = 2, .kind = 1, .props = [_]u8{0} ** 128 };
-    const node3 = pool.Node{ .id = 3, .kind = 2, .props = [_]u8{0} ** 128 };
-
-    try db.insert_node(node1);
-    try db.insert_node(node2);
-    try db.insert_node(node3);
+    try db.insert_node(1, 1);
+    try db.insert_node(2, 1);
+    try db.insert_node(3, 2);
 
     try io.Terminal.success("✅ Inserted 3 nodes", .{});
 
     // Insert edges
     try io.Terminal.infoln("🔗 Inserting edges...", .{});
 
-    const edge1 = pool.Edge{ .from = 1, .to = 2, .label = 1, .props = [_]u8{0} ** 64 };
-    const edge2 = pool.Edge{ .from = 2, .to = 3, .label = 1, .props = [_]u8{0} ** 64 };
-    const edge3 = pool.Edge{ .from = 1, .to = 3, .label = 2, .props = [_]u8{0} ** 64 };
-
-    try db.insert_edge(edge1);
-    try db.insert_edge(edge2);
-    try db.insert_edge(edge3);
-
+    try db.insert_edge(1, 2, 1);
+    try db.insert_edge(2, 3, 1);
+    try db.insert_edge(1, 3, 2);
     try io.Terminal.success("✅ Inserted 3 edges", .{});
 
     // Lookup operations
     try io.Terminal.infoln("🔍 Testing lookups...", .{});
 
-    const found_node = db.lookup_node(1);
-    if (found_node) |node| {
-        try io.Terminal.println("  Found node: ID={d}, Kind={d}", .{ node.id, node.kind });
+    const found_node_index = db.lookup_node(1);
+    if (found_node_index) |index| {
+        const node_id = db.graph_data.node_ids[index];
+        const node_kind = db.graph_data.node_kinds[index];
+        try io.Terminal.println("  Found node: ID={d}, Kind={d}", .{ node_id, node_kind });
     }
 
-    const found_edge = db.lookup_edge(1, 2);
-    if (found_edge) |edge| {
-        try io.Terminal.println("  Found edge: {d}->{d} (label={d})", .{ edge.from, edge.to, edge.label });
-    }
+    // TODO: Update edge lookup for DOD (temporarily disabled)
+    // const found_edge = db.lookup_edge(1, 2);
+    // if (found_edge) |edge| {
+    //     try io.Terminal.println("  Found edge: {d}->{d} (label={d})", .{ edge.from, edge.to, edge.label });
+    // }
 
     // Delete operations (commented out for now)
     try io.Terminal.infoln("🗑️ Delete operations:", .{});
@@ -104,9 +92,12 @@ fn run_demo() !void {
     // Get statistics
     try io.Terminal.infoln("📊 Database statistics:", .{});
     const stats = db.get_stats();
-    try io.Terminal.println("  Nodes: {d}/{d} used", .{ stats.memory.nodes.used, stats.memory.nodes.capacity });
-    try io.Terminal.println("  Edges: {d}/{d} used", .{ stats.memory.edges.used, stats.memory.edges.capacity });
-    try io.Terminal.println("  WAL entries: {d}", .{stats.wal.entries_written});
+    try io.Terminal.println("  Nodes: {d}/{d} used", .{ stats.memory.nodes.node_count, stats.memory.nodes.node_capacity });
+    try io.Terminal.println("  Edges: {d}/{d} used", .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_capacity });
+    try io.Terminal.println("  Embeddings: {d}/{d} used", .{ stats.memory.nodes.embedding_count, stats.memory.nodes.embedding_capacity });
+    try io.Terminal.println("  Overall utilization: {d:.2}%", .{stats.memory.nodes.getUtilization() * 100.0});
+    try io.Terminal.println("  SIMD enabled: {}", .{stats.memory.simd_enabled});
+    try io.Terminal.println("  Cache efficiency: {d:.1}x", .{stats.memory.cache_efficiency});
 
     try io.Terminal.successln("🎉 Demo completed successfully!", .{});
 }

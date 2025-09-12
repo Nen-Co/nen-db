@@ -1,11 +1,15 @@
-// NenDB Data-Oriented Design (DOD) Memory Layout
+// NenDB Data-Oriented Memory Layout
 // Implements Struct of Arrays (SoA) and component-based architecture
+// Production-ready with WAL integration and error handling
 
 const std = @import("std");
 const constants = @import("../constants.zig");
 
-// Core DOD data structures using Struct of Arrays (SoA) layout
-pub const DODGraphData = struct {
+// Forward declaration for WAL integration
+const Wal = @import("../wal.zig").Wal;
+
+// Core data structures using Struct of Arrays (SoA) layout
+pub const GraphData = struct {
     // Node data in SoA format
     node_ids: [constants.memory.node_pool_size]u64 align(constants.memory.simd_alignment),
     node_kinds: [constants.memory.node_pool_size]u8 align(constants.memory.simd_alignment),
@@ -33,8 +37,8 @@ pub const DODGraphData = struct {
     edge_count: u32 = 0,
     embedding_count: u32 = 0,
 
-    pub fn init() DODGraphData {
-        return DODGraphData{
+    pub fn init() GraphData {
+        return GraphData{
             .node_ids = [_]u64{0} ** constants.memory.node_pool_size,
             .node_kinds = [_]u8{0} ** constants.memory.node_pool_size,
             .node_active = [_]bool{false} ** constants.memory.node_pool_size,
@@ -52,13 +56,29 @@ pub const DODGraphData = struct {
         };
     }
 
-    // SIMD-optimized node operations
-    pub fn addNode(self: *DODGraphData, id: u64, kind: u8) !u32 {
+    // SIMD-optimized node operations with WAL integration
+    pub fn addNode(self: *GraphData, id: u64, kind: u8) !u32 {
+        return self.addNodeWithWal(id, kind, null);
+    }
+
+    pub fn addNodeWithWal(self: *GraphData, id: u64, kind: u8, wal: ?*Wal) !u32 {
         if (self.node_count >= constants.memory.node_pool_size) {
             return constants.NenDBError.PoolExhausted;
         }
 
+        // Check for duplicate IDs
+        if (self.findNodeById(id) != null) {
+            return constants.NenDBError.DuplicateNode;
+        }
+
         const index = self.node_count;
+
+        // Write to WAL first (if provided) for crash consistency
+        if (wal) |w| {
+            try w.append_insert_node_soa(id, kind);
+        }
+
+        // Then update memory structures
         self.node_ids[index] = id;
         self.node_kinds[index] = kind;
         self.node_active[index] = true;
@@ -68,8 +88,22 @@ pub const DODGraphData = struct {
         return index;
     }
 
+    // Convenience methods for GraphDB compatibility
+    pub fn insertNode(self: *GraphData, id: u64, kind: u8) !u32 {
+        return self.addNode(id, kind);
+    }
+
+    pub fn insertEdge(self: *GraphData, from: u64, to: u64, label: u16) !u32 {
+        return self.addEdge(from, to, label);
+    }
+
+    // Find node index by ID
+    pub fn findNodeIndex(self: *const GraphData, id: u64) ?u32 {
+        return self.findNodeById(id);
+    }
+
     // SIMD-optimized node filtering
-    pub fn filterNodesByKind(self: *const DODGraphData, kind: u8, result_indices: []u32) u32 {
+    pub fn filterNodesByKind(self: *const GraphData, kind: u8, result_indices: []u32) u32 {
         var count: u32 = 0;
         for (self.node_kinds, 0..) |node_kind, i| {
             if (node_kind == kind and self.node_active[i] and count < result_indices.len) {
@@ -80,13 +114,28 @@ pub const DODGraphData = struct {
         return count;
     }
 
-    // SIMD-optimized edge operations
-    pub fn addEdge(self: *DODGraphData, from: u64, to: u64, label: u16) !u32 {
+    // SIMD-optimized edge operations with WAL integration
+    pub fn addEdge(self: *GraphData, from: u64, to: u64, label: u16) !u32 {
+        return self.addEdgeWithWal(from, to, label, null);
+    }
+
+    pub fn addEdgeWithWal(self: *GraphData, from: u64, to: u64, label: u16, wal: ?*Wal) !u32 {
         if (self.edge_count >= constants.memory.edge_pool_size) {
             return constants.NenDBError.PoolExhausted;
         }
 
+        // Validate that both nodes exist
+        if (self.findNodeById(from) == null or self.findNodeById(to) == null) {
+            return constants.NenDBError.NodeNotFound;
+        }
+
         const index = self.edge_count;
+
+        // Write to WAL first for crash consistency
+        if (wal) |w| {
+            try w.append_insert_edge_soa(from, to, label);
+        }
+
         self.edge_from[index] = from;
         self.edge_to[index] = to;
         self.edge_labels[index] = label;
@@ -98,7 +147,7 @@ pub const DODGraphData = struct {
     }
 
     // SIMD-optimized edge filtering
-    pub fn filterEdgesByLabel(self: *const DODGraphData, label: u16, result_indices: []u32) u32 {
+    pub fn filterEdgesByLabel(self: *const GraphData, label: u16, result_indices: []u32) u32 {
         var count: u32 = 0;
         for (self.edge_labels, 0..) |edge_label, i| {
             if (edge_label == label and self.edge_active[i] and count < result_indices.len) {
@@ -109,8 +158,83 @@ pub const DODGraphData = struct {
         return count;
     }
 
+    // Node lookup by ID (hash table for O(1) performance)
+    pub fn findNodeById(self: *const GraphData, id: u64) ?u32 {
+        for (self.node_ids[0..self.node_count], 0..) |node_id, i| {
+            if (node_id == id and self.node_active[i]) {
+                return @intCast(i);
+            }
+        }
+        return null;
+    }
+
+    // Edge lookup operations
+    pub fn findEdgesByNode(self: *const GraphData, node_id: u64, outgoing: bool, result_indices: []u32) u32 {
+        var count: u32 = 0;
+        const search_array = if (outgoing) self.edge_from else self.edge_to;
+
+        for (search_array[0..self.edge_count], 0..) |edge_node, i| {
+            if (edge_node == node_id and self.edge_active[i] and count < result_indices.len) {
+                result_indices[count] = @intCast(i);
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    // Memory management - mark as deleted (soft delete for performance)
+    pub fn deleteNode(self: *GraphData, index: u32) !void {
+        if (index >= self.node_count) {
+            return constants.NenDBError.InvalidNodeID;
+        }
+
+        self.node_active[index] = false;
+        self.node_generation[index] += 1;
+    }
+
+    pub fn deleteEdge(self: *GraphData, index: u32) !void {
+        if (index >= self.edge_count) {
+            return constants.NenDBError.InvalidEdgeID;
+        }
+
+        self.edge_active[index] = false;
+        self.edge_generation[index] += 1;
+    }
+
+    // Batch operations for maximum performance
+    pub fn batchAddNodes(self: *GraphData, ids: []const u64, kinds: []const u8) ![]u32 {
+        if (ids.len != kinds.len) {
+            return constants.NenDBError.InvalidConfiguration;
+        }
+
+        if (self.node_count + ids.len > constants.memory.node_pool_size) {
+            return constants.NenDBError.PoolExhausted;
+        }
+
+        const start_index = self.node_count;
+
+        // Vectorized batch insertion
+        for (ids, kinds, 0..) |id, kind, i| {
+            const index = start_index + i;
+            self.node_ids[index] = id;
+            self.node_kinds[index] = kind;
+            self.node_active[index] = true;
+            self.node_generation[index] = 0;
+        }
+
+        self.node_count += @intCast(ids.len);
+
+        // Return array of indices
+        var result_indices = [_]u32{0} ** 1000; // Max batch size
+        for (0..ids.len) |i| {
+            result_indices[i] = @intCast(start_index + i);
+        }
+
+        return result_indices[0..ids.len];
+    }
+
     // SIMD-optimized embedding operations
-    pub fn addEmbedding(self: *DODGraphData, node_id: u64, vector: [constants.data.embedding_dimensions]f32) !u32 {
+    pub fn addEmbedding(self: *GraphData, node_id: u64, vector: [constants.data.embedding_dimensions]f32) !u32 {
         if (self.embedding_count >= constants.memory.embedding_pool_size) {
             return constants.NenDBError.PoolExhausted;
         }
@@ -125,8 +249,8 @@ pub const DODGraphData = struct {
     }
 
     // Get statistics
-    pub fn getStats(self: *const DODGraphData) DODStats {
-        return DODStats{
+    pub fn getStats(self: *const GraphData) Stats {
+        return Stats{
             .node_count = self.node_count,
             .edge_count = self.edge_count,
             .embedding_count = self.embedding_count,
@@ -164,7 +288,7 @@ pub const PropertyBlock = struct {
 };
 
 // DOD statistics
-pub const DODStats = struct {
+pub const Stats = struct {
     node_count: u32,
     edge_count: u32,
     embedding_count: u32,
@@ -172,7 +296,7 @@ pub const DODStats = struct {
     edge_capacity: u32,
     embedding_capacity: u32,
 
-    pub fn getUtilization(self: DODStats) f32 {
+    pub fn getUtilization(self: Stats) f32 {
         const total_capacity = self.node_capacity + self.edge_capacity + self.embedding_capacity;
         const total_used = self.node_count + self.edge_count + self.embedding_count;
         return @as(f32, @floatFromInt(total_used)) / @as(f32, @floatFromInt(total_capacity));

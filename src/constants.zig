@@ -58,9 +58,9 @@ pub const batch = struct {
     pub const batch_timeout_ms: u32 = 100; // Maximum time to wait for batch completion
     pub const auto_commit_threshold: u32 = 1000; // Auto-commit when batch reaches this size
 
-    // Pre-allocated buffer sizes
-    pub const node_buffer_size: u32 = max_batch_size * @sizeOf(@import("memory/pool.zig").Node);
-    pub const edge_buffer_size: u32 = max_batch_size * @sizeOf(@import("memory/pool.zig").Edge);
+    // Pre-allocated buffer sizes (DOD-native)
+    pub const node_buffer_size: u32 = max_batch_size * (8 + 1); // u64 id + u8 kind
+    pub const edge_buffer_size: u32 = max_batch_size * (8 + 8 + 2); // u64 from + u64 to + u16 label
     pub const vector_buffer_size: u32 = max_batch_size * 264; // 8 bytes node_id + 256 bytes vector
 
     // Performance tuning

@@ -1,14 +1,27 @@
 // NenDB SIMD-Optimized Operations
-// Implements vectorized operations for DOD data structures
+// Implements vectorized operations for data structures
 
 const std = @import("std");
 const constants = @import("../constants.zig");
-const dod_layout = @import("dod_layout.zig");
+const layout = @import("layout.zig");
 
 // SIMD-optimized batch processor
-pub const SIMDBatchProcessor = struct {
+pub const BatchProcessor = struct {
+    // Processor state (currently stateless)
+
+    pub fn init() BatchProcessor {
+        return BatchProcessor{};
+    }
+
+    // Generic batch processing method for GraphDB compatibility
+    pub fn process_batch(self: *BatchProcessor, graph_data: *layout.GraphData) !void {
+        _ = self; // Suppress unused parameter warning
+        // Process pending SIMD operations on the graph data
+        // For now, this is a no-op but could be extended for actual batch processing
+        _ = graph_data;
+    }
     // Process nodes in SIMD batches
-    pub fn processNodeBatch(node_data: *dod_layout.DODGraphData, operation: NodeOperation, batch_size: u32) void {
+    pub fn processNodeBatch(node_data: *layout.GraphData, operation: NodeOperation, batch_size: u32) void {
         if (batch_size == 0) return;
 
         // Process in SIMD batches of 8
@@ -23,7 +36,7 @@ pub const SIMDBatchProcessor = struct {
     }
 
     // Process edges in SIMD batches
-    pub fn processEdgeBatch(edge_data: *dod_layout.DODGraphData, operation: EdgeOperation, batch_size: u32) void {
+    pub fn processEdgeBatch(edge_data: *layout.GraphData, operation: EdgeOperation, batch_size: u32) void {
         if (batch_size == 0) return;
 
         // Process in SIMD batches of 8
@@ -38,7 +51,7 @@ pub const SIMDBatchProcessor = struct {
     }
 
     // Process embeddings in SIMD batches
-    pub fn processEmbeddingBatch(embedding_data: *dod_layout.DODGraphData, operation: EmbeddingOperation, batch_size: u32) void {
+    pub fn processEmbeddingBatch(embedding_data: *layout.GraphData, operation: EmbeddingOperation, batch_size: u32) void {
         if (batch_size == 0) return;
 
         // Process in SIMD batches of 8
@@ -53,7 +66,7 @@ pub const SIMDBatchProcessor = struct {
     }
 
     // SIMD-optimized node filtering
-    pub fn filterNodesByKindSIMD(node_data: *const dod_layout.DODGraphData, kind: u8, result_indices: []u32) u32 {
+    pub fn filterNodesByKindSIMD(node_data: *const layout.GraphData, kind: u8, result_indices: []u32) u32 {
         var count: u32 = 0;
         const simd_batch_size = constants.data.simd_node_batch_size;
 
@@ -69,7 +82,7 @@ pub const SIMDBatchProcessor = struct {
     }
 
     // SIMD-optimized edge filtering
-    pub fn filterEdgesByLabelSIMD(edge_data: *const dod_layout.DODGraphData, label: u16, result_indices: []u32) u32 {
+    pub fn filterEdgesByLabelSIMD(edge_data: *const layout.GraphData, label: u16, result_indices: []u32) u32 {
         var count: u32 = 0;
         const simd_batch_size = constants.data.simd_edge_batch_size;
 
@@ -117,7 +130,7 @@ pub const SIMDBatchProcessor = struct {
     }
 
     // SIMD-optimized graph traversal (static allocation)
-    pub fn traverseBFS_SIMD(graph_data: *const dod_layout.DODGraphData, start_node: u64, max_depth: u32, visitor: *TraversalVisitor) void {
+    pub fn traverseBFS_SIMD(graph_data: *const layout.GraphData, start_node: u64, max_depth: u32, visitor: *TraversalVisitor) void {
         // SIMD-optimized BFS implementation with static allocation
         var current_level: [1024]u64 = [_]u64{0} ** 1024;
         var next_level: [1024]u64 = [_]u64{0} ** 1024;
@@ -173,7 +186,7 @@ pub const TraversalVisitor = struct {
 };
 
 // Internal SIMD batch processing functions
-fn processNodeSIMDBatch(node_data: *dod_layout.DODGraphData, operation: NodeOperation, start_index: u32, batch_size: u32) void {
+fn processNodeSIMDBatch(node_data: *layout.GraphData, operation: NodeOperation, start_index: u32, batch_size: u32) void {
     for (start_index..start_index + batch_size) |i| {
         if (node_data.node_active[i]) {
             operation.process(node_data.node_ids[i], node_data.node_kinds[i], @intCast(i));
@@ -181,7 +194,7 @@ fn processNodeSIMDBatch(node_data: *dod_layout.DODGraphData, operation: NodeOper
     }
 }
 
-fn processEdgeSIMDBatch(edge_data: *dod_layout.DODGraphData, operation: EdgeOperation, start_index: u32, batch_size: u32) void {
+fn processEdgeSIMDBatch(edge_data: *layout.GraphData, operation: EdgeOperation, start_index: u32, batch_size: u32) void {
     for (start_index..start_index + batch_size) |i| {
         if (edge_data.edge_active[i]) {
             operation.process(edge_data.edge_from[i], edge_data.edge_to[i], edge_data.edge_labels[i], @intCast(i));
@@ -189,7 +202,7 @@ fn processEdgeSIMDBatch(edge_data: *dod_layout.DODGraphData, operation: EdgeOper
     }
 }
 
-fn processEmbeddingSIMDBatch(embedding_data: *dod_layout.DODGraphData, operation: EmbeddingOperation, start_index: u32, batch_size: u32) void {
+fn processEmbeddingSIMDBatch(embedding_data: *layout.GraphData, operation: EmbeddingOperation, start_index: u32, batch_size: u32) void {
     for (start_index..start_index + batch_size) |i| {
         if (embedding_data.embedding_active[i]) {
             operation.process(embedding_data.embedding_node_ids[i], &embedding_data.embedding_vectors[i], @intCast(i));
@@ -197,7 +210,7 @@ fn processEmbeddingSIMDBatch(embedding_data: *dod_layout.DODGraphData, operation
     }
 }
 
-fn filterNodesSIMDBatch(node_data: *const dod_layout.DODGraphData, kind: u8, start_index: u32, batch_size: u32, result_indices: []u32) u32 {
+fn filterNodesSIMDBatch(node_data: *const layout.GraphData, kind: u8, start_index: u32, batch_size: u32, result_indices: []u32) u32 {
     var count: u32 = 0;
     for (start_index..start_index + batch_size) |i| {
         if (node_data.node_kinds[i] == kind and node_data.node_active[i] and count < result_indices.len) {
@@ -208,7 +221,7 @@ fn filterNodesSIMDBatch(node_data: *const dod_layout.DODGraphData, kind: u8, sta
     return count;
 }
 
-fn filterEdgesSIMDBatch(edge_data: *const dod_layout.DODGraphData, label: u16, start_index: u32, batch_size: u32, result_indices: []u32) u32 {
+fn filterEdgesSIMDBatch(edge_data: *const layout.GraphData, label: u16, start_index: u32, batch_size: u32, result_indices: []u32) u32 {
     var count: u32 = 0;
     for (start_index..start_index + batch_size) |i| {
         if (edge_data.edge_labels[i] == label and edge_data.edge_active[i] and count < result_indices.len) {
@@ -219,7 +232,7 @@ fn filterEdgesSIMDBatch(edge_data: *const dod_layout.DODGraphData, label: u16, s
     return count;
 }
 
-fn findEdgesFromNodeSIMD(graph_data: *const dod_layout.DODGraphData, node_id: u64) [64]u32 {
+fn findEdgesFromNodeSIMD(graph_data: *const layout.GraphData, node_id: u64) [64]u32 {
     var edge_indices: [64]u32 = [_]u32{0} ** 64;
     var count: u32 = 0;
 
@@ -246,7 +259,7 @@ fn findEdgesFromNodeSIMD(graph_data: *const dod_layout.DODGraphData, node_id: u6
 // Memory prefetching utilities
 pub const PrefetchUtils = struct {
     // Prefetch data for better cache performance
-    pub fn prefetchNodeData(node_data: *const dod_layout.DODGraphData, start_index: u32, count: u32) void {
+    pub fn prefetchNodeData(node_data: *const layout.GraphData, start_index: u32, count: u32) void {
         if (constants.performance.enable_prefetch) {
             const prefetch_distance = constants.performance.cache_line_prefetch;
             const prefetch_size = @min(count, prefetch_distance);
@@ -263,7 +276,7 @@ pub const PrefetchUtils = struct {
     }
 
     // Prefetch edge data
-    pub fn prefetchEdgeData(edge_data: *const dod_layout.DODGraphData, start_index: u32, count: u32) void {
+    pub fn prefetchEdgeData(edge_data: *const layout.GraphData, start_index: u32, count: u32) void {
         if (constants.performance.enable_prefetch) {
             const prefetch_distance = constants.performance.cache_line_prefetch;
             const prefetch_size = @min(count, prefetch_distance);
@@ -276,7 +289,7 @@ pub const PrefetchUtils = struct {
     }
 
     // Prefetch embedding data
-    pub fn prefetchEmbeddingData(embedding_data: *const dod_layout.DODGraphData, start_index: u32, count: u32) void {
+    pub fn prefetchEmbeddingData(embedding_data: *const layout.GraphData, start_index: u32, count: u32) void {
         if (constants.performance.enable_prefetch) {
             const prefetch_distance = constants.performance.simd_prefetch_distance;
             const prefetch_size = @min(count, prefetch_distance);

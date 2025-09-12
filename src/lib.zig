@@ -4,8 +4,7 @@
 const std = @import("std");
 
 // Core modules
-pub const memory = @import("memory/pool_v2.zig");
-// pub const query = @import("query/query.zig");
+pub const memory = @import("memory/layout.zig");
 pub const constants = @import("constants.zig");
 
 // Use nen-io and nen-json from the ecosystem instead of local implementations
@@ -16,34 +15,15 @@ pub const json = @import("nen-json");
 pub const graphdb = @import("graphdb.zig");
 
 // Data-Oriented Design (DOD) modules
-pub const dod = @import("memory/dod_layout.zig");
-pub const simd = @import("memory/simd_operations.zig");
-pub const prefetch = @import("memory/prefetch_system.zig");
+pub const dod = @import("memory/layout.zig");
+pub const simd = @import("memory/simd.zig");
 
-// Batch processing system (TigerBeetle-style)
-pub const batch = @import("batch/batch_processor.zig");
-pub const client_batcher = @import("batch/client_batcher.zig");
-pub const server_batcher = @import("batch/server_batcher.zig");
+// Core DOD types
+pub const GraphData = memory.GraphData;
+pub const Stats = memory.Stats;
 
-// Algorithms module
-pub const algorithms = @import("algorithms/algorithms.zig");
-
-// Networking APIs using nen-net
-pub const api = struct {
-    pub const server = @import("api/server.zig");
-    pub const client = @import("api/client.zig");
-};
 // Re-export main types for convenience
 pub const GraphDB = graphdb.GraphDB;
-pub const MemoryStats = memory.MemoryStats; // per-pool stats, GraphDB aggregates separately
-
-// Memory pool types
-pub const NodePool = memory.NodePool;
-pub const EdgePool = memory.EdgePool;
-pub const EmbeddingPool = memory.EmbeddingPool;
-pub const Node = memory.Node;
-pub const Edge = memory.Edge;
-pub const Embedding = memory.Embedding;
 
 // Configuration
 pub const Config = struct {
@@ -110,7 +90,7 @@ test "nendb basic functionality" {
 
     // Test basic operations work in fresh directory
     const stats = db.get_memory_stats();
-    try std.testing.expectEqual(@as(u32, 0), stats.nodes.used);
-    try std.testing.expectEqual(@as(u32, 0), stats.edges.used);
-    try std.testing.expectEqual(@as(u32, 0), stats.embeddings.used);
+    try std.testing.expectEqual(@as(u32, 0), stats.nodes.node_count);
+    try std.testing.expectEqual(@as(u32, 0), stats.nodes.edge_count);
+    try std.testing.expectEqual(@as(u32, 0), stats.nodes.embedding_count);
 }
