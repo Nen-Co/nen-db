@@ -93,4 +93,8 @@ test "nendb basic functionality" {
     try std.testing.expectEqual(@as(u32, 0), stats.nodes.node_count);
     try std.testing.expectEqual(@as(u32, 0), stats.nodes.edge_count);
     try std.testing.expectEqual(@as(u32, 0), stats.nodes.embedding_count);
+
+
+
+//this is fine
 }
