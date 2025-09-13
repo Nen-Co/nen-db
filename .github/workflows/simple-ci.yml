@@ -36,14 +36,17 @@ jobs:
         zig build
         zig build test-unit
         
-        # Test WASM build on Linux only (to avoid redundancy)
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          echo "Testing WASM build..."
-          zig build wasm
-          file zig-out/bin/nendb-wasm.wasm
-          du -h zig-out/bin/nendb-wasm.wasm
-        fi
+    - name: Test WASM build (Linux only)
+      if: runner.os == 'Linux'
+      working-directory: nen-db
+      run: |
+        echo "Testing WASM build..."
+        zig build wasm
+        file zig-out/bin/nendb-wasm.wasm
+        du -h zig-out/bin/nendb-wasm.wasm
         
-        # Test cross-compilation capability
+    - name: Test cross-compilation
+      working-directory: nen-db
+      run: |
         echo "Testing cross-compilation for current platform..."
         zig build cross-compile
