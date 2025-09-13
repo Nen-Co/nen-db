@@ -275,11 +275,11 @@ We welcome contributions! 🎉
 4. 📤 Push to the branch (`git push origin feature/amazing-feature`)
 5. 🔄 Open a Pull Request
 
-See our [Contributing Guide](CONTRIBUTING.md) for detailed information.
+See our [Contributing Guide](https://github.com/Nen-Co/nen-db/blob/main/docs/deployment/CONTRIBUTING.md) for detailed information.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the APACHE 2.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
