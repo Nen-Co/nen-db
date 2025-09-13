@@ -296,4 +296,4 @@ This project is licensed under the APACHE 2.0 License - see the [LICENSE](LICENS
 
 ---
 
-**Ready to build AI-native graph applications?** 🚀 [Get started now!](https://nen-co.github.io/docs/nendb/)
+**Ready to build AI-native graph applications?** 🚀 [Get started now!](https://www.nenco.co/docs)
