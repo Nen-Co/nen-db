@@ -34,6 +34,10 @@ jobs:
           git clone https://github.com/Nen-Co/nen-net.git
         fi
         
+        # Verify dependencies are cloned
+        echo "📁 Dependencies cloned:"
+        ls -la | grep nen-
+        
         cd nendb
     
     - name: Install Zig

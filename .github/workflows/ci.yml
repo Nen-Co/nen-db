@@ -45,6 +45,12 @@ jobs:
         if [ ! -d "nen-net" ]; then
           git clone https://github.com/Nen-Co/nen-net.git
         fi
+        
+        # Verify dependencies are cloned
+        echo "📁 Dependencies cloned:"
+        ls -la | grep nen-
+        
+        cd nendb
 
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2
@@ -106,6 +112,9 @@ jobs:
         git clone https://github.com/Nen-Co/nen-io.git
         git clone https://github.com/Nen-Co/nen-json.git
         git clone https://github.com/Nen-Co/nen-net.git
+        
+        echo Dependencies cloned:
+        dir | findstr nen
         
         cd ..\nendb
 
