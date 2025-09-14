@@ -3,6 +3,9 @@
 
 const std = @import("std");
 
+// Use nen-core for high-performance foundation
+pub const nen_core = @import("nen-core");
+
 // Core modules
 pub const memory = @import("memory/layout.zig");
 pub const constants = @import("constants.zig");
@@ -14,9 +17,9 @@ pub const json = @import("nen-json");
 // Legacy nendb.zig removed; GraphDB is primary engine now (graphdb.zig)
 pub const graphdb = @import("graphdb.zig");
 
-// Data-Oriented Design (DOD) modules
-pub const dod = @import("memory/layout.zig");
-pub const simd = @import("memory/simd.zig");
+// Data-Oriented Design (DOD) modules - now using nen-core
+pub const dod = nen_core.layouts;
+pub const simd = nen_core.simd;
 
 // Core DOD types
 pub const GraphData = memory.GraphData;

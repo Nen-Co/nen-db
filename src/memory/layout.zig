@@ -1,9 +1,11 @@
 // NenDB Data-Oriented Memory Layout
 // Implements Struct of Arrays (SoA) and component-based architecture
 // Production-ready with WAL integration and error handling
+// Now integrated with nen-core for high-performance operations
 
 const std = @import("std");
 const constants = @import("../constants.zig");
+const nen_core = @import("nen-core");
 
 // Forward declaration for WAL integration
 const Wal = @import("../wal.zig").Wal;

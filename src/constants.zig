@@ -1,7 +1,9 @@
 // NenDB Constants
 // Production-ready configuration following TigerBeetle patterns
+// Now integrated with nen-core for unified constants
 
 const std = @import("std");
+const nen_core = @import("nen-core");
 
 // Version info - Update these values for each release
 pub const version = std.SemanticVersion{
@@ -39,9 +41,9 @@ pub const memory = struct {
     pub const property_pool_size: u32 = 16384; // For property storage
     pub const index_pool_size: u32 = 2048; // For index structures
 
-    // Memory alignment (DOD-optimized)
-    pub const cache_line_size = 64;
-    pub const simd_alignment = 32; // For SIMD operations
+    // Memory alignment (DOD-optimized) - using nen-core constants
+    pub const cache_line_size = nen_core.DODConstants.CACHE_LINE_SIZE;
+    pub const simd_alignment = nen_core.DODConstants.SIMD_ALIGNMENT;
     pub const sector_size = 512;
     pub const page_size = 4096;
 
@@ -178,43 +180,28 @@ pub const dod = struct {
     pub const simd_alignment = 32; // SIMD alignment requirement
 };
 
-// Error codes (following TigerBeetle's pattern)
+// Error codes - using nen-core unified errors with NenDB-specific additions
 pub const NenDBError = error{
-    // Storage errors
+    // NenDB-specific errors (extending nen-core errors)
     StorageFull,
     CorruptedData,
-    IOError,
-    FileNotFound,
-    PermissionDenied,
-    AlreadyLocked,
-
-    // Memory errors
-    OutOfMemory,
-    PoolExhausted,
-    InvalidAlignment,
-
-    // Data errors
     InvalidNodeID,
     InvalidEdgeID,
     NodeNotFound,
     EdgeNotFound,
     DuplicateNode,
     DuplicateEdge,
-
-    // Query errors
     InvalidQuery,
     QueryTimeout,
     RecursionLimit,
-
-    // Network errors (future)
     ConnectionFailed,
     RequestTimeout,
     InvalidMessage,
-
-    // Configuration errors
     InvalidConfiguration,
     FeatureNotEnabled,
-};
+    PoolExhausted,
+    AlreadyLocked,
+} || nen_core.NenError;
 
 // Compile-time assertions (TigerBeetle pattern)
 comptime {
