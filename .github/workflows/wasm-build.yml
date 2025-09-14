@@ -13,33 +13,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup dependencies
-      shell: bash
-      run: |
-        echo "🔗 Setting up dependencies"
-        mkdir -p ../
-        cd ../
-        
-        # Clone dependencies if they don't exist
-        if [ ! -d "nen-core" ]; then
-          git clone https://github.com/Nen-Co/nen-core.git
-        fi
-        if [ ! -d "nen-io" ]; then
-          git clone https://github.com/Nen-Co/nen-io.git
-        fi
-        if [ ! -d "nen-json" ]; then
-          git clone https://github.com/Nen-Co/nen-json.git
-        fi
-        if [ ! -d "nen-net" ]; then
-          git clone https://github.com/Nen-Co/nen-net.git
-        fi
-        
-        # Verify dependencies are cloned
-        echo "📁 Dependencies cloned:"
-        ls -la | grep nen-
-        
-        cd nen-db
-    
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2
       with:

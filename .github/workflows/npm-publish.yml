@@ -31,27 +31,10 @@ jobs:
         node-version: '20'
         registry-url: 'https://registry.npmjs.org'
         
-    - name: Setup dependencies
+    - name: Build with dependencies
       run: |
-        echo "🔗 Setting up dependencies"
-        mkdir -p ../
-        cd ../
-        
-        # Clone dependencies if they don't exist
-        if [ ! -d "nen-core" ]; then
-          git clone https://github.com/Nen-Co/nen-core.git
-        fi
-        if [ ! -d "nen-io" ]; then
-          git clone https://github.com/Nen-Co/nen-io.git
-        fi
-        if [ ! -d "nen-json" ]; then
-          git clone https://github.com/Nen-Co/nen-json.git
-        fi
-        if [ ! -d "nen-net" ]; then
-          git clone https://github.com/Nen-Co/nen-net.git
-        fi
-        
-        cd nendb
+        echo "Building with automatic dependency fetching..."
+        # Zig will automatically fetch dependencies from build.zig.zon
 
     - name: Install dependencies
       run: npm ci

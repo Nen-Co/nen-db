@@ -42,12 +42,10 @@ jobs:
       with:
         version: 0.15.1
         
-    - name: Clone dependencies
+    - name: Build with dependencies
       run: |
-        git clone --depth 1 https://github.com/Nen-Co/nen-core.git
-        git clone --depth 1 https://github.com/Nen-Co/nen-io.git
-        git clone --depth 1 https://github.com/Nen-Co/nen-json.git
-        git clone --depth 1 https://github.com/Nen-Co/nen-net.git
+        echo "Building with automatic dependency fetching..."
+        # Zig will automatically fetch dependencies from build.zig.zon
         
     - name: Build for ${{ matrix.target }}
       run: |
