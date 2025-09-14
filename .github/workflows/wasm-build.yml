@@ -1,4 +1,4 @@
-name: Build and Release WASM
+name: WASM Build
 
 on:
   push:

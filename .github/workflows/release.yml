@@ -44,7 +44,8 @@ jobs:
         
     - name: Clone dependencies
       run: |
-        git clone --depth 1 --branch feature/data-oriented-design https://github.com/Nen-Co/nen-io.git
+        git clone --depth 1 https://github.com/Nen-Co/nen-core.git
+        git clone --depth 1 https://github.com/Nen-Co/nen-io.git
         git clone --depth 1 https://github.com/Nen-Co/nen-json.git
         git clone --depth 1 https://github.com/Nen-Co/nen-net.git
         

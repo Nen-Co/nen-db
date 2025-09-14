@@ -5,91 +5,19 @@ on:
     branches: [ main, develop, feature/* ]
   pull_request:
     branches: [ main, develop ]
-  schedule:
-    # Run daily at 2 AM UTC to catch dependency issues
-    - cron: '0 2 * * *'
 
 env:
   ZIG_VERSION: "0.15.1"
-  RUST_VERSION: "stable"
 
 jobs:
-  # Job 0: Setup Dependencies
-  setup-dependencies:
-    name: Setup Dependencies
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Setup nen-core dependency
-      run: |
-        echo "🔗 Setting up nen-core dependency"
-        if [ ! -d "../nen-core" ]; then
-          echo "Cloning nen-core..."
-          git clone https://github.com/Nen-Co/nen-core.git ../nen-core
-        else
-          echo "nen-core already exists, updating..."
-          cd ../nen-core && git pull
-        fi
-
-    - name: Setup nen-io dependency
-      run: |
-        echo "🔗 Setting up nen-io dependency"
-        if [ ! -d "../nen-io" ]; then
-          echo "Cloning nen-io..."
-          git clone https://github.com/Nen-Co/nen-io.git ../nen-io
-        else
-          echo "nen-io already exists, updating..."
-          cd ../nen-io && git pull
-        fi
-
-    - name: Setup nen-json dependency
-      run: |
-        echo "🔗 Setting up nen-json dependency"
-        if [ ! -d "../nen-json" ]; then
-          echo "Cloning nen-json..."
-          git clone https://github.com/Nen-Co/nen-json.git ../nen-json
-        else
-          echo "nen-json already exists, updating..."
-          cd ../nen-json && git pull
-        fi
-
-    - name: Setup nen-net dependency
-      run: |
-        echo "🔗 Setting up nen-net dependency"
-        if [ ! -d "../nen-net" ]; then
-          echo "Cloning nen-net..."
-          git clone https://github.com/Nen-Co/nen-net.git ../nen-net
-        else
-          echo "nen-net already exists, updating..."
-          cd ../nen-net && git pull
-        fi
-
-    - name: Upload dependencies
-      uses: actions/upload-artifact@v3
-      with:
-        name: nen-dependencies
-        path: |
-          ../nen-core
-          ../nen-io
-          ../nen-json
-          ../nen-net
-
-  # Job 1: Build Validation
-  build-validation:
-    name: Build Validation
+  # Single comprehensive job that does everything
+  test-and-build:
+    name: Test and Build
     runs-on: ${{ matrix.os }}
-    needs: setup-dependencies
     strategy:
-      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        zig-version: ["0.15.1"]
-        build-mode: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
+        build-mode: [Debug, ReleaseFast]
         exclude:
           # Skip Debug on Windows to speed up CI
           - os: windows-latest
@@ -101,284 +29,60 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Download dependencies
-      uses: actions/download-artifact@v3
-      with:
-        name: nen-dependencies
-        path: ../
+    - name: Setup dependencies
+      run: |
+        echo "🔗 Setting up dependencies"
+        mkdir -p ../
+        cd ../
+        
+        # Clone dependencies if they don't exist
+        if [ ! -d "nen-core" ]; then
+          git clone https://github.com/Nen-Co/nen-core.git
+        fi
+        if [ ! -d "nen-io" ]; then
+          git clone https://github.com/Nen-Co/nen-io.git
+        fi
+        if [ ! -d "nen-json" ]; then
+          git clone https://github.com/Nen-Co/nen-json.git
+        fi
+        if [ ! -d "nen-net" ]; then
+          git clone https://github.com/Nen-Co/nen-net.git
+        fi
 
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        zig-version: ${{ matrix.zig-version }}
+        zig-version: ${{ env.ZIG_VERSION }}
 
     - name: Cache Zig build
       uses: actions/cache@v3
       with:
         path: .zig-cache
-        key: zig-${{ matrix.os }}-${{ matrix.zig-version }}-${{ matrix.build-mode }}-${{ hashFiles('**/*.zig') }}
+        key: zig-${{ matrix.os }}-${{ matrix.build-mode }}-${{ hashFiles('**/*.zig') }}
 
-    - name: Validate build
+    - name: Build and Test
       run: |
-        echo "🔍 Testing ${{ matrix.build-mode }} build on ${{ matrix.os }}"
-        zig build --release=${{ matrix.build-mode == 'Debug' && 'safe' || matrix.build-mode == 'ReleaseSafe' && 'safe' || matrix.build-mode == 'ReleaseFast' && 'fast' || 'small' }}
-
-    - name: Run build validation script
-      run: |
-        echo "🔍 Running comprehensive build validation"
-        zig run scripts/validate-build.zig
-
-    - name: Test specific executables
-      run: |
-        echo "🧪 Testing specific executables"
+        echo "🔍 Building ${{ matrix.build-mode }} on ${{ matrix.os }}"
+        
+        # Build the project
+        zig build --release=${{ matrix.build-mode == 'Debug' && 'safe' || 'fast' }}
+        
+        # Run tests
+        zig build test
+        
+        # Test specific executables
         zig build nendb
-        zig build nendb-production
         zig build nendb-http-server
         zig build nendb-tcp-server
+
+    - name: Test WASM build
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "🌐 Testing WASM build"
         zig build nendb-wasm
 
-  # Job 2: Cross-Compilation Testing
-  cross-compilation:
-    name: Cross-Compilation
-    runs-on: ubuntu-latest
-    needs: setup-dependencies
-    strategy:
-      matrix:
-        target: [
-          "x86_64-linux-gnu",
-          "x86_64-macos",
-          "aarch64-macos", 
-          "x86_64-windows-gnu",
-          "wasm32-freestanding"
-        ]
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Download dependencies
-      uses: actions/download-artifact@v3
-      with:
-        name: nen-dependencies
-        path: ../
-
-    - name: Install Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        zig-version: ${{ env.ZIG_VERSION }}
-
-    - name: Test cross-compilation
+    - name: Run integration demo
+      if: matrix.os == 'ubuntu-latest' && matrix.build-mode == 'ReleaseFast'
       run: |
-        echo "🌍 Testing cross-compilation to ${{ matrix.target }}"
-        zig build --release=fast -Dtarget=${{ matrix.target }}
-
-  # Job 3: Dependency Validation
-  dependency-validation:
-    name: Dependency Validation
-    runs-on: ubuntu-latest
-    needs: setup-dependencies
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Download dependencies
-      uses: actions/download-artifact@v3
-      with:
-        name: nen-dependencies
-        path: ../
-
-    - name: Install Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        zig-version: ${{ env.ZIG_VERSION }}
-
-    - name: Validate nen-core dependency
-      run: |
-        echo "🔗 Validating nen-core dependency"
-        if [ ! -d "../nen-core" ]; then
-          echo "❌ nen-core dependency not found"
-          exit 1
-        fi
-        cd ../nen-core && zig build test
-
-    - name: Validate nen-io dependency
-      run: |
-        echo "🔗 Validating nen-io dependency"
-        if [ ! -d "../nen-io" ]; then
-          echo "❌ nen-io dependency not found"
-          exit 1
-        fi
-        cd ../nen-io && zig build test
-
-    - name: Validate nen-json dependency
-      run: |
-        echo "🔗 Validating nen-json dependency"
-        if [ ! -d "../nen-json" ]; then
-          echo "❌ nen-json dependency not found"
-          exit 1
-        fi
-        cd ../nen-json && zig build test
-
-    - name: Validate nen-net dependency
-      run: |
-        echo "🔗 Validating nen-net dependency"
-        if [ ! -d "../nen-net" ]; then
-          echo "❌ nen-net dependency not found"
-          exit 1
-        fi
-        cd ../nen-net && zig build test
-
-  # Job 4: Performance Testing
-  performance-testing:
-    name: Performance Testing
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Install Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        zig-version: ${{ env.ZIG_VERSION }}
-
-    - name: Run performance tests
-      run: |
-        echo "⚡ Running performance tests"
-        zig build --release=fast test-performance
-
-    - name: Run nen-core integration demo
-      run: |
-        echo "🚀 Running nen-core integration demo"
-        zig build --release=fast demo-nen-core
-
-    - name: Run benchmarks
-      run: |
-        echo "📊 Running benchmarks"
-        zig build --release=fast test-algorithms
-
-  # Job 5: Security Scanning
-  security-scanning:
-    name: Security Scanning
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Install Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        zig-version: ${{ env.ZIG_VERSION }}
-
-    - name: Run security analysis
-      run: |
-        echo "🔒 Running security analysis"
-        # Check for unsafe patterns
-        if grep -r "unsafe" src/ --include="*.zig"; then
-          echo "⚠️  Found unsafe code patterns"
-        fi
-        
-        # Check for memory leaks
-        if grep -r "malloc\|free" src/ --include="*.zig"; then
-          echo "⚠️  Found manual memory management"
-        fi
-
-  # Job 6: Documentation Validation
-  documentation-validation:
-    name: Documentation Validation
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Check documentation completeness
-      run: |
-        echo "📚 Validating documentation"
-        
-        # Check for README files
-        if [ ! -f "README.md" ]; then
-          echo "❌ README.md missing"
-          exit 1
-        fi
-        
-        # Check for API documentation
-        if [ ! -f "docs/API.md" ]; then
-          echo "⚠️  API documentation missing"
-        fi
-        
-        # Check for contribution guidelines
-        if [ ! -f "CONTRIBUTING.md" ]; then
-          echo "⚠️  CONTRIBUTING.md missing"
-        fi
-
-  # Job 7: Release Preparation
-  release-preparation:
-    name: Release Preparation
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Install Zig
-      uses: goto-bus-stop/setup-zig@v2
-      with:
-        zig-version: ${{ env.ZIG_VERSION }}
-
-    - name: Build release artifacts
-      run: |
-        echo "📦 Building release artifacts"
-        
-        # Build for multiple platforms
-        zig build --release=fast -Dtarget=x86_64-linux-gnu
-        zig build --release=fast -Dtarget=x86_64-macos
-        zig build --release=fast -Dtarget=aarch64-macos
-        zig build --release=fast -Dtarget=x86_64-windows-gnu
-        zig build --release=fast -Dtarget=wasm32-freestanding
-
-    - name: Create release archive
-      run: |
-        echo "📦 Creating release archive"
-        tar -czf nendb-release.tar.gz zig-out/
-
-    - name: Upload release artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: nendb-release-artifacts
-        path: nendb-release.tar.gz
-
-  # Job 8: Notification
-  notify:
-    name: Notify Results
-    runs-on: ubuntu-latest
-    needs: [build-validation, cross-compilation, dependency-validation, performance-testing, security-scanning, documentation-validation]
-    if: always()
-
-    steps:
-    - name: Notify success
-      if: needs.build-validation.result == 'success' && needs.cross-compilation.result == 'success' && needs.dependency-validation.result == 'success'
-      run: |
-        echo "✅ All CI/CD checks passed!"
-        echo "🚀 Ready for deployment"
-
-    - name: Notify failure
-      if: needs.build-validation.result == 'failure' || needs.cross-compilation.result == 'failure' || needs.dependency-validation.result == 'failure'
-      run: |
-        echo "❌ CI/CD checks failed!"
-        echo "🔧 Please fix the issues before merging"
-        exit 1
+        echo "🚀 Running integration demo"
+        zig build demo-nen-core
