@@ -29,10 +29,10 @@ jobs:
       run: |
         echo "🔗 Setting up dependencies"
         cd ..
-        git clone https://github.com/inagib21/nen-core.git
-        git clone https://github.com/inagib21/nen-io.git
-        git clone https://github.com/inagib21/nen-json.git
-        git clone https://github.com/inagib21/nen-net.git
+        git clone https://github.com/Nen-Co/nen-core.git
+        git clone https://github.com/Nen-Co/nen-io.git
+        git clone https://github.com/Nen-Co/nen-json.git
+        git clone https://github.com/Nen-Co/nen-net.git
         cd nen-db
 
     - name: Install Zig
