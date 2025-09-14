@@ -29,28 +29,58 @@ jobs:
       shell: bash
       run: |
         echo "🔗 Setting up dependencies"
-        mkdir -p ../
-        cd ../
+        echo "Current directory: $(pwd)"
+        echo "Contents: $(ls -la)"
+        
+        # Clone dependencies in the correct location relative to nen-db
+        cd ..
+        echo "Parent directory: $(pwd)"
+        echo "Contents: $(ls -la)"
         
         # Clone dependencies if they don't exist
         if [ ! -d "nen-core" ]; then
+          echo "Cloning nen-core..."
           git clone https://github.com/Nen-Co/nen-core.git
+        else
+          echo "nen-core already exists"
         fi
         if [ ! -d "nen-io" ]; then
+          echo "Cloning nen-io..."
           git clone https://github.com/Nen-Co/nen-io.git
+        else
+          echo "nen-io already exists"
         fi
         if [ ! -d "nen-json" ]; then
+          echo "Cloning nen-json..."
           git clone https://github.com/Nen-Co/nen-json.git
+        else
+          echo "nen-json already exists"
         fi
         if [ ! -d "nen-net" ]; then
+          echo "Cloning nen-net..."
           git clone https://github.com/Nen-Co/nen-net.git
+        else
+          echo "nen-net already exists"
         fi
         
         # Verify dependencies are cloned
         echo "📁 Dependencies cloned:"
         ls -la | grep nen-
         
-        cd nendb
+        # Verify the expected structure
+        echo "📁 Checking nen-core structure:"
+        if [ -d "nen-core" ]; then
+          ls -la nen-core/
+          if [ -f "nen-core/src/lib.zig" ]; then
+            echo "✅ nen-core/src/lib.zig exists"
+          else
+            echo "❌ nen-core/src/lib.zig missing"
+          fi
+        else
+          echo "❌ nen-core directory missing"
+        fi
+        
+        cd nen-db
 
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2
@@ -116,7 +146,7 @@ jobs:
         echo Dependencies cloned:
         dir | findstr nen
         
-        cd ..\nendb
+        cd ..\nen-db
 
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2

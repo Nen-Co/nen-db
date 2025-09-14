@@ -38,7 +38,7 @@ jobs:
         echo "📁 Dependencies cloned:"
         ls -la | grep nen-
         
-        cd nendb
+        cd nen-db
     
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2
