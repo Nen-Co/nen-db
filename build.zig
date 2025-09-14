@@ -431,8 +431,7 @@ pub fn build(b: *std.Build) void {
     // The umbrella CLI functionality should be implemented in the nen-cli repository
 
     // Nen-Core module for high-performance foundation library
-    const nen_core_dep = b.dependency("nen_core", .{ .target = target, .optimize = optimize });
-    const nen_core_mod = nen_core_dep.module("nen-core");
+    const nen_core_mod = b.createModule(.{ .root_source_file = b.path("../nen-core/src/lib.zig"), .target = target, .optimize = optimize });
 
     // WASM executable
     const wasm_lib = b.addExecutable(.{
@@ -453,16 +452,13 @@ pub fn build(b: *std.Build) void {
     wasm_step.dependOn(&b.addInstallArtifact(wasm_lib, .{}).step);
 
     // Nen-IO module for high-performance I/O operations
-    const nen_io_dep = b.dependency("nen_io", .{ .target = target, .optimize = optimize });
-    const nen_io_mod = nen_io_dep.module("nen-io");
+    const nen_io_mod = b.createModule(.{ .root_source_file = b.path("../nen-io/src/lib.zig"), .target = target, .optimize = optimize });
 
     // Nen-JSON module for high-performance JSON operations
-    const nen_json_dep = b.dependency("nen_json", .{ .target = target, .optimize = optimize });
-    const nen_json_mod = nen_json_dep.module("nen-json");
+    const nen_json_mod = b.createModule(.{ .root_source_file = b.path("../nen-json/src/lib.zig"), .target = target, .optimize = optimize });
 
     // Nen-Net module for high-performance networking APIs
-    const nen_net_dep = b.dependency("nen_net", .{ .target = target, .optimize = optimize });
-    const nen_net_mod = nen_net_dep.module("nen-net");
+    const nen_net_mod = b.createModule(.{ .root_source_file = b.path("../nen-net/src/lib.zig"), .target = target, .optimize = optimize });
 
     // nen-core integration demo
     const nen_core_integration_demo = b.addExecutable(.{

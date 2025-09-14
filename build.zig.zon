@@ -3,24 +3,7 @@
     .version = "0.2.0",
     .description = "High-performance graph database built with Data-Oriented Design (DOD)",
     .minimum_zig_version = "0.15.1",
-    .dependencies = .{
-        .nen_core = .{
-            .url = "https://github.com/Nen-Co/nen-core/archive/main.tar.gz",
-            .hash = "12200000000000000000000000000000000000000000000000000000000000000000",
-        },
-        .nen_io = .{
-            .url = "https://github.com/Nen-Co/nen-io/archive/main.tar.gz", 
-            .hash = "12200000000000000000000000000000000000000000000000000000000000000000",
-        },
-        .nen_json = .{
-            .url = "https://github.com/Nen-Co/nen-json/archive/main.tar.gz",
-            .hash = "12200000000000000000000000000000000000000000000000000000000000000000",
-        },
-        .nen_net = .{
-            .url = "https://github.com/Nen-Co/nen-net/archive/main.tar.gz",
-            .hash = "12200000000000000000000000000000000000000000000000000000000000000000",
-        },
-    },
+    .dependencies = .{},
     .paths = .{
         "build.zig",
         "build.zig.zon",

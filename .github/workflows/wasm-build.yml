@@ -13,6 +13,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Setup dependencies
+      run: |
+        echo "🔗 Setting up dependencies"
+        cd ..
+        git clone https://github.com/Nen-Co/nen-core.git
+        git clone https://github.com/Nen-Co/nen-io.git
+        git clone https://github.com/Nen-Co/nen-json.git
+        git clone https://github.com/Nen-Co/nen-net.git
+        cd nen-db
+    
     - name: Install Zig
       uses: goto-bus-stop/setup-zig@v2
       with:
