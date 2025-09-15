@@ -5,7 +5,8 @@
   "main": "dist/nendb.js",
   "types": "dist/nendb.d.ts",
   "bin": {
-    "nendb-create": "./bin/nendb-create.js"
+    "nendb-create": "./bin/nendb-create.js",
+    "nendb-wasm": "./bin/nendb-wasm.js"
   },
   "files": [
     "dist/",
@@ -14,7 +15,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "zig build -Drelease=fast",
+    "build": "zig build --release=fast",
     "build:wasm": "zig build wasm --release=small",
     "build:js": "node scripts/build-js.js",
     "build:bun": "bun run scripts/build-js.js",
