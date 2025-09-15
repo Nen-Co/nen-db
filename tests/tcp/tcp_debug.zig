@@ -1,37 +1,39 @@
+// TCP Debug Test
+// Simple test to verify TCP server functionality
+
 const std = @import("std");
-const nendb = @import("nendb");
-const io = nendb.io;
-const graphdb = nendb.graphdb;
-const nen_net = @import("nen-net");
+const io = @import("nen-io");
 
 pub fn main() !void {
-    try io.terminal.successln("🔍 TCP Debug Test Starting...", .{});
+    std.debug.print("🔍 TCP Debug Test Starting...\n", .{});
 
-    // Test 1: Basic TCP server creation
-    try io.terminal.infoln("Test 1: Creating TCP server...", .{});
-    var server = nen_net.createTcpServer(8080) catch |err| {
-        try io.terminal.errorln("Failed to create TCP server: {}", .{err});
+    std.debug.print("Test 1: Creating TCP server...\n", .{});
+    const server = io.createTcpServer() catch |err| {
+        std.debug.print("Failed to create TCP server: {}\n", .{err});
         return;
     };
-    try io.terminal.successln("✓ TCP server created successfully", .{});
+    std.debug.print("✓ TCP server created successfully\n", .{});
 
-    // Test 2: Bind test
-    try io.terminal.infoln("Test 2: Binding to port...", .{});
-    server.bind() catch |err| {
-        try io.terminal.errorln("Failed to bind: {}", .{err});
+    std.debug.print("Test 2: Binding to port...\n", .{});
+    server.bind(5454) catch |err| {
+        std.debug.print("Failed to bind: {}\n", .{err});
         return;
     };
-    try io.terminal.successln("✓ Bound to port successfully", .{});
+    std.debug.print("✓ Bound to port successfully\n", .{});
 
-    // Test 3: GraphDB initialization
-    try io.terminal.infoln("Test 3: Initializing GraphDB...", .{});
-    var graph_db: graphdb.GraphDB = undefined;
-    graph_db.init_inplace(std.heap.page_allocator) catch |err| {
-        try io.terminal.errorln("Failed to initialize GraphDB: {}", .{err});
+    std.debug.print("Test 3: Initializing GraphDB...\n", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const GraphDB = @import("../../src/graphdb.zig").GraphDB;
+    var db = GraphDB.init(allocator) catch |err| {
+        std.debug.print("Failed to initialize GraphDB: {}\n", .{err});
         return;
     };
-    defer graph_db.deinit();
-    try io.terminal.successln("✓ GraphDB initialized successfully", .{});
+    defer db.deinit();
 
-    try io.terminal.successln("🎉 All TCP tests passed!", .{});
+    std.debug.print("✓ GraphDB initialized successfully\n", .{});
+
+    std.debug.print("🎉 All TCP tests passed!\n", .{});
 }

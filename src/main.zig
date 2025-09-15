@@ -1,22 +1,17 @@
-// NenDB CLI - Command Line Interface
-// Simple CLI for interacting with NenDB
-
 const std = @import("std");
-const nendb = @import("lib.zig");
-const io = nendb.io; // Use nen-io from the ecosystem
 const GraphDB = @import("graphdb.zig").GraphDB;
 const layout = @import("memory/layout.zig");
 const constants = @import("constants.zig");
 
 pub fn main() !void {
-    try io.terminal.println("\x1b[1;38;5;81m┌──────────────────────────────────────────┐", .{});
-    try io.terminal.println("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
-    try io.terminal.println("└──────────────────────────────────────────┘", .{});
-    try io.terminal.println("Version: {s} | Zig: {s}", .{ constants.VERSION_STRING, @import("builtin").zig_version_string });
+    std.debug.print("\x1b[1;38;5;81m┌──────────────────────────────────────────┐\n", .{});
+    std.debug.print("│      ⚡ NenDB • Graph Engine Core ⚡      │\n", .{});
+    std.debug.print("└──────────────────────────────────────────┘\n", .{});
+    std.debug.print("Version: {s} | Zig: {s}\n", .{ constants.VERSION_STRING, @import("builtin").zig_version_string });
 
     // Simple argument parsing
     var it = std.process.argsWithAllocator(std.heap.page_allocator) catch |err| {
-        try io.terminal.errorln("Failed to get command line arguments: {}", .{err});
+        std.debug.print("Failed to get command line arguments: {}\n", .{err});
         try print_help();
         return;
     };
@@ -38,91 +33,92 @@ pub fn main() !void {
         return;
     }
 
-    try io.terminal.success("✅ NenDB started successfully with custom I/O!", .{});
+    std.debug.print("✅ NenDB started successfully with custom I/O!\n", .{});
 }
 
 fn run_demo() !void {
-    try io.terminal.successln("🚀 Running NenDB Demo - Graph Operations", .{});
+    std.debug.print("🚀 Running NenDB Demo - Graph Operations\n", .{});
 
     // Initialize database
-    var db: GraphDB = undefined;
-    try db.init_inplace(std.heap.page_allocator);
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var db = try GraphDB.init(allocator);
     defer db.deinit();
 
-    try io.terminal.infoln("✅ Database initialized", .{});
+    std.debug.print("✅ Database initialized\n", .{});
 
     // Insert nodes
-    try io.terminal.infoln("📝 Inserting nodes...", .{});
+    std.debug.print("📝 Inserting nodes...\n", .{});
+    const node1 = try db.addNode(1, 1); // ID=1, Kind=1
+    const node2 = try db.addNode(2, 2); // ID=2, Kind=2
+    const node3 = try db.addNode(3, 1); // ID=3, Kind=1
 
-    try db.insert_node(1, 1);
-    try db.insert_node(2, 1);
-    try db.insert_node(3, 2);
-
-    try io.terminal.success("✅ Inserted 3 nodes", .{});
+    std.debug.print("✅ Inserted 3 nodes\n", .{});
 
     // Insert edges
-    try io.terminal.infoln("🔗 Inserting edges...", .{});
+    std.debug.print("🔗 Inserting edges...\n", .{});
+    _ = try db.addEdge(node1, node2, 1); // 1->2 with label 1
+    _ = try db.addEdge(node2, node3, 2); // 2->3 with label 2
+    _ = try db.addEdge(node3, node1, 3); // 3->1 with label 3
 
-    try db.insert_edge(1, 2, 1);
-    try db.insert_edge(2, 3, 1);
-    try db.insert_edge(1, 3, 2);
-    try io.terminal.success("✅ Inserted 3 edges", .{});
+    std.debug.print("✅ Inserted 3 edges\n", .{});
 
-    // Lookup operations
-    try io.terminal.infoln("🔍 Testing lookups...", .{});
-
-    const found_node_index = db.lookup_node(1);
-    if (found_node_index) |index| {
-        const node_id = db.graph_data.node_ids[index];
-        const node_kind = db.graph_data.node_kinds[index];
-        try io.terminal.println("  Found node: ID={d}, Kind={d}", .{ node_id, node_kind });
+    // Test lookups
+    std.debug.print("🔍 Testing lookups...\n", .{});
+    if (db.getNode(node1)) |node| {
+        std.debug.print("  Found node: ID={d}, Kind={d}\n", .{ node.id, node.kind });
+    }
+    if (db.getNode(node2)) |node| {
+        std.debug.print("  Found node: ID={d}, Kind={d}\n", .{ node.id, node.kind });
+    }
+    if (db.getNode(node3)) |node| {
+        std.debug.print("  Found node: ID={d}, Kind={d}\n", .{ node.id, node.kind });
     }
 
-    // TODO: Update edge lookup for DOD (temporarily disabled)
-    // const found_edge = db.lookup_edge(1, 2);
-    // if (found_edge) |edge| {
-    //     try io.terminal.println("  Found edge: {d}->{d} (label={d})", .{ edge.from, edge.to, edge.label });
-    // }
+    // Note: Edge lookups are commented out due to current implementation
+    //     try std.debug.print("  Found edge: {d}->{d} (label={d})\n", .{ edge.from, edge.to, edge.label });
 
-    // Delete operations (commented out for now)
-    try io.terminal.infoln("🗑️ Delete operations:", .{});
-    try io.terminal.println("  ⚠️ Delete operations are implemented but need edge pool fixes", .{});
-    try io.terminal.println("  🔧 TODO: Fix edge pool free() logic", .{});
+    // Delete operations
+    std.debug.print("🗑️ Delete operations:\n", .{});
+    std.debug.print("  ⚠️ Delete operations are implemented but need edge pool fixes\n", .{});
+    std.debug.print("  🔧 TODO: Fix edge pool free() logic\n", .{});
 
-    // Get statistics
-    try io.terminal.infoln("📊 Database statistics:", .{});
-    const stats = db.get_stats();
-    try io.terminal.println("  Nodes: {d}/{d} used", .{ stats.memory.nodes.node_count, stats.memory.nodes.node_capacity });
-    try io.terminal.println("  Edges: {d}/{d} used", .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_capacity });
-    try io.terminal.println("  Embeddings: {d}/{d} used", .{ stats.memory.nodes.embedding_count, stats.memory.nodes.embedding_capacity });
-    try io.terminal.println("  Overall utilization: {d:.2}%", .{stats.memory.nodes.getUtilization() * 100.0});
-    try io.terminal.println("  SIMD enabled: {}", .{stats.memory.simd_enabled});
-    try io.terminal.println("  Cache efficiency: {d:.1}x", .{stats.memory.cache_efficiency});
+    // Show statistics
+    const stats = db.getStats();
+    std.debug.print("📊 Database statistics:\n", .{});
+    std.debug.print("  Nodes: {d}/{d} used\n", .{ stats.memory.nodes.node_count, stats.memory.nodes.node_capacity });
+    std.debug.print("  Edges: {d}/{d} used\n", .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_capacity });
+    std.debug.print("  Embeddings: {d}/{d} used\n", .{ stats.memory.nodes.embedding_count, stats.memory.nodes.embedding_capacity });
+    std.debug.print("  Overall utilization: {d:.2}%\n", .{stats.memory.nodes.getUtilization() * 100.0});
+    std.debug.print("  SIMD enabled: {}\n", .{stats.memory.simd_enabled});
+    std.debug.print("  Cache efficiency: {d:.1}x\n", .{stats.memory.cache_efficiency});
 
-    try io.terminal.successln("🎉 Demo completed successfully!", .{});
+    std.debug.print("🎉 Demo completed successfully!\n", .{});
 }
 
 fn print_help() !void {
-    try io.terminal.println("NenDB - Production-focused, static-memory graph store", .{});
-    try io.terminal.println("", .{});
-    try io.terminal.println("Usage: nendb <command> [path]", .{});
-    try io.terminal.println("", .{});
-    try io.terminal.println("Commands:", .{});
-    try io.terminal.println("  help                    Show this help message", .{});
-    try io.terminal.println("  demo                    Run a demo of graph operations", .{});
-    try io.terminal.println("  init <path>            Initialize a new NenDB at <path>", .{});
-    try io.terminal.println("  up <path>              Start NenDB at <path> (default: current directory)", .{});
-    try io.terminal.println("  status <path>          Show database status (default: current directory)", .{});
-    try io.terminal.println("  query <path> <query>   Execute Cypher query at <path>", .{});
-    try io.terminal.println("  serve                  Start TCP server on port 5454", .{});
-    try io.terminal.println("", .{});
-    try io.terminal.println("Features:", .{});
-    try io.terminal.println("  • Node/Edge CRUD operations", .{});
-    try io.terminal.println("  • Graph traversal (BFS/DFS)", .{});
-    try io.terminal.println("  • Path finding algorithms", .{});
-    try io.terminal.println("  • Property management", .{});
-    try io.terminal.println("  • WAL-based durability", .{});
-    try io.terminal.println("  • Static memory pools", .{});
-    try io.terminal.println("", .{});
-    try io.terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
+    std.debug.print("NenDB - Production-focused, static-memory graph store\n", .{});
+    std.debug.print("\n", .{});
+    std.debug.print("Usage: nendb <command> [path]\n", .{});
+    std.debug.print("\n", .{});
+    std.debug.print("Commands:\n", .{});
+    std.debug.print("  help                    Show this help message\n", .{});
+    std.debug.print("  demo                    Run a demo of graph operations\n", .{});
+    std.debug.print("  init <path>            Initialize a new NenDB at <path>\n", .{});
+    std.debug.print("  up <path>              Start NenDB at <path> (default: current directory)\n", .{});
+    std.debug.print("  status <path>          Show database status (default: current directory)\n", .{});
+    std.debug.print("  query <path> <query>   Execute Cypher query at <path>\n", .{});
+    std.debug.print("  serve                  Start TCP server on port 5454\n", .{});
+    std.debug.print("\n", .{});
+    std.debug.print("Features:\n", .{});
+    std.debug.print("  • Node/Edge CRUD operations\n", .{});
+    std.debug.print("  • Graph traversal (BFS/DFS)\n", .{});
+    std.debug.print("  • Path finding algorithms\n", .{});
+    std.debug.print("  • Property management\n", .{});
+    std.debug.print("  • WAL-based durability\n", .{});
+    std.debug.print("  • Static memory pools\n", .{});
+    std.debug.print("\n", .{});
+    std.debug.print("Version: {s} - Custom I/O Implementation\n", .{constants.VERSION_STRING});
 }
