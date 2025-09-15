@@ -581,6 +581,7 @@ pub fn build(b: *std.Build) void {
     tcp_debug_exe.root_module.addImport("nendb", lib_mod);
     tcp_debug_exe.root_module.addImport("nen-core", nen_core_mod);
     tcp_debug_exe.root_module.addImport("nen-net", nen_net_mod);
+    tcp_debug_exe.root_module.addImport("nen-io", nen_io_mod);
     b.installArtifact(tcp_debug_exe);
 
     const run_tcp_debug = b.addRunArtifact(tcp_debug_exe);

@@ -5,11 +5,11 @@ const std = @import("std");
 const nen_io = @import("nen-io");
 
 pub fn main() !void {
-    std.debug.print("🧪 NenDB TCP Server Comprehensive Test\n", .{});
-    std.debug.print("\n", .{});
+    try nen_io.Terminal.boldln("🧪 NenDB TCP Server Comprehensive Test", .{});
+    try nen_io.Terminal.println("", .{});
 
     // Test 1: TCP server creation and startup
-    std.debug.print("Test 1: TCP Server Startup...\n", .{});
+    try nen_io.Terminal.infoln("Test 1: TCP Server Startup...", .{});
 
     // Use a process to test the server startup
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -25,27 +25,38 @@ pub fn main() !void {
     defer _ = child.kill() catch {};
 
     // Give server time to start
-    std.time.sleep(100 * std.time.ns_per_ms);
+    std.Thread.sleep(100 * std.time.ns_per_ms);
 
-    std.debug.print("✓ TCP server started successfully\n", .{});
+    try nen_io.Terminal.successln("✓ TCP server started successfully", .{});
 
     // Test 2: Basic connectivity test
-    std.debug.print("Test 2: Basic Connectivity...\n", .{});
+    try nen_io.Terminal.infoln("Test 2: Basic Connectivity...", .{});
     
     // Simple test - just verify the process is running
     const result = child.wait() catch |err| {
-        std.debug.print("Server process error: {}\n", .{err});
+        try nen_io.Terminal.errorln("Server process error: {}", .{err});
         return;
     };
     
-    if (result.Exited) |code| {
-        std.debug.print("Server exited with code: {d}\n", .{code});
+    switch (result) {
+        .Exited => |code| {
+            try nen_io.Terminal.println("Server exited with code: {d}", .{code});
+        },
+        .Signal => |sig| {
+            try nen_io.Terminal.println("Server killed by signal: {d}", .{sig});
+        },
+        .Stopped => |sig| {
+            try nen_io.Terminal.println("Server stopped by signal: {d}", .{sig});
+        },
+        .Unknown => |code| {
+            try nen_io.Terminal.println("Server terminated with unknown status: {d}", .{code});
+        },
     }
 
-    std.debug.print("✓ Basic connectivity test completed\n", .{});
+    try nen_io.Terminal.successln("✓ Basic connectivity test completed", .{});
 
     // Test 3: Performance test
-    std.debug.print("Test 3: Performance Test...\n", .{});
+    try nen_io.Terminal.infoln("Test 3: Performance Test...", .{});
     
     const start_time = std.time.nanoTimestamp();
     const iterations = 1000;
@@ -53,13 +64,14 @@ pub fn main() !void {
     for (0..iterations) |i| {
         _ = i; // Suppress unused variable warning
         // Simulate some work
-        std.time.sleep(1 * std.time.ns_per_ms);
+        std.Thread.sleep(1 * std.time.ns_per_ms);
     }
     
     const end_time = std.time.nanoTimestamp();
-    const duration_ms = (end_time - start_time) / std.time.ns_per_ms;
+    const duration_ms = @divTrunc(end_time - start_time, std.time.ns_per_ms);
     
-    std.debug.print("✓ Performance test completed: {d}ms for {d} iterations\n", .{ duration_ms, iterations });
+    try nen_io.Terminal.successln("✓ Performance test completed: {d}ms for {d} iterations", .{ duration_ms, iterations });
 
-    std.debug.print("\n🎉 All comprehensive tests passed!\n", .{});
+    try nen_io.Terminal.println("", .{});
+    try nen_io.Terminal.successln("🎉 All comprehensive tests passed!", .{});
 }
