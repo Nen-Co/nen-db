@@ -84,12 +84,26 @@ pub const Wal = struct {
         const entry_size = 8 + 1 + 4;
         var entry_buf: [entry_size]u8 = undefined;
 
-        var fbs = std.io.fixedBufferStream(&entry_buf);
-        const w = fbs.writer();
-        try w.writeInt(u64, id, .little);
-        try w.writeByte(kind);
-        const crc = std.hash.crc.Crc32.hash(entry_buf[0..9]); // Hash id + kind
-        try w.writeInt(u32, crc, .little);
+        // Write data directly to buffer for Zig 0.15.1 compatibility
+        var pos: usize = 0;
+        
+        // Write id (8 bytes, little endian) - manual byte writing
+        var id_bytes: [8]u8 = undefined;
+        std.mem.writeInt(u64, &id_bytes, id, .little);
+        @memcpy(entry_buf[pos..pos+8], &id_bytes);
+        pos += 8;
+        
+        // Write kind (1 byte)
+        entry_buf[pos] = kind;
+        pos += 1;
+        
+        // Calculate CRC32 for id + kind
+        const crc = std.hash.crc.Crc32.hash(entry_buf[0..9]);
+        
+        // Write CRC32 (4 bytes, little endian) - manual byte writing
+        var crc_bytes: [4]u8 = undefined;
+        std.mem.writeInt(u32, &crc_bytes, crc, .little);
+        @memcpy(entry_buf[pos..pos+4], &crc_bytes);
 
         // Write to file
         const off: u64 = self.end_pos;
