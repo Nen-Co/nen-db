@@ -86,24 +86,24 @@ pub const Wal = struct {
 
         // Write data directly to buffer for Zig 0.15.1 compatibility
         var pos: usize = 0;
-        
+
         // Write id (8 bytes, little endian) - manual byte writing
         var id_bytes: [8]u8 = undefined;
         std.mem.writeInt(u64, &id_bytes, id, .little);
-        @memcpy(entry_buf[pos..pos+8], &id_bytes);
+        @memcpy(entry_buf[pos .. pos + 8], &id_bytes);
         pos += 8;
-        
+
         // Write kind (1 byte)
         entry_buf[pos] = kind;
         pos += 1;
-        
+
         // Calculate CRC32 for id + kind
         const crc = std.hash.crc.Crc32.hash(entry_buf[0..9]);
-        
+
         // Write CRC32 (4 bytes, little endian) - manual byte writing
         var crc_bytes: [4]u8 = undefined;
         std.mem.writeInt(u32, &crc_bytes, crc, .little);
-        @memcpy(entry_buf[pos..pos+4], &crc_bytes);
+        @memcpy(entry_buf[pos .. pos + 4], &crc_bytes);
 
         // Write to file
         const off: u64 = self.end_pos;
@@ -121,13 +121,34 @@ pub const Wal = struct {
         const entry_size = 8 + 8 + 2 + 4;
         var entry_buf: [entry_size]u8 = undefined;
 
-        var fbs = std.io.fixedBufferStream(&entry_buf);
-        const w = fbs.writer();
-        try w.writeInt(u64, from, .little);
-        try w.writeInt(u64, to, .little);
-        try w.writeInt(u16, label, .little);
-        const crc = std.hash.crc.Crc32.hash(entry_buf[0..18]); // Hash from + to + label
-        try w.writeInt(u32, crc, .little);
+        // Write data directly to buffer for Zig 0.15.1 compatibility
+        var pos: usize = 0;
+        
+        // Write from (8 bytes, little endian) - manual byte writing
+        var from_bytes: [8]u8 = undefined;
+        std.mem.writeInt(u64, &from_bytes, from, .little);
+        @memcpy(entry_buf[pos..pos+8], &from_bytes);
+        pos += 8;
+        
+        // Write to (8 bytes, little endian) - manual byte writing
+        var to_bytes: [8]u8 = undefined;
+        std.mem.writeInt(u64, &to_bytes, to, .little);
+        @memcpy(entry_buf[pos..pos+8], &to_bytes);
+        pos += 8;
+        
+        // Write label (2 bytes, little endian) - manual byte writing
+        var label_bytes: [2]u8 = undefined;
+        std.mem.writeInt(u16, &label_bytes, label, .little);
+        @memcpy(entry_buf[pos..pos+2], &label_bytes);
+        pos += 2;
+        
+        // Calculate CRC32 for from + to + label
+        const crc = std.hash.crc.Crc32.hash(entry_buf[0..18]);
+        
+        // Write CRC32 (4 bytes, little endian) - manual byte writing
+        var crc_bytes: [4]u8 = undefined;
+        std.mem.writeInt(u32, &crc_bytes, crc, .little);
+        @memcpy(entry_buf[pos..pos+4], &crc_bytes);
 
         // Write to file
         const off: u64 = self.end_pos;
