@@ -6,6 +6,9 @@ const std = @import("std");
 // Use nen-core for high-performance foundation
 pub const nen_core = @import("nen-core");
 
+// Use nen-net for networking capabilities
+pub const nen_net = @import("nen-net");
+
 // Core modules
 pub const memory = @import("memory/layout.zig");
 pub const constants = @import("constants.zig");
@@ -27,6 +30,15 @@ pub const Stats = memory.Stats;
 
 // Re-export main types for convenience
 pub const GraphDB = graphdb.GraphDB;
+
+// Re-export networking types from nen-net
+pub const HttpServer = nen_net.HttpServer;
+pub const HttpRequest = nen_net.HttpRequest;
+pub const HttpResponse = nen_net.HttpResponse;
+pub const TcpServer = nen_net.TcpServer;
+pub const TcpClient = nen_net.TcpClient;
+pub const WebSocketServer = nen_net.WebSocketServer;
+pub const Router = nen_net.Router;
 
 // Configuration
 pub const Config = struct {
@@ -62,6 +74,29 @@ pub fn open_memory() !GraphDB {
 // Quick start with default configuration
 pub fn init() !GraphDB {
     return open("./nendb_data");
+}
+
+// Networking convenience functions
+pub fn createHttpServer(port: u16) !HttpServer {
+    return nen_net.createHttpServer(port);
+}
+
+pub fn createTcpServer(port: u16) !TcpServer {
+    return nen_net.createTcpServer(port);
+}
+
+pub fn createWebSocketServer(port: u16) !WebSocketServer {
+    return nen_net.createWebSocketServer(port);
+}
+
+// Create a networked GraphDB with HTTP API
+pub fn createNetworkedGraphDB(allocator: std.mem.Allocator, port: u16, data_dir: []const u8) !struct { GraphDB, HttpServer } {
+    var db: GraphDB = undefined;
+    try db.init_inplace(allocator, data_dir);
+    
+    const server = try createHttpServer(port);
+    
+    return .{ db, server };
 }
 
 // Version information

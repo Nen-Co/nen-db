@@ -5,6 +5,21 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = .ReleaseSafe; // Always build in safe mode for production reliability
 
+    // Add nen-core dependency
+    const nen_core = b.addModule("nen-core", .{
+        .root_source_file = b.path("../nen-core/src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add nen-net dependency
+    const nen_net = b.addModule("nen-net", .{
+        .root_source_file = b.path("../nen-net/src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    nen_net.addImport("nen-core", nen_core);
+
     //NenDB CLI (Production Version)
     const exe = b.addExecutable(.{
         .name = "nendb-production",
@@ -14,6 +29,8 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    exe.root_module.addImport("nen-core", nen_core);
+    exe.root_module.addImport("nen-net", nen_net);
     b.installArtifact(exe);
 
     // Dedicated NenDB CLI binary (renamed from generic 'nen' to avoid collision with unified multi-product CLI)
@@ -25,6 +42,8 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    nen_cli.root_module.addImport("nen-core", nen_core);
+    nen_cli.root_module.addImport("nen-net", nen_net);
     b.installArtifact(nen_cli);
 
     // Run command for the debug executable
@@ -46,6 +65,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    lib_mod.addImport("nen-core", nen_core);
+    lib_mod.addImport("nen-net", nen_net);
 
     // WASM build target for embedded/browser usage
     const wasm_target = b.resolveTargetQuery(.{
@@ -370,7 +391,8 @@ pub fn build(b: *std.Build) void {
     // The umbrella CLI functionality should be implemented in the nen-cli repository
 
     // Nen-Core module for high-performance foundation library
-    const nen_core_mod = b.createModule(.{ .root_source_file = b.path("../nen-core/src/lib.zig"), .target = target, .optimize = optimize });
+    // Use the existing nen_core module instead of creating a duplicate
+    // const nen_core = b.createModule(.{ .root_source_file = b.path("../nen-core/src/lib.zig"), .target = target, .optimize = optimize });
 
     // Nen-IO module for high-performance I/O operations
     const nen_io_mod = b.createModule(.{ .root_source_file = b.path("../nen-io/src/lib.zig"), .target = target, .optimize = optimize });
@@ -400,7 +422,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     wasm_lib.root_module.addImport("nendb", lib_mod);
-    wasm_lib.root_module.addImport("nen-core", nen_core_mod);
+    wasm_lib.root_module.addImport("nen-core", nen_core);
     wasm_lib.entry = .disabled; // No entry point needed for WASM library
     b.installArtifact(wasm_lib);
 
@@ -424,24 +446,24 @@ pub fn build(b: *std.Build) void {
         }),
     });
     nen_core_integration_demo.root_module.addImport("nendb", lib_mod);
-    nen_core_integration_demo.root_module.addImport("nen-core", nen_core_mod);
+    nen_core_integration_demo.root_module.addImport("nen-core", nen_core);
 
     const run_nen_core_integration_demo = b.addRunArtifact(nen_core_integration_demo);
     const nen_core_integration_demo_step = b.step("demo-nen-core", "Run nen-core integration demo");
     nen_core_integration_demo_step.dependOn(&run_nen_core_integration_demo.step);
 
     // Use nen-core, nen-io and nen-json instead of local implementations
-    lib_mod.addImport("nen-core", nen_core_mod);
+    lib_mod.addImport("nen-core", nen_core);
     lib_mod.addImport("nen-io", nen_io_mod);
     lib_mod.addImport("nen-json", nen_json_mod);
     // Note: nen-net is only imported by executables that need networking, not by the core library
-    monitoring_mod.addImport("nen-core", nen_core_mod);
+    monitoring_mod.addImport("nen-core", nen_core);
     monitoring_mod.addImport("nen-io", nen_io_mod);
-    exe.root_module.addImport("nen-core", nen_core_mod);
+    exe.root_module.addImport("nen-core", nen_core);
     exe.root_module.addImport("nen-io", nen_io_mod);
     exe.root_module.addImport("nen-json", nen_json_mod);
     exe.root_module.addImport("nen-net", nen_net_mod);
-    nen_cli.root_module.addImport("nen-core", nen_core_mod);
+    nen_cli.root_module.addImport("nen-core", nen_core);
     nen_cli.root_module.addImport("nen-io", nen_io_mod);
     nen_cli.root_module.addImport("nen-json", nen_json_mod);
     nen_cli.root_module.addImport("nen-net", nen_net_mod);
@@ -495,7 +517,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     server_exe.root_module.addImport("nendb", lib_mod);
-    server_exe.root_module.addImport("nen-core", nen_core_mod);
+    server_exe.root_module.addImport("nen-core", nen_core);
     server_exe.root_module.addImport("nen-net", nen_net_mod);
     server_exe.root_module.addImport("algorithms", algorithms_mod);
     b.installArtifact(server_exe);
@@ -510,7 +532,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     tcp_server_exe.root_module.addImport("nendb", lib_mod);
-    tcp_server_exe.root_module.addImport("nen-core", nen_core_mod);
+    tcp_server_exe.root_module.addImport("nen-core", nen_core);
     tcp_server_exe.root_module.addImport("nen-net", nen_net_mod);
     tcp_server_exe.root_module.addImport("nen-io", nen_io_mod);
     b.installArtifact(tcp_server_exe);
@@ -533,7 +555,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     tcp_debug_exe.root_module.addImport("nendb", lib_mod);
-    tcp_debug_exe.root_module.addImport("nen-core", nen_core_mod);
+    tcp_debug_exe.root_module.addImport("nen-core", nen_core);
     tcp_debug_exe.root_module.addImport("nen-net", nen_net_mod);
     tcp_debug_exe.root_module.addImport("nen-io", nen_io_mod);
     b.installArtifact(tcp_debug_exe);
