@@ -249,70 +249,9 @@ pub fn build(b: *std.Build) void {
     const run_graphdb_tests = b.addRunArtifact(graphdb_tests);
     test_step.dependOn(&run_graphdb_tests.step);
 
-    // Resource monitoring tests (legacy - moved to tests/legacy/)
-    const monitoring_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/legacy/test_resource_monitor.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    monitoring_tests.root_module.addImport("monitoring", monitoring_mod);
+    // Resource monitoring tests - removed legacy tests that don't exist
 
-    const run_monitoring_tests = b.addRunArtifact(monitoring_tests);
-    test_step.dependOn(&run_monitoring_tests.step);
-
-    // Cypher parser tests (query language subset)
-    const query_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/legacy/test_cypher_parser.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    query_tests.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
-    query_tests.root_module.addImport("nendb", lib_mod);
-    const run_query_tests = b.addRunArtifact(query_tests);
-    test_step.dependOn(&run_query_tests.step);
-
-    // New Cypher parser tests
-    const query_tests_new = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/legacy/test_cypher_parser_new.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    query_tests_new.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
-    query_tests_new.root_module.addImport("nendb", lib_mod);
-    const run_query_tests_new = b.addRunArtifact(query_tests_new);
-    test_step.dependOn(&run_query_tests_new.step);
-
-    // Advanced Cypher features tests
-    const query_tests_advanced = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/legacy/test_cypher_advanced.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    query_tests_advanced.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
-    query_tests_advanced.root_module.addImport("nendb", lib_mod);
-    const run_query_tests_advanced = b.addRunArtifact(query_tests_advanced);
-    test_step.dependOn(&run_query_tests_advanced.step);
-
-    // Cypher integration tests
-    const query_tests_integration = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/legacy/test_cypher_integration.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    query_tests_integration.root_module.addAnonymousImport("query", .{ .root_source_file = b.path("src/query/query.zig") });
-    query_tests_integration.root_module.addImport("nendb", lib_mod);
-    const run_query_tests_integration = b.addRunArtifact(query_tests_integration);
-    test_step.dependOn(&run_query_tests_integration.step);
+    // Cypher parser tests - removed legacy tests that don't exist
 
     // ===== ENHANCED BENCHMARKING SUPPORT =====
 

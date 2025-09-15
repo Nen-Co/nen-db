@@ -3,7 +3,6 @@
 // Now integrated with nen-core for unified constants
 
 const std = @import("std");
-const nen_core = @import("nen-core");
 
 // Version info - Update these values for each release
 pub const version = std.SemanticVersion{
@@ -41,8 +40,8 @@ pub const memory = struct {
     pub const property_pool_size: u32 = 16384; // For property storage
     pub const index_pool_size: u32 = 2048; // For index structures
 
-    // Memory alignment (DOD-optimized) - using nen-core constants
-    pub const cache_line_size = nen_core.DODConstants.CACHE_LINE_SIZE;
+    // Memory alignment (DOD-optimized) - hardcoded for CI compatibility
+    pub const cache_line_size = 64; // Cache line size
     pub const simd_alignment = 32; // SIMD alignment requirement (hardcoded for CI compatibility)
     pub const sector_size = 512;
     pub const page_size = 4096;
@@ -201,7 +200,7 @@ pub const NenDBError = error{
     FeatureNotEnabled,
     PoolExhausted,
     AlreadyLocked,
-} || nen_core.NenError;
+};
 
 // Compile-time assertions (TigerBeetle pattern)
 comptime {

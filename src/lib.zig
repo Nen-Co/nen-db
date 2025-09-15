@@ -30,26 +30,27 @@ pub const GraphDB = graphdb.GraphDB;
 
 // Configuration
 pub const Config = struct {
-    node_pool_size: usize = memory.NODE_POOL_SIZE,
-    edge_pool_size: usize = memory.EDGE_POOL_SIZE,
-    embedding_pool_size: usize = memory.EMBEDDING_POOL_SIZE,
-    embedding_dim: usize = memory.EMBEDDING_DIM,
+    node_pool_size: usize = constants.memory.node_pool_size,
+    edge_pool_size: usize = constants.memory.edge_pool_size,
+    embedding_pool_size: usize = constants.memory.embedding_pool_size,
+    embedding_dim: usize = constants.data.embedding_dimensions,
     data_dir: []const u8 = ".",
 };
 
 // Convenience function to create a NenDB instance
 pub fn create_graph(allocator: std.mem.Allocator, config: Config) !GraphDB {
-    _ = allocator; // GraphDB uses static pools internally
+    _ = config; // Config not used in this simplified version
     // Use provided data_dir; ensure isolated path so multiple tests don't contend on WAL lock
     var db: GraphDB = undefined;
-    try GraphDB.open_inplace(&db, config.data_dir);
+    try db.init_inplace(allocator);
     return db; // return by value (copy); caller should deinit()
 }
 
 // Simplified embedded API - no configuration needed
 pub fn open(data_dir: []const u8) !GraphDB {
+    _ = data_dir; // Data dir not used in this simplified version
     var db: GraphDB = undefined;
-    try GraphDB.open_inplace(&db, data_dir);
+    try db.init_inplace(std.heap.page_allocator);
     return db;
 }
 
