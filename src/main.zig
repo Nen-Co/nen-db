@@ -55,6 +55,16 @@ pub fn main() !void {
         return;
     }
 
+    if (std.mem.eql(u8, arg, "init")) {
+        const path = it.next() orelse {
+            try Terminal.errorln("❌ Error: init requires a path", .{});
+            try Terminal.println("Usage: nendb init <path>", .{});
+            return;
+        };
+        try init_database(path);
+        return;
+    }
+
     try Terminal.successln("✅ NenDB started successfully with custom I/O!", .{});
 }
 
@@ -76,8 +86,9 @@ fn run_demo() !void {
         .lookups_total = undefined,
         .allocator = allocator,
         .wal = undefined,
+        .db_path = "demo-db",
     };
-    try db.init_inplace(allocator);
+    try db.init_inplace(allocator, "demo-db");
     defer db.deinit();
 
     try Terminal.successln("✅ Database initialized", .{});
@@ -113,20 +124,12 @@ fn run_demo() !void {
     // Note: Edge lookups are commented out due to current implementation
     //     try Terminal.println("  Found edge: {d}->{d} (label={d})", .{ edge.from, edge.to, edge.label });
 
-    // Delete operations
-    try Terminal.infoln("🗑️ Delete operations:", .{});
-    try Terminal.warnln("  ⚠️ Delete operations are implemented but need edge pool fixes", .{});
-    try Terminal.warnln("  🔧 TODO: Fix edge pool free() logic", .{});
-
     // Show statistics
     const stats = db.get_stats();
     try Terminal.infoln("📊 Database statistics:", .{});
     try Terminal.println("  Nodes: {d}/{d} used", .{ stats.memory.nodes.node_count, stats.memory.nodes.node_capacity });
     try Terminal.println("  Edges: {d}/{d} used", .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_capacity });
-    try Terminal.println("  Embeddings: {d}/{d} used", .{ stats.memory.nodes.embedding_count, stats.memory.nodes.embedding_capacity });
     try Terminal.println("  Overall utilization: {d:.2}%", .{stats.memory.nodes.getUtilization() * 100.0});
-    try Terminal.println("  SIMD enabled: {}", .{stats.memory.simd_enabled});
-    try Terminal.println("  Cache efficiency: {d:.1}x", .{stats.memory.cache_efficiency});
 
     try Terminal.successln("🎉 Demo completed successfully!", .{});
 }
@@ -154,4 +157,41 @@ fn print_help() !void {
     try Terminal.println("  • Static memory pools", .{});
     try Terminal.println("", .{});
     try Terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
+}
+
+fn init_database(path: []const u8) !void {
+    try Terminal.infoln("📁 Initializing NenDB at: {s}", .{path});
+
+    // Create directory if it doesn't exist
+    std.fs.cwd().makeDir(path) catch |err| switch (err) {
+        error.PathAlreadyExists => {}, // Directory already exists, that's fine
+        else => {
+            try Terminal.errorln("❌ Failed to create directory: {}", .{err});
+            return;
+        },
+    };
+
+    // Initialize a real database to create the files
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var db = GraphDB{
+        .mutex = .{},
+        .graph_data = undefined,
+        .simd_processor = undefined,
+        .ops_since_snapshot = 0,
+        .inserts_total = 0,
+        .read_seq = undefined,
+        .lookups_total = undefined,
+        .allocator = allocator,
+        .wal = undefined,
+        .db_path = path,
+    };
+    try db.init_inplace(allocator, path);
+    defer db.deinit();
+
+    try Terminal.successln("✅ NenDB initialized at: {s}", .{path});
+    try Terminal.infoln("  • Database file: {s}/nendb.db", .{path});
+    try Terminal.infoln("  • WAL file: {s}/nendb.wal", .{path});
 }

@@ -23,12 +23,12 @@ pub const memory = struct {
     pub const node_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_NODE_POOL_SIZE"))
         @import("root").NENDB_NODE_POOL_SIZE
     else
-        4096;
+        500000; // Increased for full CSV dataset
 
     pub const edge_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_EDGE_POOL_SIZE"))
         @import("root").NENDB_EDGE_POOL_SIZE
     else
-        4096;
+        1000000; // Increased for full CSV dataset
 
     pub const embedding_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_EMBEDDING_POOL_SIZE"))
         @import("root").NENDB_EMBEDDING_POOL_SIZE

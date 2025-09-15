@@ -372,6 +372,24 @@ pub fn build(b: *std.Build) void {
     // Nen-Core module for high-performance foundation library
     const nen_core_mod = b.createModule(.{ .root_source_file = b.path("../nen-core/src/lib.zig"), .target = target, .optimize = optimize });
 
+    // Nen-IO module for high-performance I/O operations
+    const nen_io_mod = b.createModule(.{ .root_source_file = b.path("../nen-io/src/lib.zig"), .target = target, .optimize = optimize });
+
+    // CSV Data Loading Demo
+    const csv_demo = b.addExecutable(.{
+        .name = "csv-demo",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/csv_example/csv_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    csv_demo.root_module.addImport("nendb", lib_mod);
+
+    const run_csv_demo = b.addRunArtifact(csv_demo);
+    const csv_demo_step = b.step("csv-demo", "Run CSV data loading demo with real Electric Vehicle data");
+    csv_demo_step.dependOn(&run_csv_demo.step);
+
     // WASM executable
     const wasm_lib = b.addExecutable(.{
         .name = "nendb-wasm",
@@ -389,9 +407,6 @@ pub fn build(b: *std.Build) void {
     // WASM build step
     const wasm_step = b.step("wasm", "Build WASM version");
     wasm_step.dependOn(&b.addInstallArtifact(wasm_lib, .{}).step);
-
-    // Nen-IO module for high-performance I/O operations
-    const nen_io_mod = b.createModule(.{ .root_source_file = b.path("../nen-io/src/lib.zig"), .target = target, .optimize = optimize });
 
     // Nen-JSON module for high-performance JSON operations
     const nen_json_mod = b.createModule(.{ .root_source_file = b.path("../nen-json/src/lib.zig"), .target = target, .optimize = optimize });

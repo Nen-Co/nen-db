@@ -8,7 +8,7 @@ const constants = @import("../constants.zig");
 const nen_core = @import("nen-core");
 
 // Forward declaration for WAL integration
-const Wal = @import("../wal.zig").Wal;
+const Wal = @import("wal.zig").Wal;
 
 // Core data structures using Struct of Arrays (SoA) layout
 pub const GraphData = struct {
@@ -39,7 +39,7 @@ pub const GraphData = struct {
     edge_count: u32 = 0,
     embedding_count: u32 = 0,
 
-    pub fn init() GraphData {
+    pub fn init(_: std.mem.Allocator) GraphData {
         return GraphData{
             .node_ids = [_]u64{0} ** constants.memory.node_pool_size,
             .node_kinds = [_]u8{0} ** constants.memory.node_pool_size,
@@ -68,7 +68,7 @@ pub const GraphData = struct {
             return constants.NenDBError.PoolExhausted;
         }
 
-        // Check for duplicate IDs
+        // Check for duplicate IDs using linear search
         if (self.findNodeById(id) != null) {
             return constants.NenDBError.DuplicateNode;
         }
@@ -160,7 +160,7 @@ pub const GraphData = struct {
         return count;
     }
 
-    // Node lookup by ID (hash table for O(1) performance)
+    // Node lookup by ID (linear search)
     pub fn findNodeById(self: *const GraphData, id: u64) ?u32 {
         for (self.node_ids[0..self.node_count], 0..) |node_id, i| {
             if (node_id == id and self.node_active[i]) {
@@ -260,6 +260,11 @@ pub const GraphData = struct {
             .edge_capacity = constants.memory.edge_pool_size,
             .embedding_capacity = constants.memory.embedding_pool_size,
         };
+    }
+
+    // Cleanup resources
+    pub fn deinit(_: *GraphData) void {
+        // No dynamic allocations to clean up
     }
 };
 
