@@ -1,5 +1,5 @@
 {
-  "name": "nendb",
+  "name": "@nenco/nendb",
   "version": "0.2.0-beta",
   "description": "High-performance graph database with static memory allocation and WASM support",
   "main": "dist/nendb.js",
@@ -38,7 +38,7 @@
     "bun",
     "bunjs"
   ],
-  "author": "Nen.Co",
+  "author": "NenCo",
   "license": "MIT",
   "homepage": "https://nen.co",
   "repository": {
