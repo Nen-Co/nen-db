@@ -43,7 +43,7 @@ pub const memory = struct {
 
     // Memory alignment (DOD-optimized) - using nen-core constants
     pub const cache_line_size = nen_core.DODConstants.CACHE_LINE_SIZE;
-    pub const simd_alignment = 32; // SIMD alignment requirement
+    pub const simd_alignment = nen_core.DODConstants.SIMD_ALIGNMENT;
     pub const sector_size = 512;
     pub const page_size = 4096;
 

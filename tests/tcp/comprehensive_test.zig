@@ -2,14 +2,35 @@
 // Tests the full NenDB TCP server functionality
 
 const std = @import("std");
-const nen_io = @import("nen-io");
+
+// Use std.debug.print for CI compatibility
+const Terminal = struct {
+    pub inline fn boldln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn println(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn infoln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn successln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn errorln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn warnln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+};
 
 pub fn main() !void {
-    try nen_io.Terminal.boldln("🧪 NenDB TCP Server Comprehensive Test", .{});
-    try nen_io.Terminal.println("", .{});
+    try Terminal.boldln("🧪 NenDB TCP Server Comprehensive Test", .{});
+    try Terminal.println("", .{});
 
     // Test 1: TCP server creation and startup
-    try nen_io.Terminal.infoln("Test 1: TCP Server Startup...", .{});
+    try Terminal.infoln("Test 1: TCP Server Startup...", .{});
 
     // Use a process to test the server startup
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -27,51 +48,51 @@ pub fn main() !void {
     // Give server time to start
     std.Thread.sleep(100 * std.time.ns_per_ms);
 
-    try nen_io.Terminal.successln("✓ TCP server started successfully", .{});
+    try Terminal.successln("✓ TCP server started successfully", .{});
 
     // Test 2: Basic connectivity test
-    try nen_io.Terminal.infoln("Test 2: Basic Connectivity...", .{});
-    
+    try Terminal.infoln("Test 2: Basic Connectivity...", .{});
+
     // Simple test - just verify the process is running
     const result = child.wait() catch |err| {
-        try nen_io.Terminal.errorln("Server process error: {}", .{err});
+        try Terminal.errorln("Server process error: {}", .{err});
         return;
     };
-    
+
     switch (result) {
         .Exited => |code| {
-            try nen_io.Terminal.println("Server exited with code: {d}", .{code});
+            try Terminal.println("Server exited with code: {d}", .{code});
         },
         .Signal => |sig| {
-            try nen_io.Terminal.println("Server killed by signal: {d}", .{sig});
+            try Terminal.println("Server killed by signal: {d}", .{sig});
         },
         .Stopped => |sig| {
-            try nen_io.Terminal.println("Server stopped by signal: {d}", .{sig});
+            try Terminal.println("Server stopped by signal: {d}", .{sig});
         },
         .Unknown => |code| {
-            try nen_io.Terminal.println("Server terminated with unknown status: {d}", .{code});
+            try Terminal.println("Server terminated with unknown status: {d}", .{code});
         },
     }
 
-    try nen_io.Terminal.successln("✓ Basic connectivity test completed", .{});
+    try Terminal.successln("✓ Basic connectivity test completed", .{});
 
     // Test 3: Performance test
-    try nen_io.Terminal.infoln("Test 3: Performance Test...", .{});
-    
+    try Terminal.infoln("Test 3: Performance Test...", .{});
+
     const start_time = std.time.nanoTimestamp();
     const iterations = 1000;
-    
+
     for (0..iterations) |i| {
         _ = i; // Suppress unused variable warning
         // Simulate some work
         std.Thread.sleep(1 * std.time.ns_per_ms);
     }
-    
+
     const end_time = std.time.nanoTimestamp();
     const duration_ms = @divTrunc(end_time - start_time, std.time.ns_per_ms);
-    
-    try nen_io.Terminal.successln("✓ Performance test completed: {d}ms for {d} iterations", .{ duration_ms, iterations });
 
-    try nen_io.Terminal.println("", .{});
-    try nen_io.Terminal.successln("🎉 All comprehensive tests passed!", .{});
+    try Terminal.successln("✓ Performance test completed: {d}ms for {d} iterations", .{ duration_ms, iterations });
+
+    try Terminal.println("", .{});
+    try Terminal.successln("🎉 All comprehensive tests passed!", .{});
 }
