@@ -104,6 +104,29 @@ pub fn build(b: *std.Build) void {
         http_alias.dependOn(&exe.step);
     }
 
+    // Provide a `nendb-tcp-server` step. Build a real executable if source exists,
+    // otherwise provide an alias to the main `nendb` executable so CI won't fail
+    // in minimal checkouts.
+    if (std.fs.cwd().openFile("src/tcp_server.zig", .{}) catch null) |f| {
+        _ = f.close();
+        const tcp_exec = b.addExecutable(.{
+            .name = "nendb-tcp-server",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/tcp_server.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        tcp_exec.root_module.addImport("nendb", lib_mod);
+        if (nen_net) |nn| tcp_exec.root_module.addImport("nen-net", nn);
+        b.installArtifact(tcp_exec);
+        const tcp_step = b.step("nendb-tcp-server", "Build the nendb TCP server");
+        tcp_step.dependOn(&tcp_exec.step);
+    } else {
+        const tcp_alias = b.step("nendb-tcp-server", "Alias for nendb TCP server (depends on nendb)");
+        tcp_alias.dependOn(&exe.step);
+    }
+
     // Run command
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
