@@ -116,30 +116,48 @@ jobs:
         
         file "$WASM_FILE" || true
         
-        # Simple Node.js test to verify WASM can be loaded
+        # Simple Node.js test to verify WASM can be loaded using WASI imports
         cat > test.js << 'EOF'
         const fs = require('fs');
-        async function test() {
+        const { WASI } = require('wasi');
+        const path = require('path');
+
+        async function test(wasmPath) {
           try {
-            const wasmFile = require('fs').readdirSync('.', {recursive: true}).find(f => f.endsWith('nendb-wasm.wasm'));
-            if (!wasmFile) {
-              throw new Error('WASM file not found in artifact');
-            }
-            
-            const wasmBytes = fs.readFileSync(wasmFile);
+            if (!wasmPath) throw new Error('WASM path argument missing');
+            const absPath = path.resolve(wasmPath);
+            if (!fs.existsSync(absPath)) throw new Error(`WASM file not found: ${absPath}`);
+
+            const wasmBytes = fs.readFileSync(absPath);
             console.log('✅ WASM file loaded, size:', wasmBytes.length, 'bytes');
-            
-            const wasmModule = await WebAssembly.instantiate(wasmBytes, {
-              env: {}
-            });
+
+            const wasi = new WASI({ args: [], env: process.env, preopens: { ["/": process.cwd()] } });
+            const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
+
+            const { instance } = await WebAssembly.instantiate(wasmBytes, importObject);
             console.log('✅ WASM module instantiated successfully');
-            console.log('Exports:', Object.keys(wasmModule.instance.exports).slice(0, 10), '...');
+            console.log('Exports:', Object.keys(instance.exports).slice(0, 10), '...');
+
+            if (typeof instance.exports._start === 'function') {
+              try {
+                // _start is the WASI entrypoint; run it under the WASI instance
+                wasi.start(instance);
+                console.log('✅ WASM _start executed (if present)');
+              } catch (e) {
+                console.warn('⚠️ WASM _start threw:', e);
+              }
+            } else {
+              console.log('ℹ️ No _start export; WASM module loaded for inspection only');
+            }
           } catch (error) {
             console.error('❌ WASM test failed:', error);
-            process.exit(1);
+            process.exitCode = 1;
           }
         }
-        test();
+
+        const wasmArg = process.argv[2];
+        test(wasmArg).then(() => {}).catch(() => process.exit(1));
         EOF
-        
-        node test.js
+
+        # Pass the located wasm file into Node
+        node test.js "$WASM_FILE"
