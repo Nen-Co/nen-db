@@ -1,0 +1,13 @@
+{
+  "name": "nendb",
+  "version": "0.0.0",
+  "description": "NenDB native bindings and WASM",
+  "main": "lib/index.js",
+  "files": ["lib/", "bin/", "wasm/", "scripts/"],
+  "scripts": {
+    "postinstall": "node ./scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

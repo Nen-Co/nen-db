@@ -150,4 +150,80 @@ pub fn build(b: *std.Build) void {
     api_test_run.step.dependOn(b.getInstallStep());
     const api_test_step = b.step("api-test", "Run comprehensive API functionality tests");
     api_test_step.dependOn(&api_test_run.step);
+    // WASM build step
+    const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .wasi });
+    const wasm_opt = optimize;
+    const wasm_exe = b.addExecutable(.{
+        .name = "nendb-wasm",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = wasm_target,
+            .optimize = wasm_opt,
+        }),
+    });
+    // Import the main library into the wasm root module so symbols resolve when building
+    wasm_exe.root_module.addImport("nendb", lib_mod);
+    // Do not call linkLibC or linkLibCpp; default is no linking
+    b.installArtifact(wasm_exe);
+    const wasm_build_step = b.step("wasm", "Build NenDB WASM module");
+    wasm_build_step.dependOn(&wasm_exe.step);
+    // Output will be wasm/nendb-wasm.wasm
+
+    // Cross-platform native targets
+    const macos_x86 = b.resolveTargetQuery(.{ .cpu_arch = .x86_64, .os_tag = .macos });
+    const macos_arm = b.resolveTargetQuery(.{ .cpu_arch = .aarch64, .os_tag = .macos });
+    const linux_x86 = b.resolveTargetQuery(.{ .cpu_arch = .x86_64, .os_tag = .linux });
+    const windows_x86 = b.resolveTargetQuery(.{ .cpu_arch = .x86_64, .os_tag = .windows });
+
+    const mac_x86_exe = b.addExecutable(.{
+        .name = "nendb-macos-x86_64",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = macos_x86,
+            .optimize = optimize,
+        }),
+    });
+    mac_x86_exe.root_module.addImport("nendb", lib_mod);
+    b.installArtifact(mac_x86_exe);
+
+    const mac_arm_exe = b.addExecutable(.{
+        .name = "nendb-macos-aarch64",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = macos_arm,
+            .optimize = optimize,
+        }),
+    });
+    mac_arm_exe.root_module.addImport("nendb", lib_mod);
+    b.installArtifact(mac_arm_exe);
+
+    const linux_exe = b.addExecutable(.{
+        .name = "nendb-linux-x86_64",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = linux_x86,
+            .optimize = optimize,
+        }),
+    });
+    linux_exe.root_module.addImport("nendb", lib_mod);
+    b.installArtifact(linux_exe);
+
+    const win_exe = b.addExecutable(.{
+        .name = "nendb-windows-x86_64",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = windows_x86,
+            .optimize = optimize,
+        }),
+    });
+    win_exe.root_module.addImport("nendb", lib_mod);
+    b.installArtifact(win_exe);
+
+    // Aggregate build-all step
+    const build_all_step = b.step("build-all", "Build all platform artifacts (macOS, Linux, Windows, WASM)");
+    build_all_step.dependOn(&wasm_exe.step);
+    build_all_step.dependOn(&mac_x86_exe.step);
+    build_all_step.dependOn(&mac_arm_exe.step);
+    build_all_step.dependOn(&linux_exe.step);
+    build_all_step.dependOn(&win_exe.step);
 }
