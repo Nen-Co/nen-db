@@ -154,8 +154,7 @@ pub fn build(b: *std.Build) void {
         data_test_run.step.dependOn(b.getInstallStep());
         const data_test_step = b.step("data-test", "Run comprehensive data tests");
         data_test_step.dependOn(&data_test_run.step);
-    }
-    else {
+    } else {
         // Alias so CI that expects `data-test` doesn't fail on minimal checkouts.
         const data_test_alias = b.step("data-test", "Alias for data-test (no examples present)");
         data_test_alias.dependOn(b.getInstallStep());
@@ -178,8 +177,7 @@ pub fn build(b: *std.Build) void {
         large_test_run.step.dependOn(b.getInstallStep());
         const large_test_step = b.step("large-test", "Run large dataset performance tests");
         large_test_step.dependOn(&large_test_run.step);
-    }
-    else {
+    } else {
         const large_test_alias = b.step("large-test", "Alias for large-test (no examples present)");
         large_test_alias.dependOn(b.getInstallStep());
     }
@@ -205,8 +203,7 @@ pub fn build(b: *std.Build) void {
         kaggle_test_run.step.dependOn(b.getInstallStep());
         const kaggle_test_step = b.step("kaggle-test", "Run Kaggle knowledge graph dataset tests");
         kaggle_test_step.dependOn(&kaggle_test_run.step);
-    }
-    else {
+    } else {
         const kaggle_test_alias = b.step("kaggle-test", "Alias for kaggle-test (no examples present)");
         kaggle_test_alias.dependOn(b.getInstallStep());
     }
@@ -232,8 +229,7 @@ pub fn build(b: *std.Build) void {
         api_test_run.step.dependOn(b.getInstallStep());
         const api_test_step = b.step("api-test", "Run comprehensive API functionality tests");
         api_test_step.dependOn(&api_test_run.step);
-    }
-    else {
+    } else {
         const api_test_alias = b.step("api-test", "Alias for api-test (no examples present)");
         api_test_alias.dependOn(b.getInstallStep());
     }
@@ -262,6 +258,14 @@ pub fn build(b: *std.Build) void {
     const build_wasm_alias = b.step("build-wasm", "Alias for wasm build step");
     build_wasm_alias.dependOn(&wasm_exe.step);
     build_wasm_alias.dependOn(b.getInstallStep());
+
+    // Also expose the specific step name `nendb-wasm` because some CI jobs
+    // call `zig build nendb-wasm` directly. Make this an alias that depends
+    // on the installed wasm executable so the artifact is present in
+    // `zig-out/bin/` for downstream workflows.
+    const nendb_wasm_step = b.step("nendb-wasm", "Build/install NenDB WASM artifact");
+    nendb_wasm_step.dependOn(&wasm_exe.step);
+    nendb_wasm_step.dependOn(b.getInstallStep());
     // Output will be wasm/nendb-wasm.wasm
 
     // Cross-platform native targets

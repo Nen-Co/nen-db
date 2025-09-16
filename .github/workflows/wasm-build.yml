@@ -131,7 +131,7 @@ jobs:
             const wasmBytes = fs.readFileSync(absPath);
             console.log('✅ WASM file loaded, size:', wasmBytes.length, 'bytes');
 
-            const wasi = new WASI({ args: [], env: process.env, preopens: { ["/": process.cwd()] } });
+            const wasi = new WASI({ args: [], env: process.env, preopens: { "/": process.cwd() } });
             const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
             const { instance } = await WebAssembly.instantiate(wasmBytes, importObject);
