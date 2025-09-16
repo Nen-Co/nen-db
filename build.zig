@@ -213,10 +213,15 @@ pub fn build(b: *std.Build) void {
     // Do not call linkLibC or linkLibCpp; default is no linking
     b.installArtifact(wasm_exe);
     const wasm_build_step = b.step("wasm", "Build NenDB WASM module");
+    // Ensure the wasm build is properly installed into zig-out so workflows that
+    // inspect `zig-out/bin/` find the artifact. Depend on the wasm executable
+    // step and the install step.
     wasm_build_step.dependOn(&wasm_exe.step);
+    wasm_build_step.dependOn(b.getInstallStep());
     // Provide a 'build-wasm' step name for CI compatibility (some workflows call this target).
     const build_wasm_alias = b.step("build-wasm", "Alias for wasm build step");
     build_wasm_alias.dependOn(&wasm_exe.step);
+    build_wasm_alias.dependOn(b.getInstallStep());
     // Output will be wasm/nendb-wasm.wasm
 
     // Cross-platform native targets
