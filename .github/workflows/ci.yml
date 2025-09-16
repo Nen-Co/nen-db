@@ -24,6 +24,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
+        fetch-depth: 0
 
     - name: Setup dependencies
       run: |
@@ -49,17 +50,16 @@ jobs:
     - name: Build and Test
       run: |
         echo "🔍 Building ${{ matrix.build-mode }} on ${{ matrix.os }}"
-        
-        # Build the project (Zig will automatically fetch dependencies)
         zig build --release=${{ matrix.build-mode == 'Debug' && 'safe' || 'fast' }}
-        
-        # Run tests
         zig build test
-        
-        # Test specific executables
         zig build nendb
         zig build nendb-http-server
         zig build nendb-tcp-server
+        zig build data-test
+        zig build large-test
+        zig build kaggle-test
+        zig build api-test
+        ls -l examples/
 
     - name: Test WASM build
       if: matrix.os == 'ubuntu-latest'
