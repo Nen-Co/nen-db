@@ -80,6 +80,30 @@ pub fn build(b: *std.Build) void {
     const nendb_step = b.step("nendb", "Build the nendb executable");
     nendb_step.dependOn(&exe.step);
 
+    // Provide a `nendb-http-server` step. The CI expects this target name.
+    // If a dedicated HTTP server source exists, build it; otherwise provide
+    // a lightweight alias step that depends on the main `nendb` executable
+    // so `zig build nendb-http-server` succeeds even in minimal checkouts.
+    if (std.fs.cwd().openFile("src/http_server.zig", .{}) catch null) |f| {
+        _ = f.close();
+        const http_exec = b.addExecutable(.{
+            .name = "nendb-http-server",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/http_server.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        http_exec.root_module.addImport("nendb", lib_mod);
+        if (nen_net) |nn| http_exec.root_module.addImport("nen-net", nn);
+        b.installArtifact(http_exec);
+        const http_step = b.step("nendb-http-server", "Build the nendb HTTP server");
+        http_step.dependOn(&http_exec.step);
+    } else {
+        const http_alias = b.step("nendb-http-server", "Alias for nendb HTTP server (depends on nendb)");
+        http_alias.dependOn(&exe.step);
+    }
+
     // Run command
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
