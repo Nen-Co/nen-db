@@ -5,7 +5,7 @@ const std = @import("std");
 pub const layout = @import("memory/layout.zig");
 pub const simd = @import("memory/simd.zig");
 pub const constants = @import("constants.zig");
-const wal_mod = @import("wal.zig");
+const wal_mod = @import("memory/wal.zig");
 
 // Simplified but fast in-memory graph database
 pub const GraphDB = struct {
@@ -18,6 +18,7 @@ pub const GraphDB = struct {
     lookups_total: std.atomic.Value(u64),
     allocator: std.mem.Allocator,
     wal: wal_mod.Wal,
+    db_path: []const u8,
 
     // Statistics for monitoring
     pub const DBMemoryStats = struct {
@@ -32,16 +33,21 @@ pub const GraphDB = struct {
         wal_health: wal_mod.Wal.WalHealth,
     };
 
-    pub inline fn init_inplace(self: *GraphDB, allocator: std.mem.Allocator) !void {
+    pub inline fn init_inplace(self: *GraphDB, allocator: std.mem.Allocator, db_path: []const u8) !void {
         self.mutex = .{};
-        self.graph_data = layout.GraphData.init();
+        self.graph_data = layout.GraphData.init(allocator);
         self.simd_processor = simd.BatchProcessor.init();
         self.ops_since_snapshot = 0;
         self.inserts_total = 0;
         self.read_seq = std.atomic.Value(u64).init(0);
         self.lookups_total = std.atomic.Value(u64).init(0);
         self.allocator = allocator;
-        self.wal = try wal_mod.Wal.open("nendb.wal");
+        self.db_path = db_path;
+
+        // Create WAL path from database path
+        const wal_path = try std.fmt.allocPrint(allocator, "{s}/nendb.wal", .{db_path});
+        defer allocator.free(wal_path);
+        self.wal = try wal_mod.Wal.open(wal_path);
     }
 
     // Node insertion with SIMD optimization
@@ -72,7 +78,10 @@ pub const GraphDB = struct {
             try self.simd_processor.process_batch(&self.graph_data);
         }
 
-        // Maintenance
+        // Maintenance: periodic WAL flush and housekeeping
+        if (self.ops_since_snapshot % @as(u64, @intCast(constants.storage.sync_interval)) == 0) {
+            _ = self.wal.flush() catch {};
+        }
         if (self.ops_since_snapshot >= @as(u64, @intCast(constants.storage.snapshot_interval))) {
             _ = self.wal.delete_segments_keep_last(1) catch 0;
         }
@@ -101,6 +110,9 @@ pub const GraphDB = struct {
 
         // Update statistics
         self.ops_since_snapshot += 1;
+        if (self.ops_since_snapshot % @as(u64, @intCast(constants.storage.sync_interval)) == 0) {
+            _ = self.wal.flush() catch {};
+        }
     }
 
     // Fast node lookup
@@ -127,6 +139,7 @@ pub const GraphDB = struct {
 
     // Clean shutdown
     pub inline fn deinit(self: *GraphDB) void {
+        self.graph_data.deinit();
         self.wal.close();
     }
 

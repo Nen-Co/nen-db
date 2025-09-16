@@ -31,6 +31,11 @@ jobs:
         node-version: '20'
         registry-url: 'https://registry.npmjs.org'
         
+    - name: Build with dependencies
+      run: |
+        echo "Building with automatic dependency fetching..."
+        # Zig will automatically fetch dependencies from build.zig.zon
+
     - name: Install dependencies
       run: npm ci
       

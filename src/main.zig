@@ -1,22 +1,41 @@
-// NenDB CLI - Command Line Interface
-// Simple CLI for interacting with NenDB
-
 const std = @import("std");
-const nendb = @import("lib.zig");
-const io = nendb.io; // Use nen-io from the ecosystem
-const GraphDB = @import("graphdb.zig").GraphDB;
-const layout = @import("memory/layout.zig");
-const constants = @import("constants.zig");
+const nendb = @import("nendb");
+
+// Extract types from nendb lib
+const GraphDB = nendb.GraphDB;
+const constants = nendb.constants;
+
+// Use std.debug.print for CI compatibility
+const Terminal = struct {
+    pub inline fn boldln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn println(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn infoln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn successln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn errorln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+    pub inline fn warnln(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format ++ "\n", args);
+    }
+};
 
 pub fn main() !void {
-    try io.Terminal.println("\x1b[1;38;5;81m┌──────────────────────────────────────────┐", .{});
-    try io.Terminal.println("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
-    try io.Terminal.println("└──────────────────────────────────────────┘", .{});
-    try io.Terminal.println("Version: {s} | Zig: {s}", .{ constants.VERSION_STRING, @import("builtin").zig_version_string });
+    try Terminal.boldln("┌──────────────────────────────────────────┐", .{});
+    try Terminal.boldln("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
+    try Terminal.boldln("└──────────────────────────────────────────┘", .{});
+    try Terminal.println("Version: {s} | Zig: {s}", .{ constants.VERSION_STRING, @import("builtin").zig_version_string });
 
     // Simple argument parsing
     var it = std.process.argsWithAllocator(std.heap.page_allocator) catch |err| {
-        try io.Terminal.errorln("Failed to get command line arguments: {}", .{err});
+        try Terminal.errorln("Failed to get command line arguments: {}", .{err});
         try print_help();
         return;
     };
@@ -38,91 +57,117 @@ pub fn main() !void {
         return;
     }
 
-    try io.Terminal.success("✅ NenDB started successfully with custom I/O!", .{});
+    if (std.mem.eql(u8, arg, "init")) {
+        const path = it.next() orelse {
+            try Terminal.errorln("❌ Error: init requires a path", .{});
+            try Terminal.println("Usage: nendb init <path>", .{});
+            return;
+        };
+        try init_database(path);
+        return;
+    }
+
+    try Terminal.successln("✅ NenDB started successfully with custom I/O!", .{});
 }
 
 fn run_demo() !void {
-    try io.Terminal.successln("🚀 Running NenDB Demo - Graph Operations", .{});
+    try Terminal.infoln("🚀 Running NenDB Demo - Graph Operations", .{});
 
-    // Initialize database
-    var db: GraphDB = undefined;
-    try db.init_inplace(std.heap.page_allocator);
+    // Initialize database using lib interface
+    var db = nendb.init() catch |err| {
+        try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
+        return;
+    };
     defer db.deinit();
 
-    try io.Terminal.infoln("✅ Database initialized", .{});
+    try Terminal.successln("✅ Database initialized", .{});
 
     // Insert nodes
-    try io.Terminal.infoln("📝 Inserting nodes...", .{});
+    try Terminal.infoln("📝 Inserting nodes...", .{});
+    try db.insert_node(1, 1); // ID=1, Kind=1
+    try db.insert_node(2, 2); // ID=2, Kind=2
+    try db.insert_node(3, 1); // ID=3, Kind=1
 
-    try db.insert_node(1, 1);
-    try db.insert_node(2, 1);
-    try db.insert_node(3, 2);
-
-    try io.Terminal.success("✅ Inserted 3 nodes", .{});
+    try Terminal.successln("✅ Inserted 3 nodes", .{});
 
     // Insert edges
-    try io.Terminal.infoln("🔗 Inserting edges...", .{});
+    try Terminal.infoln("🔗 Inserting edges...", .{});
+    try db.insert_edge(1, 2, 1); // 1->2 with label 1
+    try db.insert_edge(2, 3, 2); // 2->3 with label 2
+    try db.insert_edge(3, 1, 3); // 3->1 with label 3
 
-    try db.insert_edge(1, 2, 1);
-    try db.insert_edge(2, 3, 1);
-    try db.insert_edge(1, 3, 2);
-    try io.Terminal.success("✅ Inserted 3 edges", .{});
+    try Terminal.successln("✅ Inserted 3 edges", .{});
 
-    // Lookup operations
-    try io.Terminal.infoln("🔍 Testing lookups...", .{});
-
-    const found_node_index = db.lookup_node(1);
-    if (found_node_index) |index| {
-        const node_id = db.graph_data.node_ids[index];
-        const node_kind = db.graph_data.node_kinds[index];
-        try io.Terminal.println("  Found node: ID={d}, Kind={d}", .{ node_id, node_kind });
+    // Test lookups
+    try Terminal.infoln("🔍 Testing lookups...", .{});
+    if (db.lookup_node(1)) |node_id| {
+        try Terminal.println("  Found node: ID=1, Node ID={d}", .{node_id});
+    }
+    if (db.lookup_node(2)) |node_id| {
+        try Terminal.println("  Found node: ID=2, Node ID={d}", .{node_id});
+    }
+    if (db.lookup_node(3)) |node_id| {
+        try Terminal.println("  Found node: ID=3, Node ID={d}", .{node_id});
     }
 
-    // TODO: Update edge lookup for DOD (temporarily disabled)
-    // const found_edge = db.lookup_edge(1, 2);
-    // if (found_edge) |edge| {
-    //     try io.Terminal.println("  Found edge: {d}->{d} (label={d})", .{ edge.from, edge.to, edge.label });
-    // }
+    // Note: Edge lookups are commented out due to current implementation
+    //     try Terminal.println("  Found edge: {d}->{d} (label={d})", .{ edge.from, edge.to, edge.label });
 
-    // Delete operations (commented out for now)
-    try io.Terminal.infoln("🗑️ Delete operations:", .{});
-    try io.Terminal.println("  ⚠️ Delete operations are implemented but need edge pool fixes", .{});
-    try io.Terminal.println("  🔧 TODO: Fix edge pool free() logic", .{});
-
-    // Get statistics
-    try io.Terminal.infoln("📊 Database statistics:", .{});
+    // Show statistics
     const stats = db.get_stats();
-    try io.Terminal.println("  Nodes: {d}/{d} used", .{ stats.memory.nodes.node_count, stats.memory.nodes.node_capacity });
-    try io.Terminal.println("  Edges: {d}/{d} used", .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_capacity });
-    try io.Terminal.println("  Embeddings: {d}/{d} used", .{ stats.memory.nodes.embedding_count, stats.memory.nodes.embedding_capacity });
-    try io.Terminal.println("  Overall utilization: {d:.2}%", .{stats.memory.nodes.getUtilization() * 100.0});
-    try io.Terminal.println("  SIMD enabled: {}", .{stats.memory.simd_enabled});
-    try io.Terminal.println("  Cache efficiency: {d:.1}x", .{stats.memory.cache_efficiency});
+    try Terminal.infoln("📊 Database statistics:", .{});
+    try Terminal.println("  Nodes: {d}/{d} used", .{ stats.memory.nodes.node_count, stats.memory.nodes.node_capacity });
+    try Terminal.println("  Edges: {d}/{d} used", .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_capacity });
+    try Terminal.println("  Overall utilization: {d:.2}%", .{stats.memory.nodes.getUtilization() * 100.0});
 
-    try io.Terminal.successln("🎉 Demo completed successfully!", .{});
+    try Terminal.successln("🎉 Demo completed successfully!", .{});
 }
 
 fn print_help() !void {
-    try io.Terminal.println("NenDB - Production-focused, static-memory graph store", .{});
-    try io.Terminal.println("", .{});
-    try io.Terminal.println("Usage: nendb <command> [path]", .{});
-    try io.Terminal.println("", .{});
-    try io.Terminal.println("Commands:", .{});
-    try io.Terminal.println("  help                    Show this help message", .{});
-    try io.Terminal.println("  demo                    Run a demo of graph operations", .{});
-    try io.Terminal.println("  init <path>            Initialize a new NenDB at <path>", .{});
-    try io.Terminal.println("  up <path>              Start NenDB at <path> (default: current directory)", .{});
-    try io.Terminal.println("  status <path>          Show database status (default: current directory)", .{});
-    try io.Terminal.println("  query <path> <query>   Execute Cypher query at <path>", .{});
-    try io.Terminal.println("  serve                  Start TCP server on port 5454", .{});
-    try io.Terminal.println("", .{});
-    try io.Terminal.println("Features:", .{});
-    try io.Terminal.println("  • Node/Edge CRUD operations", .{});
-    try io.Terminal.println("  • Graph traversal (BFS/DFS)", .{});
-    try io.Terminal.println("  • Path finding algorithms", .{});
-    try io.Terminal.println("  • Property management", .{});
-    try io.Terminal.println("  • WAL-based durability", .{});
-    try io.Terminal.println("  • Static memory pools", .{});
-    try io.Terminal.println("", .{});
-    try io.Terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
+    try Terminal.println("NenDB - Production-focused, static-memory graph store", .{});
+    try Terminal.println("", .{});
+    try Terminal.println("Usage: nendb <command> [path]", .{});
+    try Terminal.println("", .{});
+    try Terminal.println("Commands:", .{});
+    try Terminal.println("  help                    Show this help message", .{});
+    try Terminal.println("  demo                    Run a demo of graph operations", .{});
+    try Terminal.println("  init <path>            Initialize a new NenDB at <path>", .{});
+    try Terminal.println("  up <path>              Start NenDB at <path> (default: current directory)", .{});
+    try Terminal.println("  status <path>          Show database status (default: current directory)", .{});
+    try Terminal.println("  query <path> <query>   Execute Cypher query at <path>", .{});
+    try Terminal.println("  serve                  Start TCP server on port 5454", .{});
+    try Terminal.println("", .{});
+    try Terminal.println("Features:", .{});
+    try Terminal.println("  • Node/Edge CRUD operations", .{});
+    try Terminal.println("  • Graph traversal (BFS/DFS)", .{});
+    try Terminal.println("  • Path finding algorithms", .{});
+    try Terminal.println("  • Property management", .{});
+    try Terminal.println("  • WAL-based durability", .{});
+    try Terminal.println("  • Static memory pools", .{});
+    try Terminal.println("", .{});
+    try Terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
+}
+
+fn init_database(path: []const u8) !void {
+    try Terminal.infoln("📁 Initializing NenDB at: {s}", .{path});
+
+    // Create directory if it doesn't exist
+    std.fs.cwd().makeDir(path) catch |err| switch (err) {
+        error.PathAlreadyExists => {}, // Directory already exists, that's fine
+        else => {
+            try Terminal.errorln("❌ Failed to create directory: {}", .{err});
+            return;
+        },
+    };
+
+    // Initialize database using the lib interface
+    var db = nendb.open(path) catch |err| {
+        try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
+        return;
+    };
+    defer db.deinit();
+
+    try Terminal.successln("✅ NenDB initialized at: {s}", .{path});
+    try Terminal.infoln("  • Database file: {s}/nendb.db", .{path});
+    try Terminal.infoln("  • WAL file: {s}/nendb.wal", .{path});
 }

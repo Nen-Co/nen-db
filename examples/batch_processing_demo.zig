@@ -1,9 +1,10 @@
 // NenDB Batch Processing Demo
 // Demonstrates TigerBeetle-style batch processing for high-performance operations
+// Now integrated with nen-core for maximum performance
 
 const std = @import("std");
 const nendb = @import("nendb");
-const batch = @import("nendb").batch;
+const nen_core = @import("nen-core");
 
 pub fn main() !void {
     std.debug.print("🚀 NenDB Batch Processing Demo\n", .{});
@@ -17,41 +18,41 @@ pub fn main() !void {
     var db = try nendb.GraphDB.init_inplace(allocator);
     defer db.deinit();
 
-    // Initialize batch API
-    var batch_api = batch.BatchAPI.init(&db.node_pool, &db.edge_pool, &db.wal);
+    // Initialize nen-core batch processor for high-performance operations
+    var batch_processor = try nen_core.BatchProcessor.init(allocator);
+    defer batch_processor.deinit();
 
-    // Demo 1: Basic batch operations
-    try demoBasicBatching(&batch_api);
+    // Demo 1: Basic batch operations with nen-core
+    try demoBasicBatching(&batch_processor);
 
-    // Demo 2: High-performance bulk insert
-    try demoBulkInsert(&batch_api);
+    // Demo 2: High-performance bulk operations
+    try demoBulkOperations(&batch_processor);
 
     // Demo 3: Mixed operations in single batch
-    try demoMixedOperations(&batch_api);
+    try demoMixedOperations(&batch_processor);
 
-    // Demo 4: Batch statistics and monitoring
-    try demoBatchStatistics(&batch_api);
+    // Demo 4: Performance comparison
+    try demoPerformanceComparison(&batch_processor);
 
     std.debug.print("✅ All batch processing demos completed successfully!\n", .{});
 }
 
-fn demoBasicBatching(batch_api: *batch.BatchAPI) !void {
-    std.debug.print("📦 Demo 1: Basic Batch Operations\n", .{});
+fn demoBasicBatching(batch_processor: *nen_core.BatchProcessor) !void {
+    std.debug.print("📦 Demo 1: Basic Batch Operations with nen-core\n", .{});
 
-    var batch1 = batch.Batch.init();
+    // Add multiple operations to batch using nen-core
+    try batch_processor.addOperation(.data_write, "CREATE NODE user:1 {name: 'Alice', type: 'user'}");
+    try batch_processor.addOperation(.data_write, "CREATE NODE user:2 {name: 'Bob', type: 'user'}");
+    try batch_processor.addOperation(.data_write, "CREATE EDGE user:1 -> user:2 {type: 'follows'}");
 
-    // Add multiple nodes to batch
-    try batch1.addCreateNode(.{
-        .id = 1,
-        .kind = 1, // User type
-        .props = "Alice".*,
-    });
+    // Execute batch atomically
+    const result = try batch_processor.executeBatch();
 
-    try batch1.addCreateNode(.{
-        .id = 2,
-        .kind = 1, // User type
-        .props = "Bob".*,
-    });
+    if (result.err) |err| {
+        std.debug.print("❌ Batch failed: {}\n", .{err});
+    } else {
+        std.debug.print("✅ Batch executed successfully: {} operations\n", .{result.processed});
+    }
 
     try batch1.addCreateNode(.{
         .id = 3,

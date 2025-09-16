@@ -1,0 +1,74 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  ZIG_VERSION: "0.15.1"
+
+jobs:
+  # Single comprehensive job that does everything
+  test-and-build:
+    name: Test and Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        build-mode: [ReleaseFast]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup dependencies
+      run: |
+        echo "🔗 Setting up dependencies"
+        cd ..
+        git clone https://github.com/Nen-Co/nen-core.git
+        git clone https://github.com/Nen-Co/nen-io.git
+        git clone https://github.com/Nen-Co/nen-json.git
+        git clone https://github.com/Nen-Co/nen-net.git
+        cd nen-db
+
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        zig-version: ${{ env.ZIG_VERSION }}
+
+    - name: Cache Zig build
+      uses: actions/cache@v3
+      with:
+        path: .zig-cache
+        key: zig-${{ matrix.os }}-${{ matrix.build-mode }}-${{ hashFiles('**/*.zig') }}
+
+    - name: Build and Test
+      run: |
+        echo "🔍 Building ${{ matrix.build-mode }} on ${{ matrix.os }}"
+        zig build --release=${{ matrix.build-mode == 'Debug' && 'safe' || 'fast' }}
+        zig build test
+        zig build nendb
+        zig build nendb-http-server
+        zig build nendb-tcp-server
+        zig build data-test
+        zig build large-test
+        zig build kaggle-test
+        zig build api-test
+        ls -l examples/
+
+    - name: Test WASM build
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "🌐 Testing WASM build"
+        zig build nendb-wasm
+
+    - name: Run integration demo
+      if: matrix.os == 'ubuntu-latest' && matrix.build-mode == 'ReleaseFast'
+      run: |
+        echo "🚀 Running integration demo"
+        zig build demo-nen-core

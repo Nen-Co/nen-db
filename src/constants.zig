@@ -1,5 +1,6 @@
 // NenDB Constants
 // Production-ready configuration following TigerBeetle patterns
+// Now integrated with nen-core for unified constants
 
 const std = @import("std");
 
@@ -22,12 +23,12 @@ pub const memory = struct {
     pub const node_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_NODE_POOL_SIZE"))
         @import("root").NENDB_NODE_POOL_SIZE
     else
-        4096;
+        500000; // Increased for full CSV dataset
 
     pub const edge_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_EDGE_POOL_SIZE"))
         @import("root").NENDB_EDGE_POOL_SIZE
     else
-        4096;
+        1000000; // Increased for full CSV dataset
 
     pub const embedding_pool_size: u32 = if (@hasDecl(@import("root"), "NENDB_EMBEDDING_POOL_SIZE"))
         @import("root").NENDB_EMBEDDING_POOL_SIZE
@@ -39,9 +40,9 @@ pub const memory = struct {
     pub const property_pool_size: u32 = 16384; // For property storage
     pub const index_pool_size: u32 = 2048; // For index structures
 
-    // Memory alignment (DOD-optimized)
-    pub const cache_line_size = 64;
-    pub const simd_alignment = 32; // For SIMD operations
+    // Memory alignment (DOD-optimized) - hardcoded for CI compatibility
+    pub const cache_line_size = 64; // Cache line size
+    pub const simd_alignment = 32; // SIMD alignment requirement (hardcoded for CI compatibility)
     pub const sector_size = 512;
     pub const page_size = 4096;
 
@@ -178,42 +179,27 @@ pub const dod = struct {
     pub const simd_alignment = 32; // SIMD alignment requirement
 };
 
-// Error codes (following TigerBeetle's pattern)
+// Error codes - using nen-core unified errors with NenDB-specific additions
 pub const NenDBError = error{
-    // Storage errors
+    // NenDB-specific errors (extending nen-core errors)
     StorageFull,
     CorruptedData,
-    IOError,
-    FileNotFound,
-    PermissionDenied,
-    AlreadyLocked,
-
-    // Memory errors
-    OutOfMemory,
-    PoolExhausted,
-    InvalidAlignment,
-
-    // Data errors
     InvalidNodeID,
     InvalidEdgeID,
     NodeNotFound,
     EdgeNotFound,
     DuplicateNode,
     DuplicateEdge,
-
-    // Query errors
     InvalidQuery,
     QueryTimeout,
     RecursionLimit,
-
-    // Network errors (future)
     ConnectionFailed,
     RequestTimeout,
     InvalidMessage,
-
-    // Configuration errors
     InvalidConfiguration,
     FeatureNotEnabled,
+    PoolExhausted,
+    AlreadyLocked,
 };
 
 // Compile-time assertions (TigerBeetle pattern)
