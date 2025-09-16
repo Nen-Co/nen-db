@@ -27,7 +27,7 @@ jobs:
         run: |
           echo "Building native executable on $RUNNER_OS"
           # Build the default native executable
-          zig build -Drelease-safe || zig build
+          zig build -Drelease-fast || zig build
 
       - name: Build WASM module (optional)
         run: |
