@@ -75,6 +75,11 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("nendb", lib_mod);
     b.installArtifact(exe);
 
+    // Provide a named build step 'nendb' so CI and users can run `zig build nendb`.
+    // This step depends on the main executable being built/installed.
+    const nendb_step = b.step("nendb", "Build the nendb executable");
+    nendb_step.dependOn(&exe.step);
+
     // Run command
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
