@@ -137,6 +137,12 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run NenDB");
     run_step.dependOn(&run_cmd.step);
 
+    // Alias used by CI to run a small integration/demo target. Some workflows
+    // expect `zig build demo-nen-core`; provide an alias that depends on the
+    // main executable so the command succeeds in minimal checkouts.
+    const demo_alias = b.step("demo-nen-core", "Alias for integration demo (depends on nendb)");
+    demo_alias.dependOn(&exe.step);
+
     // Data test example (optional)
     if (std.fs.cwd().openFile("examples/data_test.zig", .{}) catch null) |f| {
         _ = f.close();

@@ -131,7 +131,34 @@ jobs:
             const wasmBytes = fs.readFileSync(absPath);
             console.log('✅ WASM file loaded, size:', wasmBytes.length, 'bytes');
 
-            const wasi = new WASI({ args: [], env: process.env, preopens: { "/": process.cwd() } });
+            // Construct WASI in a way that's tolerant of different Node versions.
+            // Some Node builds require an explicit `version` string; other
+            // builds reject certain version names. Try a short list of
+            // candidate versions and fall back to constructing without a
+            // `version` option if necessary.
+            const wasi_opts = { args: [], env: process.env, preopens: { "/": process.cwd() } };
+            let wasi = null;
+            const candidates = ['wasi_snapshot_preview1', 'wasi_unstable', 'preview1'];
+            for (const v of candidates) {
+              try {
+                wasi = new WASI({ ...wasi_opts, version: v });
+                console.log('WASI constructed with version:', v);
+                break;
+              } catch (e) {
+                // ignore and try next
+              }
+            }
+            if (!wasi) {
+              try {
+                wasi = new WASI(wasi_opts);
+                console.log('WASI constructed without explicit version');
+              } catch (e) {
+                throw new Error('WASI construction failed for all attempted options: ' + e);
+              }
+            }
+            // The import key depends on the WASI implementation; the common
+            // host module name is `wasi_snapshot_preview1` so use that as the
+            // import namespace (WASI instances expose `.wasiImport`).
             const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
             const { instance } = await WebAssembly.instantiate(wasmBytes, importObject);
