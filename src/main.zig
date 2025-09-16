@@ -1,7 +1,9 @@
 const std = @import("std");
-const GraphDB = @import("graphdb.zig").GraphDB;
-const layout = @import("memory/layout.zig");
-const constants = @import("constants.zig");
+const nendb = @import("nendb");
+
+// Extract types from nendb lib
+const GraphDB = nendb.GraphDB;
+const constants = nendb.constants;
 
 // Use std.debug.print for CI compatibility
 const Terminal = struct {
@@ -71,24 +73,11 @@ pub fn main() !void {
 fn run_demo() !void {
     try Terminal.infoln("🚀 Running NenDB Demo - Graph Operations", .{});
 
-    // Initialize database
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    var db = GraphDB{
-        .mutex = .{},
-        .graph_data = undefined,
-        .simd_processor = undefined,
-        .ops_since_snapshot = 0,
-        .inserts_total = 0,
-        .read_seq = undefined,
-        .lookups_total = undefined,
-        .allocator = allocator,
-        .wal = undefined,
-        .db_path = "demo-db",
+    // Initialize database using lib interface
+    var db = nendb.init() catch |err| {
+        try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
+        return;
     };
-    try db.init_inplace(allocator, "demo-db");
     defer db.deinit();
 
     try Terminal.successln("✅ Database initialized", .{});
@@ -171,24 +160,11 @@ fn init_database(path: []const u8) !void {
         },
     };
 
-    // Initialize a real database to create the files
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    var db = GraphDB{
-        .mutex = .{},
-        .graph_data = undefined,
-        .simd_processor = undefined,
-        .ops_since_snapshot = 0,
-        .inserts_total = 0,
-        .read_seq = undefined,
-        .lookups_total = undefined,
-        .allocator = allocator,
-        .wal = undefined,
-        .db_path = path,
+    // Initialize database using the lib interface
+    var db = nendb.open(path) catch |err| {
+        try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
+        return;
     };
-    try db.init_inplace(allocator, path);
     defer db.deinit();
 
     try Terminal.successln("✅ NenDB initialized at: {s}", .{path});

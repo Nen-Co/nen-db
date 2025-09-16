@@ -30,15 +30,15 @@ pub fn main() !void {
 
     // Test creating networking servers
     std.debug.print("🌐 Testing networking server creation...\n", .{});
-    
+
     // Test HTTP server creation
     _ = try nendb.createHttpServer(8080);
     std.debug.print("  ✅ HTTP Server created on port 8080\n", .{});
-    
+
     // Test TCP server creation
     _ = try nendb.createTcpServer(8081);
     std.debug.print("  ✅ TCP Server created on port 8081\n", .{});
-    
+
     // Test WebSocket server creation
     _ = try nendb.createWebSocketServer(8082);
     std.debug.print("  ✅ WebSocket Server created on port 8082\n", .{});
@@ -47,13 +47,13 @@ pub fn main() !void {
     std.debug.print("\n🔗 Testing networked GraphDB creation...\n", .{});
     _ = try nendb.createNetworkedGraphDB(allocator, 8083, "./networked-db");
     std.debug.print("  ✅ Networked GraphDB created with HTTP server on port 8083\n", .{});
-    
+
     // Insert some test data
     std.debug.print("\n📊 Inserting test data...\n", .{});
     try db.insert_node(1, 1); // Node 1, type 1
     try db.insert_node(2, 2); // Node 2, type 2
     try db.insert_edge(1, 2, 1); // Edge from 1 to 2, type 1
-    
+
     // Get database stats
     const stats = db.get_stats();
     std.debug.print("  ✅ Database stats: {d} nodes, {d} edges\n", .{ stats.memory.nodes.node_count, stats.memory.nodes.edge_count });
