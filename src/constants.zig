@@ -8,14 +8,14 @@ const std = @import("std");
 pub const version = std.SemanticVersion{
     .major = 0,
     .minor = 2,
-    .patch = 0,
+    .patch = 1,
     .pre = "beta",
 };
 
 // Formatted version strings for CLI and API
-pub const VERSION_STRING = "v0.2.0-beta";
-pub const VERSION_FULL = "NenDB v0.2.0-beta";
-pub const VERSION_SHORT = "0.2.0";
+pub const VERSION_STRING = "v0.2.1-beta";
+pub const VERSION_FULL = "NenDB v0.2.1-beta";
+pub const VERSION_SHORT = "0.2.1";
 
 // Memory Configuration - DOD-optimized static allocation
 pub const memory = struct {
