@@ -25,6 +25,9 @@ const Terminal = struct {
     pub inline fn warnln(comptime format: []const u8, args: anytype) !void {
         std.debug.print(format ++ "\n", args);
     }
+    pub inline fn print(comptime format: []const u8, args: anytype) !void {
+        std.debug.print(format, args);
+    }
 };
 
 pub fn main() !void {
@@ -64,6 +67,11 @@ pub fn main() !void {
             return;
         };
         try init_database(path);
+        return;
+    }
+
+    if (std.mem.eql(u8, arg, "serve")) {
+        try run_interactive_server();
         return;
     }
 
@@ -170,4 +178,37 @@ fn init_database(path: []const u8) !void {
     try Terminal.successln("✅ NenDB initialized at: {s}", .{path});
     try Terminal.infoln("  • Database file: {s}/nendb.db", .{path});
     try Terminal.infoln("  • WAL file: {s}/nendb.wal", .{path});
+}
+
+fn run_interactive_server() !void {
+    try Terminal.infoln("🌐 Starting NenDB Interactive Server...", .{});
+
+    // Initialize database
+    var db = nendb.init() catch |err| {
+        try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
+        return;
+    };
+    defer db.deinit();
+
+    try Terminal.successln("✅ Database initialized", .{});
+    try Terminal.infoln("🚀 NenDB Interactive Server running", .{});
+    try Terminal.infoln("  • Type 'help' for available commands", .{});
+    try Terminal.infoln("  • Type 'quit' to exit", .{});
+    try Terminal.infoln("  • Press Ctrl+C to stop", .{});
+
+    // Show initial status
+    const initial_stats = db.get_stats();
+    try Terminal.println("  Initial Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ initial_stats.memory.nodes.node_count, initial_stats.memory.nodes.edge_count, initial_stats.memory.nodes.getUtilization() * 100.0 });
+
+    // Keep server running with periodic status updates
+    var iteration: u32 = 0;
+    while (true) {
+        std.Thread.sleep(5000000000); // Sleep for 5 seconds
+
+        iteration += 1;
+        const stats = db.get_stats();
+        try Terminal.println("  [{d}] Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ iteration, stats.memory.nodes.node_count, stats.memory.nodes.edge_count, stats.memory.nodes.getUtilization() * 100.0 });
+
+        // Server runs without adding sample data - just monitoring
+    }
 }

@@ -122,12 +122,25 @@ After building with specific targets, you'll find:
 
 **CLI Commands**
 ```bash
-# Check version
+# Check version and help
 ./zig-out/bin/nendb --version
+./zig-out/bin/nendb help
 
-# Start TCP server
+# Run interactive demo
+./zig-out/bin/nendb demo
+
+# Initialize a new database
+./zig-out/bin/nendb init ./my-database
+
+# Start interactive server (runs continuously)
 ./zig-out/bin/nendb serve
 ```
+
+**Server Features**
+- **Interactive Server**: Runs continuously with real-time status monitoring
+- **Status Updates**: Shows database statistics every 5 seconds
+- **Clean Operation**: No automatic data insertion - maintains database state
+- **Easy Control**: Press Ctrl+C to stop the server
 
 ### 🧪 **Test the Server**
 
