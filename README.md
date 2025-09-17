@@ -68,23 +68,19 @@ This demo showcases:
 
 **Linux (x86_64)**
 ```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-linux-x86_64.tar.gz | tar -xz
-```
-
-**macOS (Intel)**
-```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-macos-x86_64.tar.gz | tar -xz
-```
-
-**macOS (Apple Silicon - M1/M2)**
-```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-macos-aarch64.tar.gz | tar -xz
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta-fixed/nen-v0.2.0-beta-fixed-linux-x86_64.tar.gz | tar -xz
 ```
 
 **Windows PowerShell**
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-windows-x86_64.zip" -OutFile "nen-windows.zip"
+Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta-fixed/nen-v0.2.0-beta-fixed-windows-x86_64.zip" -OutFile "nen-windows.zip"
 Expand-Archive -Path "nen-windows.zip" -DestinationPath "."
+```
+
+**macOS (Coming Soon)**
+```bash
+# macOS builds temporarily unavailable due to GitHub service issues
+# Use Docker or build from source instead
 ```
 
 **🐳 Docker (Recommended)**
@@ -106,14 +102,15 @@ After building with specific targets, you'll find:
 - `zig build -Dtarget=aarch64-macos-none` → macOS Apple Silicon binary (no libc)
 - `zig build -Dtarget=x86_64-windows-gnu` → Windows x86_64 binary
 
-**✅ Working Releases:** All download links are now working! The v0.2.0-beta release includes binaries for all platforms with proper asset names.
+**✅ Working Releases:** Download links are now working! The v0.2.0-beta-fixed release includes working binaries.
 
 ### 🎉 **Release System Status**
-- ✅ **Cross-Platform Builds**: Linux, macOS (Intel & Apple Silicon), Windows
-- ✅ **Working Download Links**: All platform-specific binaries available
-- ✅ **Automated Releases**: GitHub Actions workflows for all platforms
+- ✅ **Linux x86_64**: Working download links
+- ✅ **Windows x86_64**: Working download links  
+- ⚠️ **macOS**: Temporarily unavailable due to GitHub service issues
+- ✅ **Automated Releases**: GitHub Actions workflows functional
 - ✅ **Asset Upload**: Proper binary packaging and distribution
-- ✅ **Version Management**: Consistent versioning across all platforms
+- ✅ **Version Management**: Consistent versioning across platforms
 
 ### 🏃 **Running NenDB**
 
