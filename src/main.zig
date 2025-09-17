@@ -201,15 +201,30 @@ fn run_interactive_server() !void {
     const initial_stats = db.get_stats();
     try Terminal.println("  Initial Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ initial_stats.memory.nodes.node_count, initial_stats.memory.nodes.edge_count, initial_stats.memory.nodes.getUtilization() * 100.0 });
 
-    // Keep server running with periodic status updates
+    // Keep server running - only show updates when data changes
+    var last_node_count: u64 = 0;
+    var last_edge_count: u64 = 0;
     var iteration: u32 = 0;
+    
     while (true) {
-        std.Thread.sleep(5000000000); // Sleep for 5 seconds
-
-        iteration += 1;
+        std.Thread.sleep(1000000000); // Sleep for 1 second
+        
         const stats = db.get_stats();
-        try Terminal.println("  [{d}] Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ iteration, stats.memory.nodes.node_count, stats.memory.nodes.edge_count, stats.memory.nodes.getUtilization() * 100.0 });
-
-        // Server runs without adding sample data - just monitoring
+        const current_node_count = stats.memory.nodes.node_count;
+        const current_edge_count = stats.memory.nodes.edge_count;
+        
+        // Only show status if data has changed
+        if (current_node_count != last_node_count or current_edge_count != last_edge_count) {
+            iteration += 1;
+            try Terminal.println("  [{d}] Status: {d} nodes, {d} edges, {d:.2}% utilization", .{
+                iteration,
+                current_node_count,
+                current_edge_count,
+                stats.memory.nodes.getUtilization() * 100.0
+            });
+            
+            last_node_count = current_node_count;
+            last_edge_count = current_edge_count;
+        }
     }
 }
