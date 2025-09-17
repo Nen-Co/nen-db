@@ -192,6 +192,13 @@ fn run_interactive_server() !void {
 
     try Terminal.successln("✅ Database initialized", .{});
 
+    // Check if networking is supported (not available in WASM)
+    if (comptime @import("builtin").target.os.tag == .wasi) {
+        try Terminal.errorln("❌ HTTP server not supported in WASM environment", .{});
+        try Terminal.infoln("💡 Use the native build for HTTP server functionality", .{});
+        return;
+    }
+
     // Create a simple HTTP server using std.net
     const address = std.net.Address.parseIp4("127.0.0.1", 8080) catch |err| {
         try Terminal.errorln("❌ Failed to parse address: {}", .{err});
@@ -239,7 +246,7 @@ fn handleHttpRequest(connection: std.net.Server.Connection, db: *nendb.Database)
     };
 
     const request = buffer[0..bytes_read];
-    
+
     // Simple HTTP parsing
     if (std.mem.indexOf(u8, request, "GET /health")) |_| {
         const response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 67\r\n\r\n{\"status\":\"healthy\",\"service\":\"nendb\",\"version\":\"v0.2.1-beta\"}";
@@ -248,9 +255,7 @@ fn handleHttpRequest(connection: std.net.Server.Connection, db: *nendb.Database)
         };
     } else if (std.mem.indexOf(u8, request, "GET /graph/stats")) |_| {
         const stats = db.get_stats();
-        const response = try std.fmt.allocPrint(std.heap.page_allocator, 
-            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\n\r\n{{\"nodes\":{d},\"edges\":{d},\"utilization\":{d:.2}}}",
-            .{ 50, stats.memory.nodes.node_count, stats.memory.nodes.edge_count, stats.memory.nodes.getUtilization() * 100.0 });
+        const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\n\r\n{{\"nodes\":{d},\"edges\":{d},\"utilization\":{d:.2}}}", .{ 50, stats.memory.nodes.node_count, stats.memory.nodes.edge_count, stats.memory.nodes.getUtilization() * 100.0 });
         defer std.heap.page_allocator.free(response);
         _ = connection.stream.write(response) catch |err| {
             try Terminal.warnln("⚠️  Write error: {}", .{err});
@@ -262,4 +267,3 @@ fn handleHttpRequest(connection: std.net.Server.Connection, db: *nendb.Database)
         };
     }
 }
-
