@@ -68,22 +68,22 @@ This demo showcases:
 
 **Linux (x86_64)**
 ```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-linux-x86_64.tar.gz | tar -xz
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-linux-x86_64.tar.gz | tar -xz
 ```
 
 **macOS (Intel)**
 ```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-macos-x86_64.tar.gz | tar -xz
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-macos-x86_64.tar.gz | tar -xz
 ```
 
 **macOS (Apple Silicon - M1/M2)**
 ```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/latest/download/nen-macos-aarch64.tar.gz | tar -xz
+curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-macos-aarch64.tar.gz | tar -xz
 ```
 
 **Windows PowerShell**
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/latest/download/nen-windows-x86_64.zip" -OutFile "nen-windows.zip"
+Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nen-v0.2.0-beta-windows-x86_64.zip" -OutFile "nen-windows.zip"
 Expand-Archive -Path "nen-windows.zip" -DestinationPath "."
 ```
 
@@ -106,7 +106,14 @@ After building with specific targets, you'll find:
 - `zig build -Dtarget=aarch64-macos-none` → macOS Apple Silicon binary (no libc)
 - `zig build -Dtarget=x86_64-windows-gnu` → Windows x86_64 binary
 
-**💡 Note:** The installation URLs in the Quick Start section will be updated when releases are published with the correct binary names for each platform.
+**✅ Working Releases:** All download links are now working! The v0.2.0-beta release includes binaries for all platforms with proper asset names.
+
+### 🎉 **Release System Status**
+- ✅ **Cross-Platform Builds**: Linux, macOS (Intel & Apple Silicon), Windows
+- ✅ **Working Download Links**: All platform-specific binaries available
+- ✅ **Automated Releases**: GitHub Actions workflows for all platforms
+- ✅ **Asset Upload**: Proper binary packaging and distribution
+- ✅ **Version Management**: Consistent versioning across all platforms
 
 ### 🏃 **Running NenDB**
 
@@ -142,9 +149,9 @@ NenDB compiles to a lightweight **37KB WASM module** for embedded usage in brows
 ### 📦 **Quick Start**
 ```html
 <script type="module">
-    import NenDB from 'https://github.com/Nen-Co/nen-db/releases/latest/download/nendb-wasm.js';
+    import NenDB from 'https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nendb-wasm.js';
     
-    const db = await NenDB.loadFromURL('https://github.com/Nen-Co/nen-db/releases/latest/download/nendb-wasm.wasm');
+    const db = await NenDB.loadFromURL('https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta/nendb-wasm.wasm');
     
     // Add graph data
     const node1 = db.addNode(100);
@@ -250,12 +257,16 @@ NenDB is designed for high-performance graph operations:
 
 ## 🔮 Roadmap
 
-### 🎯 **v0.1.0-beta (Current)**
+### 🎯 **v0.2.0-beta (Current)**
 - ✅ Static memory graph database
-- ✅ HTTP API server
+- ✅ Data-Oriented Design (DOD) architecture
+- ✅ Cross-platform releases (Linux, macOS, Windows)
+- ✅ Working download links for all platforms
+- ✅ TCP server implementation
 - ✅ Basic graph algorithms
 - ✅ WAL persistence
 - ✅ CLI interface
+- ✅ WebAssembly support
 
 ### 🚀 **Future Releases**
 - 🔄 Enhanced graph algorithms
