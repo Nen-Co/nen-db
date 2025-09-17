@@ -181,7 +181,7 @@ fn init_database(path: []const u8) !void {
 }
 
 fn run_interactive_server() !void {
-    try Terminal.infoln("🌐 Starting NenDB Interactive Server...", .{});
+    try Terminal.infoln("🌐 Starting NenDB HTTP Server...", .{});
 
     // Initialize database
     var db = nendb.init() catch |err| {
@@ -191,40 +191,75 @@ fn run_interactive_server() !void {
     defer db.deinit();
 
     try Terminal.successln("✅ Database initialized", .{});
-    try Terminal.infoln("🚀 NenDB Interactive Server running", .{});
+
+    // Create a simple HTTP server using std.net
+    const address = std.net.Address.parseIp4("127.0.0.1", 8080) catch |err| {
+        try Terminal.errorln("❌ Failed to parse address: {}", .{err});
+        return;
+    };
+
+    var server = address.listen(.{ .reuse_address = true }) catch |err| {
+        try Terminal.errorln("❌ Failed to start server: {}", .{err});
+        return;
+    };
+
+    try Terminal.successln("✅ HTTP server configured", .{});
+    try Terminal.infoln("🚀 NenDB HTTP Server running", .{});
     try Terminal.infoln("  • Server: http://localhost:8080", .{});
-    try Terminal.infoln("  • Type 'help' for available commands", .{});
-    try Terminal.infoln("  • Type 'quit' to exit", .{});
+    try Terminal.infoln("  • Health: http://localhost:8080/health", .{});
+    try Terminal.infoln("  • Stats: http://localhost:8080/graph/stats", .{});
     try Terminal.infoln("  • Press Ctrl+C to stop", .{});
 
     // Show initial status
     const initial_stats = db.get_stats();
     try Terminal.println("  Initial Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ initial_stats.memory.nodes.node_count, initial_stats.memory.nodes.edge_count, initial_stats.memory.nodes.getUtilization() * 100.0 });
 
-    // Keep server running - only show updates when data changes
-    var last_node_count: u64 = 0;
-    var last_edge_count: u64 = 0;
-    var iteration: u32 = 0;
-    
+    try Terminal.successln("🌐 HTTP Server started on port 8080", .{});
+
+    // Simple HTTP server loop
     while (true) {
-        std.Thread.sleep(1000000000); // Sleep for 1 second
-        
-        const stats = db.get_stats();
-        const current_node_count = stats.memory.nodes.node_count;
-        const current_edge_count = stats.memory.nodes.edge_count;
-        
-        // Only show status if data has changed
-        if (current_node_count != last_node_count or current_edge_count != last_edge_count) {
-            iteration += 1;
-            try Terminal.println("  [{d}] Status: {d} nodes, {d} edges, {d:.2}% utilization", .{
-                iteration,
-                current_node_count,
-                current_edge_count,
-                stats.memory.nodes.getUtilization() * 100.0
-            });
-            
-            last_node_count = current_node_count;
-            last_edge_count = current_edge_count;
-        }
+        const connection = server.accept() catch |err| {
+            try Terminal.warnln("⚠️  Connection error: {}", .{err});
+            continue;
+        };
+        defer connection.stream.close();
+
+        // Handle the request in a simple way
+        handleHttpRequest(connection, &db) catch |err| {
+            try Terminal.warnln("⚠️  Request handling error: {}", .{err});
+        };
     }
 }
+
+fn handleHttpRequest(connection: std.net.Server.Connection, db: *nendb.Database) !void {
+    var buffer: [4096]u8 = undefined;
+    const bytes_read = connection.stream.read(&buffer) catch |err| {
+        try Terminal.warnln("⚠️  Read error: {}", .{err});
+        return;
+    };
+
+    const request = buffer[0..bytes_read];
+    
+    // Simple HTTP parsing
+    if (std.mem.indexOf(u8, request, "GET /health")) |_| {
+        const response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 67\r\n\r\n{\"status\":\"healthy\",\"service\":\"nendb\",\"version\":\"v0.2.1-beta\"}";
+        _ = connection.stream.write(response) catch |err| {
+            try Terminal.warnln("⚠️  Write error: {}", .{err});
+        };
+    } else if (std.mem.indexOf(u8, request, "GET /graph/stats")) |_| {
+        const stats = db.get_stats();
+        const response = try std.fmt.allocPrint(std.heap.page_allocator, 
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\n\r\n{{\"nodes\":{d},\"edges\":{d},\"utilization\":{d:.2}}}",
+            .{ 50, stats.memory.nodes.node_count, stats.memory.nodes.edge_count, stats.memory.nodes.getUtilization() * 100.0 });
+        defer std.heap.page_allocator.free(response);
+        _ = connection.stream.write(response) catch |err| {
+            try Terminal.warnln("⚠️  Write error: {}", .{err});
+        };
+    } else {
+        const response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n404 Not Found";
+        _ = connection.stream.write(response) catch |err| {
+            try Terminal.warnln("⚠️  Write error: {}", .{err});
+        };
+    }
+}
+
