@@ -4,7 +4,7 @@
 
 [![Zig](https://img.shields.io/badge/Zig-0.15.1-F7A41D)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v0.2.0--beta-green.svg)](https://github.com/Nen-Co/nen-db/releases)
+[![Version](https://img.shields.io/badge/Version-v0.2.1--beta-green.svg)](https://github.com/Nen-Co/nen-db/releases)
 [![Docker](https://img.shields.io/badge/Docker-GHCR-blue.svg)](https://ghcr.io/nen-co/nendb)
 [![DOD](https://img.shields.io/badge/Architecture-Data--Oriented--Design-FF6B6B)](docs/DATA_ORIENTED_DESIGN.md)
 
@@ -50,67 +50,28 @@ NenDB is a **Data-Oriented Design (DOD) graph database** built specifically for 
 
 ## 🚀 Quick Start
 
-### 🎯 **DOD Demo**
-Experience the power of Data-Oriented Design:
-
-```bash
-# Run the DOD performance demo
-zig build dod-demo
-```
-
-This demo showcases:
-- **SoA Performance**: Struct of Arrays vs Array of Structs
-- **SIMD Filtering**: Vectorized node and edge filtering
-- **Component System**: Entity-component architecture
-- **Memory Statistics**: Cache efficiency and utilization
-
 ### 📦 **Installation**
 
-**Linux (x86_64)**
+**Git Clone (Recommended)**
 ```bash
-curl -fsSL https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta-fixed/nen-v0.2.0-beta-fixed-linux-x86_64.tar.gz | tar -xz
+# Clone the repository
+git clone https://github.com/Nen-Co/nen-db.git
+cd nen-db
+
+# Build the project
+zig build
+
+# Run the executable
+./zig-out/bin/nendb --version
 ```
 
-**Windows PowerShell**
-```powershell
-Invoke-WebRequest -Uri "https://github.com/Nen-Co/nen-db/releases/download/v0.2.0-beta-fixed/nen-v0.2.0-beta-fixed-windows-x86_64.zip" -OutFile "nen-windows.zip"
-Expand-Archive -Path "nen-windows.zip" -DestinationPath "."
-```
-
-**macOS (Coming Soon)**
-```bash
-# macOS builds temporarily unavailable due to GitHub service issues
-# Use Docker or build from source instead
-```
-
-**🐳 Docker (Recommended)**
+**🐳 Docker (Alternative)**
 ```bash
 # Pull and run with HTTP server on port 8080
 docker run --rm -p 8080:8080 --name nendb \
   -v $(pwd)/data:/data \
   ghcr.io/nen-co/nendb:latest
 ```
-
-**📦 Generated Binaries**
-After building with specific targets, you'll find:
-- `zig-out/bin/nendb` - Executable for the current platform
-- `zig-out/bin/nendb-server` - HTTP server for the current platform
-
-**For cross-compilation, use:**
-- `zig build -Dtarget=x86_64-linux-gnu` → Linux x86_64 binary
-- `zig build -Dtarget=x86_64-macos-none` → macOS Intel binary (no libc)  
-- `zig build -Dtarget=aarch64-macos-none` → macOS Apple Silicon binary (no libc)
-- `zig build -Dtarget=x86_64-windows-gnu` → Windows x86_64 binary
-
-**✅ Working Releases:** Download links are now working! The v0.2.0-beta-fixed release includes working binaries.
-
-### 🎉 **Release System Status**
-- ✅ **Linux x86_64**: Working download links
-- ✅ **Windows x86_64**: Working download links  
-- ⚠️ **macOS**: Temporarily unavailable due to GitHub service issues
-- ✅ **Automated Releases**: GitHub Actions workflows functional
-- ✅ **Asset Upload**: Proper binary packaging and distribution
-- ✅ **Version Management**: Consistent versioning across platforms
 
 ### 🏃 **Running NenDB**
 
@@ -278,16 +239,16 @@ NenDB is designed for high-performance graph operations:
 
 ## 🔮 Roadmap
 
-### 🎯 **v0.2.0-beta (Current)**
+### 🎯 **v0.2.1-beta (Current)**
 - ✅ Static memory graph database
 - ✅ Data-Oriented Design (DOD) architecture
 - ✅ Cross-platform releases (Linux, macOS, Windows)
-- ✅ Working download links for all platforms
-- ✅ TCP server implementation
+- ✅ Interactive server with smart status updates
 - ✅ Basic graph algorithms
 - ✅ WAL persistence
-- ✅ CLI interface
+- ✅ CLI interface with global access
 - ✅ WebAssembly support
+- ✅ Optimized server performance
 
 ### 🚀 **Future Releases**
 - 🔄 Enhanced graph algorithms
