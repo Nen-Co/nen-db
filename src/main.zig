@@ -192,6 +192,7 @@ fn run_interactive_server() !void {
 
     try Terminal.successln("✅ Database initialized", .{});
     try Terminal.infoln("🚀 NenDB Interactive Server running", .{});
+    try Terminal.infoln("  • Server: http://localhost:8080", .{});
     try Terminal.infoln("  • Type 'help' for available commands", .{});
     try Terminal.infoln("  • Type 'quit' to exit", .{});
     try Terminal.infoln("  • Press Ctrl+C to stop", .{});

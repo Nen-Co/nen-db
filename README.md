@@ -123,21 +123,32 @@ After building with specific targets, you'll find:
 **CLI Commands**
 ```bash
 # Check version and help
-./zig-out/bin/nendb --version
-./zig-out/bin/nendb help
+nendb --version
+nendb help
 
 # Run interactive demo
-./zig-out/bin/nendb demo
+nendb demo
 
 # Initialize a new database
-./zig-out/bin/nendb init ./my-database
+nendb init ./my-database
 
 # Start interactive server (runs continuously)
-./zig-out/bin/nendb serve
+nendb serve
+```
+
+**Installation for Global Access**
+```bash
+# After building, create symlink for global access
+mkdir -p ~/.local/bin
+ln -sf $(pwd)/zig-out/bin/nendb ~/.local/bin/nendb
+
+# Add to PATH (add to ~/.bashrc or ~/.zshrc)
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 **Server Features**
 - **Interactive Server**: Runs continuously with real-time status monitoring
+- **HTTP Server**: Available at http://localhost:8080
 - **Status Updates**: Shows database statistics every 5 seconds
 - **Clean Operation**: No automatic data insertion - maintains database state
 - **Easy Control**: Press Ctrl+C to stop the server
