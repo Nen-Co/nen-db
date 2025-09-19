@@ -201,12 +201,15 @@ fn run_interactive_server() !void {
         return;
     }
 
-    // Initialize signal handling for graceful shutdown
-    nen_net.signals.init(nen_net.SignalConfig{
-        .enable_graceful_shutdown = true,
-        .shutdown_timeout_ms = 5000,
-        .enable_signal_logging = true,
-    });
+    // Initialize signal handling for graceful shutdown (optional depending on nen-net version)
+    const has_signals = comptime @hasDecl(nen_net, "signals");
+    if (comptime has_signals) {
+        nen_net.signals.init(nen_net.SignalConfig{
+            .enable_graceful_shutdown = true,
+            .shutdown_timeout_ms = 5000,
+            .enable_signal_logging = true,
+        });
+    }
 
     // Create a simple HTTP server using std.net
     const address = std.net.Address.parseIp4("127.0.0.1", 8080) catch |err| {
@@ -236,11 +239,20 @@ fn run_interactive_server() !void {
 
     try Terminal.successln("🌐 HTTP Server started on port 8080", .{});
 
+    // Helper to check shutdown flag (works even if signals not available)
+    inline fn shutdownRequested() bool {
+        if (comptime has_signals) {
+            return nen_net.signals.isShutdownRequested();
+        } else {
+            return false;
+        }
+    }
+
     // HTTP server loop with graceful shutdown
     var server_running = true;
     while (server_running) {
         // Check for shutdown signal
-        if (nen_net.signals.isShutdownRequested()) {
+        if (shutdownRequested()) {
             try Terminal.infoln("🛑 Graceful shutdown requested...", .{});
             server_running = false;
             break;
@@ -248,7 +260,7 @@ fn run_interactive_server() !void {
 
         // Accept connection with timeout
         const connection = server.accept() catch |err| {
-            if (nen_net.signals.isShutdownRequested()) {
+            if (shutdownRequested()) {
                 try Terminal.infoln("🛑 Shutdown during connection accept", .{});
                 break;
             }
@@ -259,7 +271,7 @@ fn run_interactive_server() !void {
 
         // Handle the request in a simple way
         handleHttpRequest(connection, &db) catch |err| {
-            if (nen_net.signals.isShutdownRequested()) {
+            if (shutdownRequested()) {
                 try Terminal.infoln("🛑 Shutdown during request handling", .{});
                 break;
             }
