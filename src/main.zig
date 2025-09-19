@@ -33,6 +33,10 @@ const Terminal = struct {
 };
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
     try Terminal.boldln("┌──────────────────────────────────────────┐", .{});
     try Terminal.boldln("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
     try Terminal.boldln("└──────────────────────────────────────────┘", .{});
@@ -58,7 +62,7 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, arg, "demo")) {
-        try run_demo();
+        try run_demo(allocator);
         return;
     }
 
@@ -68,23 +72,23 @@ pub fn main() !void {
             try Terminal.println("Usage: nendb init <path>", .{});
             return;
         };
-        try init_database(path);
+        try init_database(allocator, path);
         return;
     }
 
     if (std.mem.eql(u8, arg, "serve")) {
-        try run_interactive_server();
+        try run_interactive_server(allocator);
         return;
     }
 
     try Terminal.successln("✅ NenDB started successfully with custom I/O!", .{});
 }
 
-fn run_demo() !void {
+fn run_demo(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🚀 Running NenDB Demo - Graph Operations", .{});
 
     // Initialize database using lib interface
-    var db = nendb.init() catch |err| {
+    var db = nendb.Database.init(allocator, "demo_db", "demo_data") catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
     };
@@ -158,7 +162,7 @@ fn print_help() !void {
     try Terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
 }
 
-fn init_database(path: []const u8) !void {
+fn init_database(allocator: std.mem.Allocator, path: []const u8) !void {
     try Terminal.infoln("📁 Initializing NenDB at: {s}", .{path});
 
     // Create directory if it doesn't exist
@@ -171,7 +175,7 @@ fn init_database(path: []const u8) !void {
     };
 
     // Initialize database using the lib interface
-    var db = nendb.open(path) catch |err| {
+    var db = nendb.Database.init(allocator, "nendb", path) catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
     };
@@ -192,11 +196,11 @@ inline fn shutdownRequested() bool {
     }
 }
 
-fn run_interactive_server() !void {
+fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🌐 Starting NenDB HTTP Server...", .{});
 
     // Initialize database
-    var db = nendb.init() catch |err| {
+    var db = nendb.Database.init(allocator, "server_db", "server_data") catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
     };

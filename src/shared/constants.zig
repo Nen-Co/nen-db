@@ -1,5 +1,5 @@
 //! Shared Constants for NenDB
-//! 
+//!
 //! Defines constants used across the entire NenDB system.
 
 const std = @import("std");

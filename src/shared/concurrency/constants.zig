@@ -1,5 +1,5 @@
 //! Concurrency Constants for NenDB
-//! 
+//!
 //! Defines constants used in concurrency control, locking,
 //! and thread synchronization.
 
@@ -79,6 +79,30 @@ pub const ConcurrencyError = error{
     InvalidIsolationLevel,
     TransactionTimeout,
     ConcurrencyLimitExceeded,
+};
+
+pub const NenDBError = error{
+    AlreadyLocked,
+    LockTimeout,
+    DeadlockDetected,
+    TransactionAborted,
+    InvalidLockState,
+    InvalidTransactionState,
+    LockNotHeld,
+    LockAlreadyHeld,
+    InvalidIsolationLevel,
+    TransactionTimeout,
+    ConcurrencyLimitExceeded,
+    PoolExhausted,
+    InvalidId,
+    NodeNotFound,
+    EdgeNotFound,
+    InvalidOperation,
+    DatabaseShutdown,
+    ConcurrencyError,
+    NetworkError,
+    ConsensusError,
+    ReplicationError,
 };
 
 // Utility functions

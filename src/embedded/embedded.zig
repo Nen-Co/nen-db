@@ -5,9 +5,9 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 // Core imports
-const GraphDB = @import("graphdb.zig").GraphDB;
-const constants = @import("constants.zig");
-const concurrency = @import("concurrency.zig");
+const GraphDB = @import("../shared/core/graphdb.zig").GraphDB;
+const constants = @import("../shared/constants.zig");
+const concurrency = @import("../shared/concurrency/concurrency.zig");
 
 // =============================================================================
 // Embedded Database Configuration
@@ -17,7 +17,7 @@ pub const LogLevel = enum {
     debug,
     info,
     warn,
-    error,
+    err,
 };
 
 pub const EmbeddedConfig = struct {
@@ -296,7 +296,7 @@ pub const EmbeddedDB = struct {
             .debug => "DEBUG",
             .info => "INFO",
             .warn => "WARN",
-            .error => "ERROR",
+            .err => "ERROR",
         };
         
         std.debug.print("[{s}] NenDB Embedded: " ++ format ++ "\n", .{ level_str } ++ args);

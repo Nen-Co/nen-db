@@ -1,5 +1,5 @@
 //! Memory Constants for NenDB
-//! 
+//!
 //! Defines constants used in memory management, allocation,
 //! and data structure sizing.
 
@@ -72,12 +72,12 @@ pub const MemoryStats = struct {
     allocation_count: u64,
     deallocation_count: u64,
     peak_usage: u64,
-    
+
     pub fn getUtilization(self: *const @This()) f32 {
         if (self.total_allocated == 0) return 0.0;
         return @as(f32, @floatFromInt(self.total_used)) / @as(f32, @floatFromInt(self.total_allocated));
     }
-    
+
     pub fn getPeakUtilization(self: *const @This()) f32 {
         if (self.total_allocated == 0) return 0.0;
         return @as(f32, @floatFromInt(self.peak_usage)) / @as(f32, @floatFromInt(self.total_allocated));

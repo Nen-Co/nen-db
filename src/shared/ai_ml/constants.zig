@@ -1,5 +1,5 @@
 //! AI/ML Constants for NenDB
-//! 
+//!
 //! Defines constants used in AI/ML operations, vector embeddings,
 //! and machine learning algorithms.
 

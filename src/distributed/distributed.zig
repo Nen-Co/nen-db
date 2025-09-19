@@ -5,9 +5,9 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 // Core imports
-const GraphDB = @import("graphdb.zig").GraphDB;
-const constants = @import("constants.zig");
-const concurrency = @import("concurrency.zig");
+const GraphDB = @import("../shared/core/graphdb.zig").GraphDB;
+const constants = @import("../shared/constants.zig");
+const concurrency = @import("../shared/concurrency/concurrency.zig");
 const nen_net = @import("nen-net");
 
 // =============================================================================
@@ -18,7 +18,7 @@ pub const LogLevel = enum {
     debug,
     info,
     warn,
-    error,
+    err,
 };
 
 pub const DistributedConfig = struct {
@@ -89,9 +89,9 @@ pub const DistributedNode = struct {
     wal: ?WAL = null,
     
     // Cluster management
-    cluster_manager: ClusterManager,
-    consensus_manager: ConsensusManager,
-    load_balancer: LoadBalancer,
+    // cluster_manager: ClusterManager,  // TODO: Implement cluster management
+    // consensus_manager: ConsensusManager,  // TODO: Implement consensus
+    // load_balancer: LoadBalancer,  // TODO: Implement load balancing
     
     // State
     is_initialized: bool = false,
@@ -121,9 +121,9 @@ pub const DistributedNode = struct {
                 .total_memory = 0,
                 .utilization = 0.0,
             },
-            .cluster_manager = ClusterManager.init(allocator, config),
-            .consensus_manager = ConsensusManager.init(allocator, config),
-            .load_balancer = LoadBalancer.init(allocator, config),
+            // .cluster_manager = ClusterManager.init(allocator, config),  // TODO: Implement
+            // .consensus_manager = ConsensusManager.init(allocator, config),  // TODO: Implement
+            // .load_balancer = LoadBalancer.init(allocator, config),  // TODO: Implement
         };
         
         // Initialize core graph database
@@ -330,56 +330,21 @@ pub const DistributedNode = struct {
     // HTTP Handlers
     // =============================================================================
     
-    fn handleHealth(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
+    fn handleHealth(self: *Self, _: nen_net.HttpRequest) !nen_net.HttpResponse {
         return nen_net.HttpResponse{
             .status = 200,
             .body = "{\"status\":\"healthy\",\"node_id\":" ++ std.fmt.allocPrint(self.allocator, "{}", .{self.config.node_id}) catch "0" ++ "}",
         };
     }
     
-    fn handleAddNode(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        // Parse request body
-        const body = request.body orelse return nen_net.HttpResponse{ .status = 400, .body = "Missing body" };
-        
-        // TODO: Parse JSON and extract node data
-        _ = body;
-        
-        return nen_net.HttpResponse{ .status = 200, .body = "Node added" };
-    }
     
-    fn handleAddEdge(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "Edge added" };
-    }
     
-    fn handleGetNode(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "Node data" };
-    }
     
-    fn handleGetNeighbors(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "Neighbors" };
-    }
     
-    fn handleBFS(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "BFS result" };
-    }
     
-    fn handleDijkstra(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "Dijkstra result" };
-    }
     
-    fn handlePageRank(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "PageRank result" };
-    }
     
-    fn handleStats(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
+    fn handleStats(self: *Self, _: nen_net.HttpRequest) !nen_net.HttpResponse {
         const stats = self.getMemoryStats();
         const json = try std.fmt.allocPrint(self.allocator, 
             "{{\"nodes\":{},\"edges\":{},\"utilization\":{d:.2}}}", 
@@ -388,39 +353,15 @@ pub const DistributedNode = struct {
         return nen_net.HttpResponse{ .status = 200, .body = json };
     }
     
-    fn handleClusterStats(self: *Self, request: nen_net.HttpRequest) !nen_net.HttpResponse {
-        _ = request;
-        return nen_net.HttpResponse{ .status = 200, .body = "Cluster stats" };
-    }
     
     // =============================================================================
     // Cluster Handlers
     // =============================================================================
     
-    fn handleHeartbeat(self: *Self, message: []const u8) !void {
-        _ = message;
-        // Update cluster state
-    }
     
-    fn handleElection(self: *Self, message: []const u8) !void {
-        _ = message;
-        // Handle leader election
-    }
     
-    fn handleVote(self: *Self, message: []const u8) !void {
-        _ = message;
-        // Handle voting in election
-    }
     
-    fn handleReplicate(self: *Self, message: []const u8) !void {
-        _ = message;
-        // Handle replication
-    }
     
-    fn handleSync(self: *Self, message: []const u8) !void {
-        _ = message;
-        // Handle synchronization
-    }
     
     // =============================================================================
     // Utility Functions
@@ -437,7 +378,7 @@ pub const DistributedNode = struct {
             .debug => "DEBUG",
             .info => "INFO",
             .warn => "WARN",
-            .error => "ERROR",
+            .err => "ERROR",
         };
         
         std.debug.print("[{s}] NenDB Distributed Node {}: " ++ format ++ "\n", .{ level_str, self.config.node_id } ++ args);
@@ -448,112 +389,16 @@ pub const DistributedNode = struct {
 // Cluster Management
 // =============================================================================
 
-const ClusterManager = struct {
-    allocator: std.mem.Allocator,
-    config: DistributedConfig,
-    nodes: std.ArrayList(NodeInfo),
-    
-    const Self = @This();
-    
-    const NodeInfo = struct {
-        id: u32,
-        address: []const u8,
-        port: u16,
-        is_healthy: bool,
-        last_heartbeat: u64,
-    };
-    
-    pub fn init(allocator: std.mem.Allocator, config: DistributedConfig) Self {
-        return Self{
-            .allocator = allocator,
-            .config = config,
-            .nodes = std.ArrayList(NodeInfo).init(allocator),
-        };
-    }
-    
-    pub fn deinit(self: *Self) void {
-        self.nodes.deinit();
-    }
-    
-    pub fn init(self: *Self) !void {
-        // Initialize cluster discovery
-        // TODO: Implement cluster discovery
-    }
-    
-    pub fn getReplicas(self: *Self, node_id: u32) []const u32 {
-        _ = node_id;
-        // TODO: Implement replica selection
-        return &[_]u32{};
-    }
-    
-    pub fn sendOperation(self: *Self, target_node: u32, operation: []const u8, args: anytype) !void {
-        _ = target_node;
-        _ = operation;
-        _ = args;
-        // TODO: Implement operation forwarding
-    }
-};
 
 // =============================================================================
 // Consensus Management
 // =============================================================================
 
-const ConsensusManager = struct {
-    allocator: std.mem.Allocator,
-    config: DistributedConfig,
-    
-    const Self = @This();
-    
-    pub fn init(allocator: std.mem.Allocator, config: DistributedConfig) Self {
-        return Self{
-            .allocator = allocator,
-            .config = config,
-        };
-    }
-    
-    pub fn deinit(self: *Self) void {
-        _ = self;
-    }
-    
-    pub fn init(self: *Self) !void {
-        // Initialize consensus algorithm (Raft, PBFT, etc.)
-        // TODO: Implement consensus
-    }
-};
 
 // =============================================================================
 // Load Balancing
 // =============================================================================
 
-const LoadBalancer = struct {
-    allocator: std.mem.Allocator,
-    config: DistributedConfig,
-    
-    const Self = @This();
-    
-    pub fn init(allocator: std.mem.Allocator, config: DistributedConfig) Self {
-        return Self{
-            .allocator = allocator,
-            .config = config,
-        };
-    }
-    
-    pub fn deinit(self: *Self) void {
-        _ = self;
-    }
-    
-    pub fn init(self: *Self) !void {
-        // Initialize load balancing strategy
-        // TODO: Implement load balancing
-    }
-    
-    pub fn getTargetNode(self: *Self, operation: []const u8, args: anytype) u32 {
-        _ = operation;
-        _ = args;
-        // TODO: Implement target node selection
-        return 0;
-    }
-};
 
 // =============================================================================
 // Supporting Types
@@ -616,22 +461,13 @@ const WAL = struct {
         self.buffer.deinit();
     }
     
-    pub fn writeNodeOperation(self: *Self, op: Operation, id: u64, kind: u8, properties: ?[]const u8) !void {
+    pub fn writeNodeOperation(self: *Self, _: Operation, _: u64, _: u8, _: ?[]const u8) !void {
         _ = self;
-        _ = op;
-        _ = id;
-        _ = kind;
-        _ = properties;
         // TODO: Implement WAL writing
     }
     
-    pub fn writeEdgeOperation(self: *Self, op: Operation, from: u64, to: u64, label: u16, properties: ?[]const u8) !void {
+    pub fn writeEdgeOperation(self: *Self, _: Operation, _: u64, _: u64, _: u16, _: ?[]const u8) !void {
         _ = self;
-        _ = op;
-        _ = from;
-        _ = to;
-        _ = label;
-        _ = properties;
         // TODO: Implement WAL writing
     }
     
