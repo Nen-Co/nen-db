@@ -13,6 +13,9 @@ pub const json = @import("nen-json");
 // Core modules (disabled problematic ones)
 pub const constants = @import("constants.zig");
 
+// Concurrency support
+pub const concurrency = @import("concurrency.zig");
+
 // Knowledge graph utilities
 pub const KnowledgeGraphParser = @import("knowledge_graph_parser.zig").KnowledgeGraphParser;
 pub const KnowledgeTriple = @import("knowledge_graph_parser.zig").KnowledgeTriple;
@@ -61,8 +64,20 @@ pub const Database = struct {
     allocator: std.mem.Allocator,
     nodes: std.AutoHashMap(u64, Node),
     edges: std.AutoHashMap(u64, Edge),
-    next_node_id: u64,
-    next_edge_id: u64,
+
+    // Concurrency protection
+    rwlock: concurrency.ReadWriteLock,
+    seqlock: concurrency.Seqlock,
+    node_id_generator: concurrency.AtomicIdGenerator,
+    edge_id_generator: concurrency.AtomicIdGenerator,
+    node_counter: concurrency.AtomicCounter,
+    edge_counter: concurrency.AtomicCounter,
+
+    // Performance monitoring
+    metrics: concurrency.ConcurrencyMetrics,
+
+    // Deadlock prevention
+    deadlock_detector: concurrency.DeadlockDetector,
 
     const Node = struct {
         id: u64,
@@ -88,18 +103,35 @@ pub const Database = struct {
             .allocator = allocator,
             .nodes = std.AutoHashMap(u64, Node).init(allocator),
             .edges = std.AutoHashMap(u64, Edge).init(allocator),
-            .next_node_id = 1,
-            .next_edge_id = 1,
+
+            // Initialize concurrency primitives
+            .rwlock = concurrency.ReadWriteLock{},
+            .seqlock = concurrency.Seqlock{},
+            .node_id_generator = concurrency.AtomicIdGenerator{},
+            .edge_id_generator = concurrency.AtomicIdGenerator{},
+            .node_counter = concurrency.AtomicCounter{},
+            .edge_counter = concurrency.AtomicCounter{},
+            .metrics = concurrency.ConcurrencyMetrics{},
+            .deadlock_detector = concurrency.DeadlockDetector.init(allocator),
         };
     }
 
     pub fn deinit(self: *Database) void {
         self.nodes.deinit();
         self.edges.deinit();
+        self.deadlock_detector.deinit();
     }
 
+    // Thread-safe node insertion
     pub inline fn insert_node(self: *Database, id: u64, kind: u32) !void {
         assert(id > 0);
+
+        // Acquire write lock
+        self.rwlock.writeLock();
+        defer self.rwlock.writeUnlock();
+
+        // Check for deadlock
+        try self.deadlock_detector.acquireLock(@intCast(id));
 
         const node = Node{
             .id = id,
@@ -108,18 +140,47 @@ pub const Database = struct {
         };
 
         try self.nodes.put(id, node);
+        _ = self.node_counter.increment();
 
-        if (id >= self.next_node_id) {
-            self.next_node_id = id + 1;
-        }
+        self.deadlock_detector.releaseLock(@intCast(id));
     }
 
+    // Lock-free node insertion (for high-performance scenarios)
+    pub inline fn insert_node_lockfree(self: *Database, kind: u32) !u64 {
+        // Use seqlock for lock-free writes
+        self.seqlock.writeLock();
+        defer self.seqlock.writeUnlock();
+
+        const id = self.node_id_generator.generate();
+        const node = Node{
+            .id = id,
+            .kind = kind,
+            .created_at = std.time.timestamp(),
+        };
+
+        try self.nodes.put(id, node);
+        _ = self.node_counter.increment();
+
+        return id;
+    }
+
+    // Thread-safe edge insertion
     pub inline fn insert_edge(self: *Database, from: u64, to: u64, label: u32) !void {
         assert(from > 0);
         assert(to > 0);
         assert(from != to); // No self-loops for now
 
-        const edge_id = self.next_edge_id;
+        // Acquire write lock
+        self.rwlock.writeLock();
+        defer self.rwlock.writeUnlock();
+
+        // Check for deadlock (order locks by ID to prevent deadlock)
+        const min_id = @min(from, to);
+        const max_id = @max(from, to);
+        try self.deadlock_detector.acquireLock(@intCast(min_id));
+        try self.deadlock_detector.acquireLock(@intCast(max_id));
+
+        const edge_id = self.edge_id_generator.generate();
         const edge = Edge{
             .id = edge_id,
             .from = from,
@@ -129,11 +190,42 @@ pub const Database = struct {
         };
 
         try self.edges.put(edge_id, edge);
-        self.next_edge_id += 1;
+        _ = self.edge_counter.increment();
+
+        self.deadlock_detector.releaseLock(@intCast(max_id));
+        self.deadlock_detector.releaseLock(@intCast(min_id));
     }
 
+    // Lock-free edge insertion
+    pub inline fn insert_edge_lockfree(self: *Database, from: u64, to: u64, label: u32) !u64 {
+        assert(from > 0);
+        assert(to > 0);
+        assert(from != to);
+
+        self.seqlock.writeLock();
+        defer self.seqlock.writeUnlock();
+
+        const edge_id = self.edge_id_generator.generate();
+        const edge = Edge{
+            .id = edge_id,
+            .from = from,
+            .to = to,
+            .label = label,
+            .created_at = std.time.timestamp(),
+        };
+
+        try self.edges.put(edge_id, edge);
+        _ = self.edge_counter.increment();
+
+        return edge_id;
+    }
+
+    // Thread-safe node lookup with read lock
     pub inline fn lookup_node(self: *Database, id: u64) ?u64 {
         assert(id > 0);
+
+        self.rwlock.readLock();
+        defer self.rwlock.readUnlock();
 
         if (self.nodes.contains(id)) {
             return id;
@@ -141,17 +233,53 @@ pub const Database = struct {
         return null;
     }
 
+    // Lock-free node lookup using seqlock
+    pub inline fn lookup_node_lockfree(self: *Database, id: u64) ?u64 {
+        assert(id > 0);
+
+        var retries: u32 = 0;
+        while (retries < 10) { // Max retries to prevent infinite loops
+            const seq_start = self.seqlock.readBegin();
+
+            if (self.nodes.contains(id)) {
+                if (self.seqlock.readEnd(seq_start)) {
+                    return id;
+                }
+            } else {
+                if (self.seqlock.readEnd(seq_start)) {
+                    return null;
+                }
+            }
+
+            retries += 1;
+            _ = self.metrics.seqlock_retries.increment();
+        }
+
+        return null; // Fallback after max retries
+    }
+
+    // Thread-safe statistics using atomic counters
     pub inline fn get_stats(self: *Database) DatabaseStats {
         return DatabaseStats{
             .memory = MemoryStats{
                 .nodes = NodeStats{
-                    .node_count = @intCast(self.nodes.count()),
+                    .node_count = @intCast(self.node_counter.load()),
                     .node_capacity = 10000, // Static capacity for now
-                    .edge_count = @intCast(self.edges.count()),
+                    .edge_count = @intCast(self.edge_counter.load()),
                     .edge_capacity = 50000, // Static capacity for now
                 },
             },
         };
+    }
+
+    // Get detailed concurrency metrics
+    pub inline fn get_concurrency_stats(self: *Database) concurrency.ConcurrencyStats {
+        return self.metrics.getStats();
+    }
+
+    // Transaction support
+    pub inline fn begin_transaction(self: *Database, isolation: concurrency.IsolationLevel) !concurrency.Transaction {
+        return concurrency.Transaction.init(self.allocator, self.node_id_generator.generate(), isolation);
     }
 };
 

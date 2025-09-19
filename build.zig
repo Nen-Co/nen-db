@@ -73,6 +73,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     exe.root_module.addImport("nendb", lib_mod);
+    if (nen_net) |nn| exe.root_module.addImport("nen-net", nn);
     b.installArtifact(exe);
 
     // Provide a named build step 'nendb' so CI and users can run `zig build nendb`.
@@ -289,6 +290,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     mac_x86_exe.root_module.addImport("nendb", lib_mod);
+    if (nen_net) |nn| mac_x86_exe.root_module.addImport("nen-net", nn);
     b.installArtifact(mac_x86_exe);
 
     const mac_arm_exe = b.addExecutable(.{
@@ -300,6 +302,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     mac_arm_exe.root_module.addImport("nendb", lib_mod);
+    if (nen_net) |nn| mac_arm_exe.root_module.addImport("nen-net", nn);
     b.installArtifact(mac_arm_exe);
 
     const linux_exe = b.addExecutable(.{
@@ -311,6 +314,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     linux_exe.root_module.addImport("nendb", lib_mod);
+    if (nen_net) |nn| linux_exe.root_module.addImport("nen-net", nn);
     b.installArtifact(linux_exe);
 
     const win_exe = b.addExecutable(.{
@@ -322,6 +326,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     win_exe.root_module.addImport("nendb", lib_mod);
+    if (nen_net) |nn| win_exe.root_module.addImport("nen-net", nn);
     b.installArtifact(win_exe);
 
     // Aggregate build-all step
