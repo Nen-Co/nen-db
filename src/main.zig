@@ -182,6 +182,16 @@ fn init_database(path: []const u8) !void {
     try Terminal.infoln("  • WAL file: {s}/nendb.wal", .{path});
 }
 
+// Helper to check shutdown flag (works even if signals not available)
+inline fn shutdownRequested() bool {
+    const has_signals = comptime @hasDecl(nen_net, "signals");
+    if (comptime has_signals) {
+        return nen_net.signals.isShutdownRequested();
+    } else {
+        return false;
+    }
+}
+
 fn run_interactive_server() !void {
     try Terminal.infoln("🌐 Starting NenDB HTTP Server...", .{});
 
@@ -238,15 +248,6 @@ fn run_interactive_server() !void {
     try Terminal.println("  Initial Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ initial_stats.memory.nodes.node_count, initial_stats.memory.nodes.edge_count, initial_stats.memory.nodes.getUtilization() * 100.0 });
 
     try Terminal.successln("🌐 HTTP Server started on port 8080", .{});
-
-    // Helper to check shutdown flag (works even if signals not available)
-    inline fn shutdownRequested() bool {
-        if (comptime has_signals) {
-            return nen_net.signals.isShutdownRequested();
-        } else {
-            return false;
-        }
-    }
 
     // HTTP server loop with graceful shutdown
     var server_running = true;
