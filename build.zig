@@ -100,6 +100,8 @@ pub fn build(b: *std.Build) void {
     if (nen_io) |ni| embedded_build.root_module.addImport("nen-io", ni);
     if (nen_json) |nj| embedded_build.root_module.addImport("nen-json", nj);
     b.installArtifact(embedded_build);
+    const embedded_step = b.step("nendb-embedded", "Build the nendb-embedded executable");
+    embedded_step.dependOn(&embedded_build.step);
 
     // Add distributed build step
     const distributed_build = b.addExecutable(.{
@@ -115,6 +117,8 @@ pub fn build(b: *std.Build) void {
     if (nen_json) |nj| distributed_build.root_module.addImport("nen-json", nj);
     if (nen_net) |nn| distributed_build.root_module.addImport("nen-net", nn);
     b.installArtifact(distributed_build);
+    const distributed_step = b.step("nendb-distributed", "Build the nendb-distributed executable");
+    distributed_step.dependOn(&distributed_build.step);
 
     // Provide a named build step 'nendb' so CI and users can run `zig build nendb`.
     // This step depends on the main executable being built/installed.

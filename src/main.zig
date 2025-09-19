@@ -36,7 +36,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     try Terminal.boldln("┌──────────────────────────────────────────┐", .{});
     try Terminal.boldln("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
     try Terminal.boldln("└──────────────────────────────────────────┘", .{});
