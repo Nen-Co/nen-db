@@ -10,7 +10,26 @@
 
 ## 🎯 What is NenDB?
 
-NenDB is a **Data-Oriented Design (DOD) graph database** built specifically for AI applications. Using Struct of Arrays (SoA) layout, component-based architecture, and SIMD optimization, it delivers:
+NenDB is a **dual-architecture graph database** built specifically for AI applications. We provide both **embedded** and **distributed** options to serve different use cases and market segments.
+
+### 🏗️ **Dual Architecture Strategy**
+
+#### **Embedded NenDB** 🖥️ (Primary Focus)
+- **Target**: Single-user applications, AI/ML workloads, desktop apps
+- **Use Cases**: Data science, research, personal projects, edge computing
+- **Advantages**: Zero dependencies, instant startup, predictable performance
+- **Examples**: Jupyter notebooks, desktop apps, embedded systems
+
+#### **Distributed NenDB** 🌐 (Framework Only)
+- **Target**: Multi-user applications, enterprise workloads, cloud services (planned)
+- **Use Cases**: Social networks, recommendation systems, real-time analytics (planned)
+- **Advantages**: Horizontal scaling, high availability, fault tolerance (planned)
+- **Examples**: Web applications, microservices, cloud platforms (planned)
+- **Status**: Framework exists, implementation in progress
+
+### 🚀 **Core Technology**
+
+Using Data-Oriented Design (DOD), Struct of Arrays (SoA) layout, component-based architecture, and SIMD optimization, NenDB delivers:
 
 - 🧠 **AI-Native Design**: Optimized for graph reasoning and AI workloads
 - ⚡ **Data-Oriented Design**: SoA layout for maximum cache efficiency
@@ -18,6 +37,55 @@ NenDB is a **Data-Oriented Design (DOD) graph database** built specifically for 
 - 🧩 **Component System**: Flexible entity-component architecture
 - 🛡️ **Crash Safe**: WAL-based durability with point-in-time recovery
 - 🔧 **Zero Dependencies**: Self-contained with minimal external requirements
+
+### 🎯 **Why We're Focusing on Embedded First**
+
+1. **Solid Foundation**: Embedded is simpler, easier to get right
+2. **Market Validation**: Faster developer adoption, AI/ML focus
+3. **Technical Benefits**: Zero dependencies, predictable performance
+4. **Business Strategy**: Community building drives future enterprise adoption
+
+> **📖 [Read our full roadmap →](ROADMAP.md)** | **🏗️ [Architecture overview →](docs/ARCHITECTURE.md)** | **📊 [Current status →](CURRENT_STATUS.md)** | **📚 [All documentation →](DOCUMENTATION.md)**
+
+
+
+**Current NenDB Advantages:**
+- **🧠 AI-Native**: Built specifically for AI/ML workloads
+- **🔧 Zero Dependencies**: Easy deployment and distribution
+- **⚡ Data-Oriented Design**: SoA layout for performance
+- **🚧 Multi-Process**: Currently in development
+- **🚧 Distributed**: Framework exists, implementation in progress
+
+**Note**: Performance claims will be validated through benchmarks once implementation is complete.
+
+## 🛠️ **Current Implementation Status**
+
+### **✅ Completed (Embedded Focus)**
+- **Core Engine**: Graph operations, memory management, basic concurrency
+- **AI/ML Framework**: Vector operations structure, knowledge graph parsing
+- **Memory Layout**: SoA implementation, basic memory pools
+- **Python Driver**: Full-featured client with `pip install nendb`
+- **Examples**: Desktop apps, data science workflows
+- **Documentation**: Comprehensive guides and API docs
+
+### **🟡 In Progress (Embedded Enhancement)**
+- **Multi-Process Support**: File locking, shared memory coordination
+- **Production WAL**: Complete write-ahead logging implementation
+- **Memory Prediction**: Advanced allocation algorithms
+- **Performance Optimization**: SIMD operations, cache optimization
+
+### **🚧 Framework Only (Distributed)**
+- **Basic Structure**: HTTP API framework, cluster management classes
+- **Consensus**: Placeholder for Raft/PBFT (not implemented)
+- **Networking**: Basic server setup (no real communication)
+- **Replication**: Framework exists (no actual replication)
+
+### **🔴 Planned (Future Phases)**
+- **Real Distributed**: Complete consensus, networking, replication
+- **Enterprise Features**: Security, compliance, advanced clustering
+- **Cloud Services**: Managed NenDB, auto-scaling
+
+> **📖 [See detailed roadmap →](ROADMAP.md)**
 
 ## ✨ Key Features
 
