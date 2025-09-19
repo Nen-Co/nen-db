@@ -14,6 +14,13 @@ const nen_net = @import("nen-net");
 // Distributed Database Configuration
 // =============================================================================
 
+pub const LogLevel = enum {
+    debug,
+    info,
+    warn,
+    error,
+};
+
 pub const DistributedConfig = struct {
     // Node configuration
     node_id: u32,
@@ -53,13 +60,6 @@ pub const DistributedConfig = struct {
     
     // Logging
     log_level: LogLevel = .info,
-    
-    pub const LogLevel = enum {
-        debug,
-        info,
-        warn,
-        error,
-    };
 };
 
 // =============================================================================

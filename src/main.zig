@@ -1,6 +1,6 @@
 const std = @import("std");
 const nendb = @import("nendb");
-const algorithms = @import("algorithms/algorithms.zig");
+const algorithms = nendb.algorithms;
 const nen_net = @import("nen-net");
 
 // Extract types from nendb lib

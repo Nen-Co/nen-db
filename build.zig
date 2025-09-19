@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) void {
     const embedded_build = b.addExecutable(.{
         .name = "nendb-embedded",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/embedded.zig"),
+            .root_source_file = b.path("src/embedded/embedded.zig"),
             .target = target,
             .optimize = optimize,
         }),
@@ -105,7 +105,7 @@ pub fn build(b: *std.Build) void {
     const distributed_build = b.addExecutable(.{
         .name = "nendb-distributed",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/distributed.zig"),
+            .root_source_file = b.path("src/distributed/distributed.zig"),
             .target = target,
             .optimize = optimize,
         }),

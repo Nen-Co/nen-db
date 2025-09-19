@@ -13,6 +13,13 @@ const concurrency = @import("concurrency.zig");
 // Embedded Database Configuration
 // =============================================================================
 
+pub const LogLevel = enum {
+    debug,
+    info,
+    warn,
+    error,
+};
+
 pub const EmbeddedConfig = struct {
     // Memory configuration
     max_nodes: u32 = 100_000,
@@ -36,13 +43,6 @@ pub const EmbeddedConfig = struct {
     
     // Logging
     log_level: LogLevel = .info,
-    
-    pub const LogLevel = enum {
-        debug,
-        info,
-        warn,
-        error,
-    };
 };
 
 // =============================================================================
