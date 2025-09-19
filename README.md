@@ -61,6 +61,21 @@ pip install nendb
 python -c "from nendb import NenDBClient; client = NenDBClient('http://localhost:8080'); print(client.health())"
 ```
 
+**🍺 Homebrew (macOS)**
+```bash
+# Add the NenDB tap
+brew tap nen-co/nendb
+
+# Install NenDB server
+brew install nendb
+
+# Start the server
+nendb-server serve
+
+# Or use the core binary
+nendb-core --version
+```
+
 **📦 Binary Releases (Recommended)**
 ```bash
 # Download pre-built binaries from GitHub Releases
@@ -138,6 +153,10 @@ print("Community Detection Result:", community_result)
 
 **🚀 Start HTTP Server**
 ```bash
+# Using Homebrew (macOS)
+nendb-server serve
+# Server will be available at http://localhost:8080
+
 # Using binary release
 ./nendb-linux-x86_64 serve
 # Server will be available at http://localhost:8080
@@ -149,17 +168,24 @@ print("Community Detection Result:", community_result)
 
 **💻 CLI Commands**
 ```bash
-# Check version and help
-nendb --version
-nendb help
+# Check version and help (Homebrew)
+nendb-server --version
+nendb-server help
 
-# Run interactive demo
-nendb demo
+# Run interactive demo (Homebrew)
+nendb-server demo
 
-# Initialize a new database
-nendb init ./my-database
+# Initialize a new database (Homebrew)
+nendb-server init ./my-database
 
 # Start interactive server (runs continuously)
+nendb-server serve
+
+# Or using built from source
+nendb --version
+nendb help
+nendb demo
+nendb init ./my-database
 nendb serve
 ```
 
