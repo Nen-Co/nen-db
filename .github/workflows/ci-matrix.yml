@@ -23,16 +23,26 @@ jobs:
         with:
           version: '0.15.1'
 
+      - name: Setup dependencies
+        run: |
+          echo "🔗 Setting up dependencies"
+          cd ..
+          git clone https://github.com/Nen-Co/nen-core.git
+          git clone https://github.com/Nen-Co/nen-io.git
+          git clone https://github.com/Nen-Co/nen-json.git
+          git clone https://github.com/Nen-Co/nen-net.git
+          cd nen-db
+
       - name: Build native executable
         run: |
           echo "Building native executable on $RUNNER_OS"
           # Build the default native executable
-          zig build -Drelease-fast || zig build
+          zig build -Doptimize=ReleaseFast
 
       - name: Build WASM module (optional)
         run: |
           # Try to build the WASM artifact; failing to build WASM should not fail the whole job
-          zig build wasm --release=small || true
+          zig build nendb-wasm || true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
