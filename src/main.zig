@@ -1,3 +1,16 @@
+// NenDB - Main CLI Entrypoint
+// -----------------------------------------------
+// This file provides the primary command-line interface (CLI) for NenDB,
+// a minimal, production-focused graph database engine written in Zig.
+//
+// It enables basic demo operations, database initialization, and
+// running a lightweight HTTP server for testing and development.
+//
+// For high-performance or embedded use cases, see server.zig or use NenDB as a library.
+// -----------------------------------------------
+// Contributors: Please see comment style and TODO notes for guidance!
+// -----------------------------------------------
+
 const std = @import("std");
 const nendb = @import("nendb");
 const algorithms = nendb.algorithms;
@@ -7,7 +20,8 @@ const nen_net = @import("nen-net");
 const GraphDB = nendb.GraphDB;
 const constants = nendb.constants;
 
-// Use std.debug.print for CI compatibility
+// Terminal: Simple wrapper for CI-friendly printing
+// All output is routed through std.debug.print for CI portability.
 const Terminal = struct {
     pub inline fn boldln(comptime format: []const u8, args: anytype) !void {
         std.debug.print(format ++ "\n", args);
@@ -32,17 +46,22 @@ const Terminal = struct {
     }
 };
 
+// Main CLI entrypoint.
+// This function parses command-line arguments and dispatches to
+// demo, init, and server modes. Extend this function to add new commands.
+// - Minimal argument parsing (no external dependencies)
+// - Prints helpful errors and usage when needed
 pub fn main() !void {
+    // CLI heading
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-
     try Terminal.boldln("┌──────────────────────────────────────────┐", .{});
     try Terminal.boldln("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
     try Terminal.boldln("└──────────────────────────────────────────┘", .{});
     try Terminal.println("Version: {s} | Zig: {s}", .{ constants.VERSION_STRING, @import("builtin").zig_version_string });
 
-    // Simple argument parsing
+    // Simple argument parsing (no external deps, easy for CI)
     var it = std.process.argsWithAllocator(std.heap.page_allocator) catch |err| {
         try Terminal.errorln("Failed to get command line arguments: {}", .{err});
         try print_help();
@@ -52,10 +71,12 @@ pub fn main() !void {
     _ = it.next(); // skip program name
 
     const arg = it.next() orelse {
+        // No command provided; print help and exit.
         try print_help();
         return;
     };
 
+    // Command dispatch
     if (std.mem.eql(u8, arg, "help") or std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
         try print_help();
         return;
@@ -81,9 +102,11 @@ pub fn main() !void {
         return;
     }
 
+    // TODO: Add support for up, status, query
     try Terminal.successln("✅ NenDB started successfully with custom I/O!", .{});
 }
 
+// Run a minimal in-memory demo showing GraphDB usage.
 fn run_demo(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🚀 Running NenDB Demo - Graph Operations", .{});
 
@@ -137,6 +160,7 @@ fn run_demo(allocator: std.mem.Allocator) !void {
     try Terminal.successln("🎉 Demo completed successfully!", .{});
 }
 
+// Print CLI usage instructions.
 fn print_help() !void {
     try Terminal.println("NenDB - Production-focused, static-memory graph store", .{});
     try Terminal.println("", .{});
@@ -162,6 +186,7 @@ fn print_help() !void {
     try Terminal.println("Version: {s} - Custom I/O Implementation", .{constants.VERSION_STRING});
 }
 
+// Initialize a new database at the given path.
 fn init_database(allocator: std.mem.Allocator, path: []const u8) !void {
     try Terminal.infoln("📁 Initializing NenDB at: {s}", .{path});
 
@@ -196,6 +221,7 @@ inline fn shutdownRequested() bool {
     }
 }
 
+// Run a basic HTTP server.
 fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🌐 Starting NenDB HTTP Server...", .{});
 
@@ -236,6 +262,7 @@ fn run_interactive_server(allocator: std.mem.Allocator) !void {
         return;
     };
 
+    // Announce server endpoints
     try Terminal.successln("✅ HTTP server configured", .{});
     try Terminal.infoln("🚀 NenDB HTTP Server running", .{});
     try Terminal.infoln("  • Server: http://localhost:8080", .{});
@@ -247,13 +274,13 @@ fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("  • Community: POST http://localhost:8080/graph/algorithms/community", .{});
     try Terminal.infoln("  • Press Ctrl+C for graceful shutdown", .{});
 
-    // Show initial status
+    // Print initial DB status for monitoring
     const initial_stats = db.get_stats();
     try Terminal.println("  Initial Status: {d} nodes, {d} edges, {d:.2}% utilization", .{ initial_stats.memory.nodes.node_count, initial_stats.memory.nodes.edge_count, initial_stats.memory.nodes.getUtilization() * 100.0 });
 
     try Terminal.successln("🌐 HTTP Server started on port 8080", .{});
 
-    // HTTP server loop with graceful shutdown
+    // Main event loop: Accepts HTTP connections and checks for shutdown signals
     var server_running = true;
     while (server_running) {
         // Check for shutdown signal
@@ -297,6 +324,7 @@ fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.successln("✅ Graceful shutdown completed", .{});
 }
 
+// Simple HTTP request handling loop.
 fn handleHttpRequest(connection: std.net.Server.Connection, db: *nendb.Database) !void {
     var buffer: [4096]u8 = undefined;
     const bytes_read = connection.stream.read(&buffer) catch |err| {
@@ -357,6 +385,7 @@ fn handleBFSRequest(connection: std.net.Server.Connection, db: *nendb.Database, 
     };
 }
 
+// handleDijkstraRequest: Responds to POST /graph/algorithms/dijkstra requests
 fn handleDijkstraRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
     _ = request; // Suppress unused parameter warning
 
@@ -376,6 +405,7 @@ fn handleDijkstraRequest(connection: std.net.Server.Connection, db: *nendb.Datab
     };
 }
 
+// handlePageRankRequest: Responds to POST /graph/algorithms/pagerank requests
 fn handlePageRankRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
     _ = request; // Suppress unused parameter warning
 
@@ -395,6 +425,7 @@ fn handlePageRankRequest(connection: std.net.Server.Connection, db: *nendb.Datab
     };
 }
 
+// handleCommunityRequest: Responds to POST /graph/algorithms/community requests
 fn handleCommunityRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
     _ = request; // Suppress unused parameter warning
 
