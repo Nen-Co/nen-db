@@ -1,7 +1,11 @@
 # NenDB Architecture - Data-Oriented Design (DOD)
 
+> **📊 [Current Status →](../CURRENT_STATUS.md)** | **📖 [Roadmap →](../ROADMAP.md)**
+
 ## Design Philosophy
 NenDB implements **Data-Oriented Design (DOD)** as its core architectural paradigm, prioritizing data layout and memory access patterns over traditional object-oriented abstractions. This approach maximizes performance, cache efficiency, and scalability for graph database operations.
+
+**Note**: This document describes the planned architecture. See [Current Status](../CURRENT_STATUS.md) for what's actually implemented.
 
 ## High-Level Components
 - **CLI (`nen`)**: entrypoint for admin + ops commands.
@@ -11,7 +15,7 @@ NenDB implements **Data-Oriented Design (DOD)** as its core architectural paradi
 - **DOD Memory Pools**: Struct of Arrays (SoA) layout for nodes, edges, embeddings with hot/cold data separation.
 - **Component System**: Entity-Component architecture for flexible graph modeling.
 - **SIMD-Optimized Operations**: Vectorized processing for maximum performance.
-- **Locking**: single writer mutex; per-writer lock file to prevent multi-process writers.
+- **Locking**: single writer mutex; **multi-process support planned but not yet implemented**.
 - **Monitoring**: resource monitor (CPU, RSS, IO counters) + `status --json`.
 
 ## Write Path (DOD-Optimized)
@@ -48,11 +52,21 @@ NenDB implements **Data-Oriented Design (DOD)** as its core architectural paradi
 - Partial segment write: detected via length/CRC mismatch, truncated.
 
 ## Concurrency
-- Single writer process ensures write serialization.
-- Readers operate lock-free on immutable memory segments / atomically swapped pointers.
+- **Current**: Single writer process ensures write serialization (same limitation as KùzuDB)
+- **Readers**: Operate with read locks on shared memory
+- **Limitation**: Cannot handle multiple processes simultaneously
+- **Future**: Multi-process support with file locking and shared memory coordination
+
+## Current Limitations
+- **Multi-Process**: Cannot handle multiple processes (same as KùzuDB)
+- **Distributed**: Framework exists but not implemented
+- **Consensus**: No real consensus algorithm
+- **Networking**: Basic HTTP server only
 
 ## Future Extensions (Not Implemented Yet)
-- Replication (log shipping)
+- Multi-process support with file locking
+- Real distributed consensus (Raft/PBFT)
+- Data replication and synchronization
 - Secondary Indexes
 - Background compaction scheduling
 - Metrics endpoint (HTTP)

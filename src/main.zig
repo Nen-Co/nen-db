@@ -13,7 +13,7 @@
 
 const std = @import("std");
 const nendb = @import("nendb");
-const algorithms = @import("algorithms/algorithms.zig");
+const algorithms = nendb.algorithms;
 const nen_net = @import("nen-net");
 
 // Extract types from nendb lib
@@ -53,6 +53,9 @@ const Terminal = struct {
 // - Prints helpful errors and usage when needed
 pub fn main() !void {
     // CLI heading
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
     try Terminal.boldln("┌──────────────────────────────────────────┐", .{});
     try Terminal.boldln("│      ⚡ NenDB • Graph Engine Core ⚡      │", .{});
     try Terminal.boldln("└──────────────────────────────────────────┘", .{});
@@ -80,7 +83,7 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, arg, "demo")) {
-        try run_demo();
+        try run_demo(allocator);
         return;
     }
 
@@ -90,12 +93,12 @@ pub fn main() !void {
             try Terminal.println("Usage: nendb init <path>", .{});
             return;
         };
-        try init_database(path);
+        try init_database(allocator, path);
         return;
     }
 
     if (std.mem.eql(u8, arg, "serve")) {
-        try run_interactive_server();
+        try run_interactive_server(allocator);
         return;
     }
 
@@ -104,11 +107,11 @@ pub fn main() !void {
 }
 
 // Run a minimal in-memory demo showing GraphDB usage.
-fn run_demo() !void {
+fn run_demo(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🚀 Running NenDB Demo - Graph Operations", .{});
 
     // Initialize database using lib interface
-    var db = nendb.init() catch |err| {
+    var db = nendb.Database.init(allocator, "demo_db", "demo_data") catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
     };
@@ -184,7 +187,7 @@ fn print_help() !void {
 }
 
 // Initialize a new database at the given path.
-fn init_database(path: []const u8) !void {
+fn init_database(allocator: std.mem.Allocator, path: []const u8) !void {
     try Terminal.infoln("📁 Initializing NenDB at: {s}", .{path});
 
     // Create directory if it doesn't exist
@@ -197,7 +200,7 @@ fn init_database(path: []const u8) !void {
     };
 
     // Initialize database using the lib interface
-    var db = nendb.open(path) catch |err| {
+    var db = nendb.Database.init(allocator, "nendb", path) catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
     };
@@ -208,12 +211,22 @@ fn init_database(path: []const u8) !void {
     try Terminal.infoln("  • WAL file: {s}/nendb.wal", .{path});
 }
 
-// Run a basic HTTP server (not available in WASM).
-fn run_interactive_server() !void {
+// Helper to check shutdown flag (works even if signals not available)
+inline fn shutdownRequested() bool {
+    const has_signals = comptime @hasDecl(nen_net, "signals");
+    if (comptime has_signals) {
+        return nen_net.signals.isShutdownRequested();
+    } else {
+        return false;
+    }
+}
+
+// Run a basic HTTP server.
+fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🌐 Starting NenDB HTTP Server...", .{});
 
     // Initialize database
-    var db = nendb.init() catch |err| {
+    var db = nendb.Database.init(allocator, "server_db", "server_data") catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
     };
@@ -228,12 +241,15 @@ fn run_interactive_server() !void {
         return;
     }
 
-    // Initialize signal handling for graceful shutdown
-    nen_net.signals.init(nen_net.SignalConfig{
-        .enable_graceful_shutdown = true,
-        .shutdown_timeout_ms = 5000,
-        .enable_signal_logging = true,
-    });
+    // Initialize signal handling for graceful shutdown (optional depending on nen-net version)
+    const has_signals = comptime @hasDecl(nen_net, "signals");
+    if (comptime has_signals) {
+        nen_net.signals.init(nen_net.SignalConfig{
+            .enable_graceful_shutdown = true,
+            .shutdown_timeout_ms = 5000,
+            .enable_signal_logging = true,
+        });
+    }
 
     // Create a simple HTTP server using std.net
     const address = std.net.Address.parseIp4("127.0.0.1", 8080) catch |err| {
@@ -268,7 +284,7 @@ fn run_interactive_server() !void {
     var server_running = true;
     while (server_running) {
         // Check for shutdown signal
-        if (nen_net.signals.isShutdownRequested()) {
+        if (shutdownRequested()) {
             try Terminal.infoln("🛑 Graceful shutdown requested...", .{});
             server_running = false;
             break;
@@ -276,7 +292,7 @@ fn run_interactive_server() !void {
 
         // Accept connection with timeout
         const connection = server.accept() catch |err| {
-            if (nen_net.signals.isShutdownRequested()) {
+            if (shutdownRequested()) {
                 try Terminal.infoln("🛑 Shutdown during connection accept", .{});
                 break;
             }
@@ -287,7 +303,7 @@ fn run_interactive_server() !void {
 
         // Handle the request in a simple way
         handleHttpRequest(connection, &db) catch |err| {
-            if (nen_net.signals.isShutdownRequested()) {
+            if (shutdownRequested()) {
                 try Terminal.infoln("🛑 Shutdown during request handling", .{});
                 break;
             }
