@@ -12,8 +12,10 @@ pub fn load_csv_into_db(db: *StaticDB, csv_path: []const u8) !void {
     var col_source: usize = 0;
     var col_target: usize = 1;
     var col_label: usize = 2;
+    var row_count: usize = 0;
+    const MAX_CSV_ROWS = 1000; // Limit CSV loading to prevent arena overflow
     // Read lines one at a time
-    while (!eof) {
+    while (!eof and row_count < MAX_CSV_ROWS) {
         // Read a line
         line_len = 0;
         while (true) {
@@ -104,6 +106,8 @@ pub fn load_csv_into_db(db: *StaticDB, csv_path: []const u8) !void {
                 return e;
             };
         }
+        
+        row_count += 1;
     }
 }
 // NenDB Embedded - Single-User, Local Database
