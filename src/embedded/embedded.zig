@@ -57,25 +57,36 @@ pub fn load_csv_into_db(db: *StaticDB, csv_path: []const u8) !void {
         const source = cols[col_source].?;
         const target = cols[col_target].?;
         const label = cols[col_label].?;
-        std.debug.print("[csv] row: source='{s}' target='{s}' label='{s}' nodes={} edges={}\n", .{ source, target, label, db.node_count, db.edge_count });
+        
+        // Copy strings immediately to arena to avoid buffer reuse issues
+        const src_label = db.arena.alloc(source.len) catch |e| {
+            std.debug.print("[csv] ERROR: src_label alloc failed: {}\n", .{e});
+            return e;
+        };
+        std.mem.copyForwards(u8, src_label, source);
+        
+        const tgt_label = db.arena.alloc(target.len) catch |e| {
+            std.debug.print("[csv] ERROR: tgt_label alloc failed: {}\n", .{e});
+            return e;
+        };
+        std.mem.copyForwards(u8, tgt_label, target);
+        
+        const lbl = db.arena.alloc(label.len) catch |e| {
+            std.debug.print("[csv] ERROR: label alloc failed: {}\n", .{e});
+            return e;
+        };
+        std.mem.copyForwards(u8, lbl, label);
+        
+        std.debug.print("[csv] row: source='{s}' target='{s}' label='{s}' nodes={} edges={}\n", .{ src_label, tgt_label, lbl, db.node_count, db.edge_count });
+        
         // Add nodes (no deduplication for now)
         if (db.node_count < MAX_NODES) {
-            const src_label = db.arena.alloc(source.len) catch |e| {
-                std.debug.print("[csv] ERROR: src_label alloc failed: {}\n", .{e});
-                return e;
-            };
-            std.mem.copyForwards(u8, src_label, source);
             db.add_node(db.node_count + 1, src_label, 1) catch |e| {
                 std.debug.print("[csv] ERROR: add_node src failed: {}\n", .{e});
                 return e;
             };
         }
         if (db.node_count < MAX_NODES) {
-            const tgt_label = db.arena.alloc(target.len) catch |e| {
-                std.debug.print("[csv] ERROR: tgt_label alloc failed: {}\n", .{e});
-                return e;
-            };
-            std.mem.copyForwards(u8, tgt_label, target);
             db.add_node(db.node_count + 1, tgt_label, 1) catch |e| {
                 std.debug.print("[csv] ERROR: add_node tgt failed: {}\n", .{e});
                 return e;
@@ -83,11 +94,6 @@ pub fn load_csv_into_db(db: *StaticDB, csv_path: []const u8) !void {
         }
         // Add edge
         if (db.edge_count < MAX_EDGES) {
-            const lbl = db.arena.alloc(label.len) catch |e| {
-                std.debug.print("[csv] ERROR: label alloc failed: {}\n", .{e});
-                return e;
-            };
-            std.mem.copyForwards(u8, lbl, label);
             db.add_edge(db.node_count - 1, db.node_count, lbl) catch |e| {
                 std.debug.print("[csv] ERROR: add_edge failed: {}\n", .{e});
                 return e;
@@ -104,7 +110,7 @@ const nen_io = @import("nen-io");
 const NetworkSocket = nen_io.network.NetworkSocket;
 const parseAddress = nen_io.network.parseAddress;
 
-const shared = @import("../shared/lib.zig");
+const shared = @import("shared");
 const shared_graph = shared.graph_types;
 const shared_errors = shared.errors;
 const shared_memory = shared.static_memory;
