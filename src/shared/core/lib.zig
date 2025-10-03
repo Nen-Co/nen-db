@@ -16,6 +16,9 @@ pub const constants = @import("constants.zig");
 // Concurrency support
 pub const concurrency = @import("concurrency.zig");
 
+// WAL persistence support
+const wal_mod = @import("memory/wal.zig");
+
 // Knowledge graph utilities
 pub const KnowledgeGraphParser = @import("knowledge_graph_parser.zig").KnowledgeGraphParser;
 pub const KnowledgeTriple = @import("knowledge_graph_parser.zig").KnowledgeTriple;
@@ -79,6 +82,10 @@ pub const Database = struct {
     // Deadlock prevention
     deadlock_detector: concurrency.DeadlockDetector,
 
+    // WAL persistence
+    wal: ?wal_mod.Wal = null,
+    wal_path: []const u8 = "",
+
     const Node = struct {
         id: u64,
         kind: u32,
@@ -97,6 +104,22 @@ pub const Database = struct {
         assert(name.len > 0);
         assert(path.len > 0);
 
+        // Ensure directory exists before creating WAL
+        std.fs.cwd().makeDir(path) catch |err| switch (err) {
+            error.PathAlreadyExists => {}, // Directory already exists, that's fine
+            else => return err,
+        };
+
+        // Create WAL path
+        const wal_path = try std.fmt.allocPrint(allocator, "{s}/nendb.wal", .{path});
+
+        // Initialize WAL (skip for memory databases)
+        var wal: ?wal_mod.Wal = null;
+        if (!std.mem.eql(u8, path, ":memory:")) {
+            wal = try wal_mod.Wal.open(wal_path);
+            std.debug.print("🔧 WAL created at: {s}\n", .{wal_path});
+        }
+
         return Database{
             .name = name,
             .path = path,
@@ -113,6 +136,10 @@ pub const Database = struct {
             .edge_counter = concurrency.AtomicCounter{},
             .metrics = concurrency.ConcurrencyMetrics{},
             .deadlock_detector = concurrency.DeadlockDetector.init(allocator),
+
+            // WAL persistence
+            .wal = wal,
+            .wal_path = wal_path,
         };
     }
 
@@ -120,6 +147,16 @@ pub const Database = struct {
         self.nodes.deinit();
         self.edges.deinit();
         self.deadlock_detector.deinit();
+
+        // Close WAL if it exists
+        if (self.wal) |*w| {
+            w.close();
+        }
+
+        // Free WAL path
+        if (self.wal_path.len > 0) {
+            self.allocator.free(self.wal_path);
+        }
     }
 
     // Thread-safe node insertion
@@ -141,6 +178,13 @@ pub const Database = struct {
 
         try self.nodes.put(id, node);
         _ = self.node_counter.increment();
+
+        // Log to WAL if available
+        if (self.wal) |*w| {
+            w.append_insert_node_soa(id, @as(u8, @truncate(kind))) catch |err| {
+                std.debug.print("⚠️  WAL write failed: {}\n", .{err});
+            };
+        }
 
         self.deadlock_detector.releaseLock(@intCast(id));
     }
@@ -191,6 +235,13 @@ pub const Database = struct {
 
         try self.edges.put(edge_id, edge);
         _ = self.edge_counter.increment();
+
+        // Log to WAL if available
+        if (self.wal) |*w| {
+            w.append_insert_edge_soa(from, to, @as(u16, @truncate(label))) catch |err| {
+                std.debug.print("⚠️  WAL write failed: {}\n", .{err});
+            };
+        }
 
         self.deadlock_detector.releaseLock(@intCast(max_id));
         self.deadlock_detector.releaseLock(@intCast(min_id));

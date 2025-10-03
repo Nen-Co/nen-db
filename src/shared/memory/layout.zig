@@ -13,26 +13,26 @@ const Wal = @import("wal.zig").Wal;
 // Core data structures using Struct of Arrays (SoA) layout
 pub const GraphData = struct {
     // Node data in SoA format
-    node_ids: [constants.memory.node_pool_size]u64 align(constants.memory.simd_alignment),
-    node_kinds: [constants.memory.node_pool_size]u8 align(constants.memory.simd_alignment),
-    node_active: [constants.memory.node_pool_size]bool align(constants.memory.simd_alignment),
-    node_generation: [constants.memory.node_pool_size]u32 align(constants.memory.simd_alignment),
+    node_ids: [constants.DEFAULT_NODE_POOL_SIZE]u64 align(32),
+    node_kinds: [constants.DEFAULT_NODE_POOL_SIZE]u8 align(32),
+    node_active: [constants.DEFAULT_NODE_POOL_SIZE]bool align(32),
+    node_generation: [constants.DEFAULT_NODE_POOL_SIZE]u32 align(32),
 
     // Edge data in SoA format
-    edge_from: [constants.memory.edge_pool_size]u64 align(constants.memory.simd_alignment),
-    edge_to: [constants.memory.edge_pool_size]u64 align(constants.memory.simd_alignment),
-    edge_labels: [constants.memory.edge_pool_size]u16 align(constants.memory.simd_alignment),
-    edge_active: [constants.memory.edge_pool_size]bool align(constants.memory.simd_alignment),
-    edge_generation: [constants.memory.edge_pool_size]u32 align(constants.memory.simd_alignment),
+    edge_from: [constants.DEFAULT_EDGE_POOL_SIZE]u64 align(32),
+    edge_to: [constants.DEFAULT_EDGE_POOL_SIZE]u64 align(32),
+    edge_labels: [constants.DEFAULT_EDGE_POOL_SIZE]u16 align(32),
+    edge_active: [constants.DEFAULT_EDGE_POOL_SIZE]bool align(32),
+    edge_generation: [constants.DEFAULT_EDGE_POOL_SIZE]u32 align(32),
 
     // Embedding data in SoA format
-    embedding_node_ids: [constants.memory.embedding_pool_size]u64 align(constants.memory.simd_alignment),
-    embedding_vectors: [constants.memory.embedding_pool_size][constants.data.embedding_dimensions]f32 align(constants.memory.simd_alignment),
-    embedding_active: [constants.memory.embedding_pool_size]bool align(constants.memory.simd_alignment),
+    embedding_node_ids: [constants.DEFAULT_EMBEDDING_POOL_SIZE]u64 align(32),
+    embedding_vectors: [constants.DEFAULT_EMBEDDING_POOL_SIZE][constants.DEFAULT_EMBEDDING_DIMENSIONS]f32 align(32),
+    embedding_active: [constants.DEFAULT_EMBEDDING_POOL_SIZE]bool align(32),
 
     // Property storage (cold data)
-    node_properties: [constants.memory.node_pool_size]PropertyBlock,
-    edge_properties: [constants.memory.edge_pool_size]PropertyBlock,
+    node_properties: [constants.DEFAULT_NODE_POOL_SIZE]PropertyBlock,
+    edge_properties: [constants.DEFAULT_EDGE_POOL_SIZE]PropertyBlock,
 
     // Statistics
     node_count: u32 = 0,
@@ -41,20 +41,20 @@ pub const GraphData = struct {
 
     pub fn init(_: std.mem.Allocator) GraphData {
         return GraphData{
-            .node_ids = [_]u64{0} ** constants.memory.node_pool_size,
-            .node_kinds = [_]u8{0} ** constants.memory.node_pool_size,
-            .node_active = [_]bool{false} ** constants.memory.node_pool_size,
-            .node_generation = [_]u32{0} ** constants.memory.node_pool_size,
-            .edge_from = [_]u64{0} ** constants.memory.edge_pool_size,
-            .edge_to = [_]u64{0} ** constants.memory.edge_pool_size,
-            .edge_labels = [_]u16{0} ** constants.memory.edge_pool_size,
-            .edge_active = [_]bool{false} ** constants.memory.edge_pool_size,
-            .edge_generation = [_]u32{0} ** constants.memory.edge_pool_size,
-            .embedding_node_ids = [_]u64{0} ** constants.memory.embedding_pool_size,
-            .embedding_vectors = [_][constants.data.embedding_dimensions]f32{[_]f32{0.0} ** constants.data.embedding_dimensions} ** constants.memory.embedding_pool_size,
-            .embedding_active = [_]bool{false} ** constants.memory.embedding_pool_size,
-            .node_properties = [_]PropertyBlock{PropertyBlock.init()} ** constants.memory.node_pool_size,
-            .edge_properties = [_]PropertyBlock{PropertyBlock.init()} ** constants.memory.edge_pool_size,
+            .node_ids = [_]u64{0} ** constants.DEFAULT_NODE_POOL_SIZE,
+            .node_kinds = [_]u8{0} ** constants.DEFAULT_NODE_POOL_SIZE,
+            .node_active = [_]bool{false} ** constants.DEFAULT_NODE_POOL_SIZE,
+            .node_generation = [_]u32{0} ** constants.DEFAULT_NODE_POOL_SIZE,
+            .edge_from = [_]u64{0} ** constants.DEFAULT_EDGE_POOL_SIZE,
+            .edge_to = [_]u64{0} ** constants.DEFAULT_EDGE_POOL_SIZE,
+            .edge_labels = [_]u16{0} ** constants.DEFAULT_EDGE_POOL_SIZE,
+            .edge_active = [_]bool{false} ** constants.DEFAULT_EDGE_POOL_SIZE,
+            .edge_generation = [_]u32{0} ** constants.DEFAULT_EDGE_POOL_SIZE,
+            .embedding_node_ids = [_]u64{0} ** constants.DEFAULT_EMBEDDING_POOL_SIZE,
+            .embedding_vectors = [_][constants.DEFAULT_EMBEDDING_DIMENSIONS]f32{[_]f32{0.0} ** constants.DEFAULT_EMBEDDING_DIMENSIONS} ** constants.DEFAULT_EMBEDDING_POOL_SIZE,
+            .embedding_active = [_]bool{false} ** constants.DEFAULT_EMBEDDING_POOL_SIZE,
+            .node_properties = [_]PropertyBlock{PropertyBlock.init()} ** constants.DEFAULT_NODE_POOL_SIZE,
+            .edge_properties = [_]PropertyBlock{PropertyBlock.init()} ** constants.DEFAULT_EDGE_POOL_SIZE,
         };
     }
 
@@ -64,13 +64,13 @@ pub const GraphData = struct {
     }
 
     pub fn addNodeWithWal(self: *GraphData, id: u64, kind: u8, wal: ?*Wal) !u32 {
-        if (self.node_count >= constants.memory.node_pool_size) {
-            return constants.NenDBError.PoolExhausted;
+        if (self.node_count >= constants.DEFAULT_NODE_POOL_SIZE) {
+            return error.PoolExhausted;
         }
 
         // Check for duplicate IDs using linear search
         if (self.findNodeById(id) != null) {
-            return constants.NenDBError.DuplicateNode;
+            return error.DuplicateNode;
         }
 
         const index = self.node_count;
@@ -122,13 +122,13 @@ pub const GraphData = struct {
     }
 
     pub fn addEdgeWithWal(self: *GraphData, from: u64, to: u64, label: u16, wal: ?*Wal) !u32 {
-        if (self.edge_count >= constants.memory.edge_pool_size) {
-            return constants.NenDBError.PoolExhausted;
+        if (self.edge_count >= constants.DEFAULT_EDGE_POOL_SIZE) {
+            return error.PoolExhausted;
         }
 
         // Validate that both nodes exist
         if (self.findNodeById(from) == null or self.findNodeById(to) == null) {
-            return constants.NenDBError.NodeNotFound;
+            return error.NodeNotFound;
         }
 
         const index = self.edge_count;
@@ -187,7 +187,7 @@ pub const GraphData = struct {
     // Memory management - mark as deleted (soft delete for performance)
     pub fn deleteNode(self: *GraphData, index: u32) !void {
         if (index >= self.node_count) {
-            return constants.NenDBError.InvalidNodeID;
+            return error.InvalidNodeID;
         }
 
         self.node_active[index] = false;
@@ -196,7 +196,7 @@ pub const GraphData = struct {
 
     pub fn deleteEdge(self: *GraphData, index: u32) !void {
         if (index >= self.edge_count) {
-            return constants.NenDBError.InvalidEdgeID;
+            return error.InvalidEdgeID;
         }
 
         self.edge_active[index] = false;
@@ -206,11 +206,11 @@ pub const GraphData = struct {
     // Batch operations for maximum performance
     pub fn batchAddNodes(self: *GraphData, ids: []const u64, kinds: []const u8) ![]u32 {
         if (ids.len != kinds.len) {
-            return constants.NenDBError.InvalidConfiguration;
+            return error.InvalidConfiguration;
         }
 
-        if (self.node_count + ids.len > constants.memory.node_pool_size) {
-            return constants.NenDBError.PoolExhausted;
+        if (self.node_count + ids.len > constants.DEFAULT_NODE_POOL_SIZE) {
+            return error.PoolExhausted;
         }
 
         const start_index = self.node_count;
@@ -236,9 +236,9 @@ pub const GraphData = struct {
     }
 
     // SIMD-optimized embedding operations
-    pub fn addEmbedding(self: *GraphData, node_id: u64, vector: [constants.data.embedding_dimensions]f32) !u32 {
-        if (self.embedding_count >= constants.memory.embedding_pool_size) {
-            return constants.NenDBError.PoolExhausted;
+    pub fn addEmbedding(self: *GraphData, node_id: u64, vector: [constants.DEFAULT_EMBEDDING_DIMENSIONS]f32) !u32 {
+        if (self.embedding_count >= constants.DEFAULT_EMBEDDING_POOL_SIZE) {
+            return error.PoolExhausted;
         }
 
         const index = self.embedding_count;
@@ -256,9 +256,9 @@ pub const GraphData = struct {
             .node_count = self.node_count,
             .edge_count = self.edge_count,
             .embedding_count = self.embedding_count,
-            .node_capacity = constants.memory.node_pool_size,
-            .edge_capacity = constants.memory.edge_pool_size,
-            .embedding_capacity = constants.memory.embedding_pool_size,
+            .node_capacity = constants.DEFAULT_NODE_POOL_SIZE,
+            .edge_capacity = constants.DEFAULT_EDGE_POOL_SIZE,
+            .embedding_capacity = constants.DEFAULT_EMBEDDING_POOL_SIZE,
         };
     }
 
@@ -270,7 +270,7 @@ pub const GraphData = struct {
 
 // Property storage block (cold data)
 pub const PropertyBlock = struct {
-    data: [constants.data.node_props_size]u8 = [_]u8{0} ** constants.data.node_props_size,
+    data: [128]u8 = [_]u8{0} ** 128,
     size: u32 = 0,
 
     pub fn init() PropertyBlock {
@@ -313,39 +313,39 @@ pub const Stats = struct {
 // Component-based architecture
 pub const ComponentSystem = struct {
     // Position components
-    positions: [constants.memory.component_pool_size]Vec3 align(constants.memory.simd_alignment),
-    velocities: [constants.memory.component_pool_size]Vec3 align(constants.memory.simd_alignment),
+    positions: [8192]Vec3 align(32),
+    velocities: [8192]Vec3 align(32),
 
     // Relationship components
-    parent_relationships: [constants.memory.component_pool_size]ParentData align(constants.memory.simd_alignment),
-    sibling_relationships: [constants.memory.component_pool_size]SiblingData align(constants.memory.simd_alignment),
+    parent_relationships: [8192]ParentData align(32),
+    sibling_relationships: [8192]SiblingData align(32),
 
     // AI/ML components
-    embeddings: [constants.memory.component_pool_size]EmbeddingVector align(constants.memory.simd_alignment),
-    attention_weights: [constants.memory.component_pool_size]AttentionData align(constants.memory.simd_alignment),
-    ml_predictions: [constants.memory.component_pool_size]MLPrediction align(constants.memory.simd_alignment),
+    embeddings: [8192]EmbeddingVector align(32),
+    attention_weights: [8192]AttentionData align(32),
+    ml_predictions: [8192]MLPrediction align(32),
 
     // Property components
-    string_properties: [constants.memory.component_pool_size]StringPropertyMap,
-    numeric_properties: [constants.memory.component_pool_size]NumericPropertyMap,
-    boolean_properties: [constants.memory.component_pool_size]BooleanPropertyMap,
+    string_properties: [8192]StringPropertyMap,
+    numeric_properties: [8192]NumericPropertyMap,
+    boolean_properties: [8192]BooleanPropertyMap,
 
     // Component masks for efficient filtering
-    component_masks: [constants.memory.component_pool_size]ComponentMask align(constants.memory.simd_alignment),
+    component_masks: [8192]ComponentMask align(32),
 
     pub fn init() ComponentSystem {
         return ComponentSystem{
-            .positions = [_]Vec3{Vec3.zero()} ** constants.memory.component_pool_size,
-            .velocities = [_]Vec3{Vec3.zero()} ** constants.memory.component_pool_size,
-            .parent_relationships = [_]ParentData{ParentData.init()} ** constants.memory.component_pool_size,
-            .sibling_relationships = [_]SiblingData{SiblingData.init()} ** constants.memory.component_pool_size,
-            .embeddings = [_]EmbeddingVector{EmbeddingVector.init()} ** constants.memory.component_pool_size,
-            .attention_weights = [_]AttentionData{AttentionData.init()} ** constants.memory.component_pool_size,
-            .ml_predictions = [_]MLPrediction{MLPrediction.init()} ** constants.memory.component_pool_size,
-            .string_properties = [_]StringPropertyMap{StringPropertyMap.init()} ** constants.memory.component_pool_size,
-            .numeric_properties = [_]NumericPropertyMap{NumericPropertyMap.init()} ** constants.memory.component_pool_size,
-            .boolean_properties = [_]BooleanPropertyMap{BooleanPropertyMap.init()} ** constants.memory.component_pool_size,
-            .component_masks = [_]ComponentMask{ComponentMask.init()} ** constants.memory.component_pool_size,
+            .positions = [_]Vec3{Vec3.zero()} ** 8192,
+            .velocities = [_]Vec3{Vec3.zero()} ** 8192,
+            .parent_relationships = [_]ParentData{ParentData.init()} ** 8192,
+            .sibling_relationships = [_]SiblingData{SiblingData.init()} ** 8192,
+            .embeddings = [_]EmbeddingVector{EmbeddingVector.init()} ** 8192,
+            .attention_weights = [_]AttentionData{AttentionData.init()} ** 8192,
+            .ml_predictions = [_]MLPrediction{MLPrediction.init()} ** 8192,
+            .string_properties = [_]StringPropertyMap{StringPropertyMap.init()} ** 8192,
+            .numeric_properties = [_]NumericPropertyMap{NumericPropertyMap.init()} ** 8192,
+            .boolean_properties = [_]BooleanPropertyMap{BooleanPropertyMap.init()} ** 8192,
+            .component_masks = [_]ComponentMask{ComponentMask.init()} ** 8192,
         };
     }
 
@@ -392,7 +392,7 @@ pub const SiblingData = struct {
 };
 
 pub const EmbeddingVector = struct {
-    vector: [constants.data.embedding_dimensions]f32 = [_]f32{0.0} ** constants.data.embedding_dimensions,
+    vector: [constants.DEFAULT_EMBEDDING_DIMENSIONS]f32 = [_]f32{0.0} ** constants.DEFAULT_EMBEDDING_DIMENSIONS,
 
     pub fn init() EmbeddingVector {
         return EmbeddingVector{};

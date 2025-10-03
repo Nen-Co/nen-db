@@ -169,11 +169,11 @@ pub const KnowledgeGraphParser = struct {
     }
 
     /// Get existing entity ID or create new entity
-    fn getOrCreateEntity(self: *Self, db: anytype, entity_name: []const u8) !u32 {
+    fn getOrCreateEntity(self: *Self, db: anytype, entity_name: []const u8) !u64 {
         _ = self; // Currently unused but kept for future string data storage
         // Simple hash-based ID generation (in production, use proper ID management)
         const hash = std.hash_map.hashString(entity_name);
-        const entity_id = @as(u32, @truncate(hash)) % 999999; // Keep IDs under 1M
+        const entity_id = @as(u64, @intCast(hash)) % 999999; // Keep IDs under 1M
 
         // Check if entity already exists
         if (db.lookup_node(entity_id)) |_| {

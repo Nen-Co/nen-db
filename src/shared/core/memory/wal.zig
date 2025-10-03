@@ -113,7 +113,7 @@ pub const Wal = struct {
     }
 
     pub fn append_insert_edge_soa(self: *Wal, from: u64, to: u64, label: u16) !void {
-        try self.write_edge_insert(from, to, @as(u8, @intCast(label)));
+        try self.write_edge_insert(from, to, @as(u8, @truncate(label)));
     }
 
     // Simple segment management

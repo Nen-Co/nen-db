@@ -2,6 +2,8 @@ const std = @import("std");
 const nendb = @import("nendb");
 const algorithms = nendb.algorithms;
 const nen_net = @import("nen-net");
+const visualizer_data = @import("visualizer_data.zig");
+const knowledge_graph_parser = @import("knowledge_graph_parser.zig");
 
 // Extract types from nendb lib
 const GraphDB = nendb.GraphDB;
@@ -200,6 +202,15 @@ fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("🌐 Starting NenDB HTTP Server...", .{});
 
     // Initialize database
+    try Terminal.infoln("📁 Creating database directory: server_data", .{});
+    std.fs.cwd().makeDir("server_data") catch |err| switch (err) {
+        error.PathAlreadyExists => {}, // Directory already exists, that's fine
+        else => {
+            try Terminal.errorln("❌ Failed to create server_data directory: {}", .{err});
+            return;
+        },
+    };
+
     var db = nendb.Database.init(allocator, "server_db", "server_data") catch |err| {
         try Terminal.errorln("❌ Failed to initialize database: {}", .{err});
         return;
@@ -241,6 +252,7 @@ fn run_interactive_server(allocator: std.mem.Allocator) !void {
     try Terminal.infoln("  • Server: http://localhost:8080", .{});
     try Terminal.infoln("  • Health: http://localhost:8080/health", .{});
     try Terminal.infoln("  • Stats: http://localhost:8080/graph/stats", .{});
+    try Terminal.infoln("  • 🎨 Graph Visualizer: https://github.com/Nen-Co/nen-visualizer", .{});
     try Terminal.infoln("  • BFS: POST http://localhost:8080/graph/algorithms/bfs", .{});
     try Terminal.infoln("  • Dijkstra: POST http://localhost:8080/graph/algorithms/dijkstra", .{});
     try Terminal.infoln("  • PageRank: POST http://localhost:8080/graph/algorithms/pagerank", .{});
@@ -329,6 +341,16 @@ fn handleHttpRequest(connection: std.net.Server.Connection, db: *nendb.Database)
         try handlePageRankRequest(connection, db, request);
     } else if (std.mem.indexOf(u8, request, "POST /graph/algorithms/community")) |_| {
         try handleCommunityRequest(connection, db, request);
+    } else if (std.mem.indexOf(u8, request, "GET /graph/visualizer/data")) |_| {
+        try handleVisualizerDataRequest(connection, db, request);
+    } else if (std.mem.indexOf(u8, request, "GET /graph/visualizer/nodes")) |_| {
+        try handleVisualizerNodesRequest(connection, db, request);
+    } else if (std.mem.indexOf(u8, request, "GET /graph/visualizer/edges")) |_| {
+        try handleVisualizerEdgesRequest(connection, db, request);
+    } else if (std.mem.indexOf(u8, request, "GET /visualizer")) |_| {
+        try handleVisualizerRedirect(connection, db, request);
+    } else if (std.mem.indexOf(u8, request, "POST /import/csv")) |_| {
+        try handleCsvImportRequest(connection, db, request);
     } else {
         const response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n404 Not Found";
         _ = connection.stream.write(response) catch |err| {
@@ -412,4 +434,379 @@ fn handleCommunityRequest(connection: std.net.Server.Connection, db: *nendb.Data
     _ = connection.stream.write(response) catch |err| {
         try Terminal.warnln("⚠️  Write error: {}", .{err});
     };
+}
+
+// =============================================================================
+// Graph Visualizer API Endpoints
+// =============================================================================
+
+/// Handle complete graph data export for visualization
+fn handleVisualizerDataRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
+    _ = request; // Suppress unused parameter warning
+
+    try Terminal.infoln("📊 Generating visualizer data from database...", .{});
+
+    // Get database stats
+    const stats = db.get_stats();
+    const utilization = stats.memory.nodes.getUtilization();
+
+    // For now, return a simple response with database stats
+    // In a full implementation, this would iterate through the database to build the graph
+    const json_response = try std.fmt.allocPrint(std.heap.page_allocator,
+        \\{{"nodes":[],"edges":[],"metadata":{{"node_count":{d},"edge_count":{d},"utilization":{d:.2},"source":"database"}}}}
+    , .{ stats.memory.nodes.node_count, stats.memory.nodes.edge_count, utilization });
+    defer std.heap.page_allocator.free(json_response);
+
+    const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\n\r\n{s}", .{ json_response.len, json_response });
+    defer std.heap.page_allocator.free(response);
+
+    _ = connection.stream.write(response) catch |err| {
+        try Terminal.warnln("⚠️  Write error: {}", .{err});
+    };
+
+    try Terminal.successln("✅ Served database stats to visualizer", .{});
+}
+
+/// Handle nodes data export for visualization
+fn handleVisualizerNodesRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
+    _ = request; // Suppress unused parameter warning
+
+    const stats = db.get_stats();
+
+    // Create nodes data response (placeholder for now)
+    const json_response = try std.fmt.allocPrint(std.heap.page_allocator,
+        \\{{"nodes":[],"count":{d},"metadata":{{"total_nodes":{d}}}}}
+    , .{ stats.memory.nodes.node_count, stats.memory.nodes.node_count });
+    defer std.heap.page_allocator.free(json_response);
+
+    const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\n\r\n{s}", .{ json_response.len, json_response });
+    defer std.heap.page_allocator.free(response);
+
+    _ = connection.stream.write(response) catch |err| {
+        try Terminal.warnln("⚠️  Write error: {}", .{err});
+    };
+}
+
+/// Handle edges data export for visualization
+fn handleVisualizerEdgesRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
+    _ = request; // Suppress unused parameter warning
+
+    const stats = db.get_stats();
+
+    // Create edges data response (placeholder for now)
+    const json_response = try std.fmt.allocPrint(std.heap.page_allocator,
+        \\{{"edges":[],"count":{d},"metadata":{{"total_edges":{d}}}}}
+    , .{ stats.memory.nodes.edge_count, stats.memory.nodes.edge_count });
+    defer std.heap.page_allocator.free(json_response);
+
+    const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\n\r\n{s}", .{ json_response.len, json_response });
+    defer std.heap.page_allocator.free(response);
+
+    _ = connection.stream.write(response) catch |err| {
+        try Terminal.warnln("⚠️  Write error: {}", .{err});
+    };
+}
+
+/// Handle visualizer redirect - redirect to the dedicated visualizer repository
+fn handleVisualizerRedirect(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
+    _ = request; // Suppress unused parameter warning
+    _ = db; // Suppress unused parameter warning
+
+    const html_content =
+        \\<!DOCTYPE html>
+        \\<html lang="en">
+        \\<head>
+        \\    <meta charset="UTF-8">
+        \\    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        \\    <title>NenDB Graph Visualizer</title>
+        \\    <script src="https://d3js.org/d3.v7.min.js"></script>
+        \\    <style>
+        \\        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        \\        .container { display: flex; height: 100vh; }
+        \\        .sidebar { width: 300px; background: #f8f9fa; border-right: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
+        \\        .main { flex: 1; position: relative; }
+        \\        #graph-container { width: 100%; height: 100%; }
+        \\        .stats { margin-bottom: 20px; }
+        \\        .stat-item { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        \\        .stat-label { font-weight: 600; color: #495057; }
+        \\        .stat-value { color: #007bff; font-family: monospace; }
+        \\        .controls { margin-bottom: 20px; }
+        \\        .btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 8px; }
+        \\        .btn:hover { background: #0056b3; }
+        \\        .btn-secondary { background: #6c757d; }
+        \\        .btn-secondary:hover { background: #545b62; }
+        \\        .loading { text-align: center; color: #6c757d; margin: 20px 0; }
+        \\        .error { color: #dc3545; margin: 10px 0; }
+        \\        .success { color: #28a745; margin: 10px 0; }
+        \\    </style>
+        \\</head>
+        \\<body>
+        \\    <div class="container">
+        \\        <div class="sidebar">
+        \\            <h2>⚡ NenDB Graph Visualizer</h2>
+        \\            <div class="stats">
+        \\                <h3>Database Stats</h3>
+        \\                <div class="stat-item">
+        \\                    <span class="stat-label">Nodes:</span>
+        \\                    <span class="stat-value" id="node-count">-</span>
+        \\                </div>
+        \\                <div class="stat-item">
+        \\                    <span class="stat-label">Edges:</span>
+        \\                    <span class="stat-value" id="edge-count">-</span>
+        \\                </div>
+        \\                <div class="stat-item">
+        \\                    <span class="stat-label">Utilization:</span>
+        \\                    <span class="stat-value" id="utilization">-</span>
+        \\                </div>
+        \\            </div>
+        \\            <div class="controls">
+        \\                <h3>Controls</h3>
+        \\                <button class="btn" onclick="loadGraph()">🔄 Refresh Graph</button>
+        \\                <button class="btn btn-secondary" onclick="clearGraph()">🗑️ Clear</button>
+        \\            </div>
+        \\            <div id="status"></div>
+        \\        </div>
+        \\        <div class="main">
+        \\            <div id="graph-container"></div>
+        \\        </div>
+        \\    </div>
+        \\
+        \\    <script>
+        \\        let graphData = { nodes: [], edges: [] };
+        \\        let svg, simulation;
+        \\        
+        \\        // Initialize the visualization
+        \\        function initVisualization() {
+        \\            svg = d3.select('#graph-container')
+        \\                .append('svg')
+        \\                .attr('width', '100%')
+        \\                .attr('height', '100%');
+        \\                
+        \\            // Add zoom behavior
+        \\            const zoom = d3.zoom()
+        \\                .scaleExtent([0.1, 4])
+        \\                .on('zoom', (event) => {
+        \\                    g.attr('transform', event.transform);
+        \\                });
+        \\                
+        \\            svg.call(zoom);
+        \\            
+        \\            const g = svg.append('g');
+        \\            
+        \\            simulation = d3.forceSimulation()
+        \\                .force('link', d3.forceLink().id(d => d.id).distance(100))
+        \\                .force('charge', d3.forceManyBody().strength(-300))
+        \\                .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
+        \\        }
+        \\        
+        \\        // Load graph data from API
+        \\        async function loadGraph() {
+        \\            showStatus('Loading graph data...', 'loading');
+        \\            
+        \\            try {
+        \\                // Load database stats
+        \\                const statsResponse = await fetch('/graph/stats');
+        \\                const stats = await statsResponse.json();
+        \\                
+        \\                document.getElementById('node-count').textContent = stats.nodes || 0;
+        \\                document.getElementById('edge-count').textContent = stats.edges || 0;
+        \\                document.getElementById('utilization').textContent = (stats.utilization || 0).toFixed(2) + '%';
+        \\                
+        \\                // Load graph data
+        \\                const dataResponse = await fetch('/graph/visualizer/data');
+        \\                const data = await dataResponse.json();
+        \\                
+        \\                graphData = data;
+        \\                updateVisualization();
+        \\                
+        \\                showStatus('Graph loaded successfully!', 'success');
+        \\            } catch (error) {
+        \\                console.error('Error loading graph:', error);
+        \\                showStatus('Error loading graph: ' + error.message, 'error');
+        \\            }
+        \\        }
+        \\        
+        \\        // Update the visualization
+        \\        function updateVisualization() {
+        \\            if (!svg) initVisualization();
+        \\            
+        \\            const g = svg.select('g');
+        \\            
+        \\            // Clear existing elements
+        \\            g.selectAll('*').remove();
+        \\            
+        \\            // Add links (edges)
+        \\            const links = g.append('g')
+        \\                .selectAll('line')
+        \\                .data(graphData.edges || [])
+        \\                .enter().append('line')
+        \\                .attr('stroke', '#999')
+        \\                .attr('stroke-opacity', 0.6)
+        \\                .attr('stroke-width', 2);
+        \\            
+        \\            // Add nodes
+        \\            const nodes = g.append('g')
+        \\                .selectAll('circle')
+        \\                .data(graphData.nodes || [])
+        \\                .enter().append('circle')
+        \\                .attr('r', 10)
+        \\                .attr('fill', '#007bff')
+        \\                .attr('stroke', '#fff')
+        \\                .attr('stroke-width', 2)
+        \\                .call(d3.drag()
+        \\                    .on('start', dragstarted)
+        \\                    .on('drag', dragged)
+        \\                    .on('end', dragended));
+        \\            
+        \\            // Add labels
+        \\            const labels = g.append('g')
+        \\                .selectAll('text')
+        \\                .data(graphData.nodes || [])
+        \\                .enter().append('text')
+        \\                .text(d => d.id || d.label || 'Node')
+        \\                .attr('font-size', 12)
+        \\                .attr('text-anchor', 'middle')
+        \\                .attr('dy', 4);
+        \\            
+        \\            // Update simulation
+        \\            simulation.nodes(graphData.nodes || []);
+        \\            simulation.force('link').links(graphData.edges || []);
+        \\            simulation.alpha(1).restart();
+        \\            
+        \\            // Update positions
+        \\            simulation.on('tick', () => {
+        \\                links
+        \\                    .attr('x1', d => d.source.x)
+        \\                    .attr('y1', d => d.source.y)
+        \\                    .attr('x2', d => d.target.x)
+        \\                    .attr('y2', d => d.target.y);
+        \\                    
+        \\                nodes
+        \\                    .attr('cx', d => d.x)
+        \\                    .attr('cy', d => d.y);
+        \\                    
+        \\                labels
+        \\                    .attr('x', d => d.x)
+        \\                    .attr('y', d => d.y);
+        \\            });
+        \\        }
+        \\        
+        \\        // Drag functions
+        \\        function dragstarted(event, d) {
+        \\            if (!event.active) simulation.alphaTarget(0.3).restart();
+        \\            d.fx = d.x;
+        \\            d.fy = d.y;
+        \\        }
+        \\        
+        \\        function dragged(event, d) {
+        \\            d.fx = event.x;
+        \\            d.fy = event.y;
+        \\        }
+        \\        
+        \\        function dragended(event, d) {
+        \\            if (!event.active) simulation.alphaTarget(0);
+        \\            d.fx = null;
+        \\            d.fy = null;
+        \\        }
+        \\        
+        \\        // Clear the graph
+        \\        function clearGraph() {
+        \\            graphData = { nodes: [], edges: [] };
+        \\            updateVisualization();
+        \\            showStatus('Graph cleared', 'success');
+        \\        }
+        \\        
+        \\        // Show status messages
+        \\        function showStatus(message, type) {
+        \\            const statusEl = document.getElementById('status');
+        \\            statusEl.textContent = message;
+        \\            statusEl.className = type;
+        \\            setTimeout(() => {
+        \\                statusEl.textContent = '';
+        \\                statusEl.className = '';
+        \\            }, 3000);
+        \\        }
+        \\        
+        \\        // Initialize on page load
+        \\        document.addEventListener('DOMContentLoaded', () => {
+        \\            initVisualization();
+        \\            loadGraph();
+        \\        });
+        \\    </script>
+        \\</body>
+        \\</html>
+    ;
+
+    const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {d}\r\n\r\n{s}", .{ html_content.len, html_content });
+    defer std.heap.page_allocator.free(response);
+
+    _ = connection.stream.write(response) catch |err| {
+        try Terminal.warnln("⚠️  Write error: {}", .{err});
+    };
+}
+
+/// Handle CSV import request - load pancreatic cancer dataset into database
+fn handleCsvImportRequest(connection: std.net.Server.Connection, db: *nendb.Database, request: []const u8) !void {
+    _ = request; // Suppress unused parameter warning
+
+    try Terminal.infoln("🔄 Loading pancreatic cancer dataset into NenDB...", .{});
+
+    // Initialize knowledge graph parser
+    var parser = knowledge_graph_parser.KnowledgeGraphParser.init(std.heap.page_allocator);
+
+    // Parse the CSV file
+    const csv_file_path = "data/kg.csv"; // Use the full dataset
+    const triples = parser.parseCSV(csv_file_path) catch |err| {
+        try Terminal.errorln("❌ Failed to parse CSV file: {}", .{err});
+        const error_response = try std.fmt.allocPrint(std.heap.page_allocator,
+            \\{{"status":"error","message":"Failed to parse CSV file: {s}","error":"parse_failed"}}
+        , .{@errorName(err)});
+        defer std.heap.page_allocator.free(error_response);
+
+        const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\n\r\n{s}", .{ error_response.len, error_response });
+        defer std.heap.page_allocator.free(response);
+
+        _ = connection.stream.write(response) catch |write_err| {
+            try Terminal.warnln("⚠️  Write error: {}", .{write_err});
+        };
+        return;
+    };
+    defer triples.deinit();
+
+    // Load triples into database
+    parser.loadIntoDatabase(db, triples.items) catch |err| {
+        try Terminal.errorln("❌ Failed to load data into database: {}", .{err});
+        const error_response = try std.fmt.allocPrint(std.heap.page_allocator,
+            \\{{"status":"error","message":"Failed to load data into database: {s}","error":"load_failed"}}
+        , .{@errorName(err)});
+        defer std.heap.page_allocator.free(error_response);
+
+        const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\n\r\n{s}", .{ error_response.len, error_response });
+        defer std.heap.page_allocator.free(response);
+
+        _ = connection.stream.write(response) catch |write_err| {
+            try Terminal.warnln("⚠️  Write error: {}", .{write_err});
+        };
+        return;
+    };
+
+    // Get updated database stats
+    const stats = db.get_stats();
+
+    // Calculate utilization from node stats
+    const utilization = stats.memory.nodes.getUtilization();
+
+    const success_response = try std.fmt.allocPrint(std.heap.page_allocator,
+        \\{{"status":"success","message":"Pancreatic cancer dataset loaded successfully","triples_parsed":{d},"database_nodes":{d},"database_edges":{d},"utilization":{d:.2}}}
+    , .{ triples.items.len, stats.memory.nodes.node_count, stats.memory.nodes.edge_count, utilization });
+    defer std.heap.page_allocator.free(success_response);
+
+    const response = try std.fmt.allocPrint(std.heap.page_allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\n\r\n{s}", .{ success_response.len, success_response });
+    defer std.heap.page_allocator.free(response);
+
+    _ = connection.stream.write(response) catch |err| {
+        try Terminal.warnln("⚠️  Write error: {}", .{err});
+    };
+
+    try Terminal.successln("✅ Dataset import completed successfully", .{});
 }

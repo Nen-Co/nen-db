@@ -6,30 +6,26 @@ on:
 jobs:
   build-cross-platform:
     name: Build artifacts (matrix)
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux
+          - os: linux
             target: x86_64-linux-gnu
             arch: x86_64
             ext: ""
             archive: tar.gz
-          - os: macos-latest
-            platform: macos
+          - os: macos
             target: x86_64-macos-none
             arch: x86_64
             ext: ""
             archive: tar.gz
-          - os: macos-latest
-            platform: macos
+          - os: macos
             target: aarch64-macos-none
             arch: aarch64
             ext: ""
             archive: tar.gz
-          - os: windows-latest
-            platform: windows
+          - os: windows
             target: x86_64-windows-gnu
             arch: x86_64
             ext: ".exe"
@@ -51,37 +47,35 @@ jobs:
 
       - name: Gather binaries
         run: |
-          mkdir -p artifacts/${{ matrix.platform }}-${{ matrix.arch }}
-          cp -v zig-out/bin/nendb${{ matrix.ext }} artifacts/${{ matrix.platform }}-${{ matrix.arch }}/ || true
-          cp -v zig-out/bin/nendb-server${{ matrix.ext }} artifacts/${{ matrix.platform }}-${{ matrix.arch }}/ || true
-          cp -v README.md artifacts/${{ matrix.platform }}-${{ matrix.arch }}/ || true
-          cp -v LICENSE artifacts/${{ matrix.platform }}-${{ matrix.arch }}/ || true
+          mkdir -p artifacts/${{ matrix.os }}-${{ matrix.arch }}
+          cp -v zig-out/bin/nendb${{ matrix.ext }} artifacts/${{ matrix.os }}-${{ matrix.arch }}/ || true
+          cp -v zig-out/bin/nendb-server${{ matrix.ext }} artifacts/${{ matrix.os }}-${{ matrix.arch }}/ || true
+          cp -v README.md artifacts/${{ matrix.os }}-${{ matrix.arch }}/ || true
+          cp -v LICENSE artifacts/${{ matrix.os }}-${{ matrix.arch }}/ || true
 
       - name: Archive artifacts
         run: |
           cd artifacts
-          TAG=${GITHUB_REF_NAME:-dev}
           if [ "${{ matrix.archive }}" = "zip" ]; then
-            zip -r nen-${TAG}-${{ matrix.platform }}-${{ matrix.arch }}.zip ${{ matrix.platform }}-${{ matrix.arch }}
+            zip -r nen-${{ matrix.os }}-${{ matrix.arch }}.zip ${{ matrix.os }}-${{ matrix.arch }}
           else
-            tar -czf nen-${TAG}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz ${{ matrix.platform }}-${{ matrix.arch }}
+            tar -czf nen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ matrix.os }}-${{ matrix.arch }}
           fi
 
       - name: Compute checksums
         run: |
           cd artifacts
-          TAG=${GITHUB_REF_NAME:-dev}
           if [ "${{ matrix.archive }}" = "zip" ]; then
-            sha256sum nen-${TAG}-${{ matrix.platform }}-${{ matrix.arch }}.zip > nen-${TAG}-${{ matrix.platform }}-${{ matrix.arch }}.zip.sha256
+            sha256sum nen-${{ matrix.os }}-${{ matrix.arch }}.zip > nen-${{ matrix.os }}-${{ matrix.arch }}.sha256
           else
-            sha256sum nen-${TAG}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz > nen-${TAG}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz.sha256
+            sha256sum nen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz > nen-${{ matrix.os }}-${{ matrix.arch }}.sha256
           fi
 
       - name: Upload artifacts to workflow
         uses: actions/upload-artifact@v4
         with:
-          name: nen-${{ matrix.platform }}-${{ matrix.arch }}
-          path: artifacts/nen-*${{ matrix.platform }}-${{ matrix.arch }}.*
+          name: nen-${{ matrix.os }}-${{ matrix.arch }}
+          path: artifacts/nen-${{ matrix.os }}-${{ matrix.arch }}.*
 
   publish-release:
     name: Publish release (tag)
@@ -101,6 +95,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: release-assets/**/nen-${{ github.ref_name }}-*
+          files: release-assets/**/nen-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

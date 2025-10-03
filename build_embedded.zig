@@ -39,6 +39,16 @@ pub fn build(b: *std.Build) void {
         });
     }
 
+    var nen_net: ?*std.Build.Module = null;
+    if (std.fs.cwd().openFile("../nen-net/src/lib.zig", .{}) catch null) |f| {
+        _ = f.close();
+        nen_net = b.addModule("nen-net", .{
+            .root_source_file = b.path("../nen-net/src/lib.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+    }
+
     // Create the embedded library module
     const lib_mod = b.addModule("nendb-embedded", .{
         .root_source_file = b.path("src/embedded.zig"),
@@ -50,6 +60,7 @@ pub fn build(b: *std.Build) void {
     if (nen_core) |nc| lib_mod.addImport("nen-core", nc);
     if (nen_io) |ni| lib_mod.addImport("nen-io", ni);
     if (nen_json) |nj| lib_mod.addImport("nen-json", nj);
+    if (nen_net) |nn| lib_mod.addImport("nen-net", nn);
 
     // Embedded executable
     const exe = b.addExecutable(.{
@@ -61,6 +72,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     exe.root_module.addImport("nendb-embedded", lib_mod);
+    if (nen_net) |nn| exe.root_module.addImport("nen-net", nn);
     b.installArtifact(exe);
 
     // Embedded library for linking
@@ -73,6 +85,7 @@ pub fn build(b: *std.Build) void {
     if (nen_core) |nc| lib.root_module.addImport("nen-core", nc);
     if (nen_io) |ni| lib.root_module.addImport("nen-io", ni);
     if (nen_json) |nj| lib.root_module.addImport("nen-json", nj);
+    if (nen_net) |nn| lib.root_module.addImport("nen-net", nn);
     b.installArtifact(lib);
 
     // Build steps
@@ -88,6 +101,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     tests.root_module.addImport("nendb-embedded", lib_mod);
+    if (nen_net) |nn| tests.root_module.addImport("nen-net", nn);
     test_step.dependOn(&tests.step);
 
     // Example applications

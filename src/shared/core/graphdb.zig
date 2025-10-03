@@ -19,6 +19,7 @@ pub const GraphDB = struct {
     allocator: std.mem.Allocator,
     wal: wal_mod.Wal,
     db_path: []const u8,
+    wal_path: []const u8,
 
     // Statistics for monitoring
     pub const DBMemoryStats = struct {
@@ -44,10 +45,21 @@ pub const GraphDB = struct {
         self.allocator = allocator;
         self.db_path = db_path;
 
+        // Ensure directory exists before creating WAL
+        std.fs.cwd().makeDir(db_path) catch |err| switch (err) {
+            error.PathAlreadyExists => {}, // Directory already exists, that's fine
+            else => return err,
+        };
+
         // Create WAL path from database path
         const wal_path = try std.fmt.allocPrint(allocator, "{s}/nendb.wal", .{db_path});
-        defer allocator.free(wal_path);
+        // Store the wal_path in the struct so it doesn't get freed
+        self.wal_path = wal_path;
+
+        // Debug: print WAL path
+        std.debug.print("🔧 Creating WAL at: {s}\n", .{wal_path});
         self.wal = try wal_mod.Wal.open(wal_path);
+        std.debug.print("✅ WAL created successfully\n", .{});
     }
 
     // Node insertion with SIMD optimization
@@ -141,6 +153,8 @@ pub const GraphDB = struct {
     pub inline fn deinit(self: *GraphDB) void {
         self.graph_data.deinit();
         self.wal.close();
+        // Free the WAL path string
+        self.allocator.free(self.wal_path);
     }
 
     // Get database statistics

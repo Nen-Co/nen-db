@@ -5,6 +5,13 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Register shared module for use as a package
+    const shared_mod = b.addModule("shared", .{
+        .root_source_file = b.path("src/shared/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     // Create dependencies in the right order (nen-core first, then others that depend on it)
     var nen_core: ?*std.Build.Module = null;
     // Only add the module if the sibling repo file exists in CI checkout
@@ -99,9 +106,29 @@ pub fn build(b: *std.Build) void {
     if (nen_core) |nc| embedded_build.root_module.addImport("nen-core", nc);
     if (nen_io) |ni| embedded_build.root_module.addImport("nen-io", ni);
     if (nen_json) |nj| embedded_build.root_module.addImport("nen-json", nj);
+    if (nen_net) |nn| embedded_build.root_module.addImport("nen-net", nn);
+    embedded_build.root_module.addImport("shared", shared_mod);
     b.installArtifact(embedded_build);
     const embedded_step = b.step("nendb-embedded", "Build the nendb-embedded executable");
     embedded_step.dependOn(&embedded_build.step);
+
+    // Add TigerBeetle-style embedded build step
+    const tigerbeetle_embedded_build = b.addExecutable(.{
+        .name = "nendb-tigerbeetle-embedded",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/embedded/tigerbeetle_embedded.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    if (nen_core) |nc| tigerbeetle_embedded_build.root_module.addImport("nen-core", nc);
+    if (nen_io) |ni| tigerbeetle_embedded_build.root_module.addImport("nen-io", ni);
+    if (nen_json) |nj| tigerbeetle_embedded_build.root_module.addImport("nen-json", nj);
+    if (nen_net) |nn| tigerbeetle_embedded_build.root_module.addImport("nen-net", nn);
+    tigerbeetle_embedded_build.root_module.addImport("shared", shared_mod);
+    b.installArtifact(tigerbeetle_embedded_build);
+    const tigerbeetle_embedded_step = b.step("nendb-tigerbeetle-embedded", "Build the TigerBeetle-style embedded executable");
+    tigerbeetle_embedded_step.dependOn(&tigerbeetle_embedded_build.step);
 
     // Add distributed build step
     const distributed_build = b.addExecutable(.{
@@ -387,4 +414,25 @@ pub fn build(b: *std.Build) void {
     // Depend on install to ensure compiled artifacts are present; individual
     // example test steps will run if their sources existed and were wired above.
     test_step.dependOn(b.getInstallStep());
+
+    // Hermetic embedded DB smoke test
+    if (std.fs.cwd().openFile("tests/embedded_db_smoke.zig", .{}) catch null) |f| {
+        _ = f.close();
+        const smoke_test = b.addExecutable(.{
+            .name = "embedded-db-smoke",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tests/embedded_db_smoke.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        // Ensure the smoke test can import nen modules when available
+        smoke_test.root_module.addImport("nendb", lib_mod);
+        if (nen_core) |nc| smoke_test.root_module.addImport("nen-core", nc);
+        if (nen_io) |ni| smoke_test.root_module.addImport("nen-io", ni);
+        if (nen_json) |nj| smoke_test.root_module.addImport("nen-json", nj);
+        // Install the smoke test executable so developers can run it manually
+        // (do not auto-run during `zig build test` to avoid transient port issues).
+        b.installArtifact(smoke_test);
+    }
 }
