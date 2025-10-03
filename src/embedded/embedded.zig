@@ -57,44 +57,49 @@ pub fn load_csv_into_db(db: *StaticDB, csv_path: []const u8) !void {
         const source = cols[col_source].?;
         const target = cols[col_target].?;
         const label = cols[col_label].?;
-        
+
         // Copy strings immediately to arena to avoid buffer reuse issues
         const src_label = db.arena.alloc(source.len) catch |e| {
             std.debug.print("[csv] ERROR: src_label alloc failed: {}\n", .{e});
             return e;
         };
         std.mem.copyForwards(u8, src_label, source);
-        
+
         const tgt_label = db.arena.alloc(target.len) catch |e| {
             std.debug.print("[csv] ERROR: tgt_label alloc failed: {}\n", .{e});
             return e;
         };
         std.mem.copyForwards(u8, tgt_label, target);
-        
+
         const lbl = db.arena.alloc(label.len) catch |e| {
             std.debug.print("[csv] ERROR: label alloc failed: {}\n", .{e});
             return e;
         };
         std.mem.copyForwards(u8, lbl, label);
-        
+
         std.debug.print("[csv] row: source='{s}' target='{s}' label='{s}' nodes={} edges={}\n", .{ src_label, tgt_label, lbl, db.node_count, db.edge_count });
-        
-        // Add nodes (no deduplication for now)
+
+        // Add source node (simple incrementing ID)
+        const src_id = db.node_count + 1;
         if (db.node_count < MAX_NODES) {
-            db.add_node(db.node_count + 1, src_label, 1) catch |e| {
+            db.add_node(src_id, src_label, 1) catch |e| {
                 std.debug.print("[csv] ERROR: add_node src failed: {}\n", .{e});
                 return e;
             };
         }
+
+        // Add target node (simple incrementing ID)
+        const tgt_id = db.node_count + 1;
         if (db.node_count < MAX_NODES) {
-            db.add_node(db.node_count + 1, tgt_label, 1) catch |e| {
+            db.add_node(tgt_id, tgt_label, 1) catch |e| {
                 std.debug.print("[csv] ERROR: add_node tgt failed: {}\n", .{e});
                 return e;
             };
         }
-        // Add edge
+
+        // Add edge between source and target
         if (db.edge_count < MAX_EDGES) {
-            db.add_edge(db.node_count - 1, db.node_count, lbl) catch |e| {
+            db.add_edge(src_id, tgt_id, lbl) catch |e| {
                 std.debug.print("[csv] ERROR: add_edge failed: {}\n", .{e});
                 return e;
             };
@@ -122,9 +127,9 @@ pub const Error = error{ NodeFull, EdgeFull };
 // following the NenWay rules: static allocation at startup, no dynamic
 // allocation after init. It exposes a tiny TCP protocol for the visualizer.
 
-pub const MAX_NODES: usize = 1024; // reasonable default for embedded demo
-pub const MAX_EDGES: usize = 4096;
-pub const TCP_PORT: u16 = 4488;
+pub const MAX_NODES: usize = 10000; // increased for larger datasets
+pub const MAX_EDGES: usize = 50000;
+pub const TCP_PORT: u16 = 8080;
 
 const Node = shared_graph.Node;
 const Edge = shared_graph.Edge;
@@ -138,7 +143,7 @@ pub const StaticDB = struct {
     // visualizer JSON constructed at init time and reused for all requests
     visualizer_json: ?[]const u8,
     // internal arena for runtime allocations (labels, serialization)
-    arena_buffer: [64 * 1024]u8,
+    arena_buffer: [8 * 1024 * 1024]u8,
     arena: shared_memory.FixedBufferArena,
 
     pub fn init() StaticDB {
