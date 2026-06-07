@@ -372,6 +372,7 @@ See [DOCKER.md](DOCKER.md) for comprehensive Docker usage instructions.
 - 📖 **API Reference**: [https://nen-co.github.io/docs/nendb/api/](https://nen-co.github.io/docs/nendb/api/)
 - 🐍 **Python Client**: [PyPI Package](https://pypi.org/project/nendb/) | [GitHub](https://github.com/Nen-Co/nendb-python)
 - 🐳 **Docker Guide**: [DOCKER.md](DOCKER.md)
+- 🛠️ **Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ### 🐍 **Python Driver**
 
